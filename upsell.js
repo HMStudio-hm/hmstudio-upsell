@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v1.0.0
+// src/scripts/upsell.js v1.0.1
 // HMStudio Upsell Feature
 
 (function() {
@@ -15,7 +15,8 @@
       const scriptTag = document.currentScript;
       const scriptUrl = new URL(scriptTag.src);
       const campaignsData = scriptUrl.searchParams.get('campaigns');
-      
+      console.log('Raw campaigns data:', campaignsData); // Add this
+
       if (!campaignsData) {
         console.log('No campaigns data found in URL');
         return [];
@@ -23,7 +24,9 @@
   
       try {
         const decodedData = atob(campaignsData);
-        return JSON.parse(decodedData);
+        const parsedData = JSON.parse(decodedData);
+        console.log('Parsed campaigns data:', parsedData); // Add this
+        return parsedData;
       } catch (error) {
         console.error('Error parsing campaigns data:', error);
         return [];
@@ -251,15 +254,21 @@
       },
   
       handleAddToCart(productData) {
+        console.log('Product added to cart:', productData); // Add this
+    console.log('Available campaigns:', this.campaigns); // Add this
+
         // Clear any existing timeout
         if (this.activeTimeout) {
           clearTimeout(this.activeTimeout);
         }
   
         const matchingCampaign = this.findMatchingCampaign(productData.id);
+        console.log('Matching campaign found:', matchingCampaign); // Add this
         if (matchingCampaign) {
           // Small delay to show upsell after cart animation
           this.activeTimeout = setTimeout(() => {
+            console.log('Creating upsell modal for campaign:', matchingCampaign); // Add this
+
             this.createUpsellModal(matchingCampaign, productData);
           }, 500);
         }
@@ -271,10 +280,14 @@
         // Listen for add to cart events
         const originalAddProduct = zid.store.cart.addProduct;
         zid.store.cart.addProduct = async function(...args) {
+          console.log('Add to cart triggered with args:', args); // Add this
+
           try {
             const result = await originalAddProduct.apply(zid.store.cart, args);
+            console.log('Add to cart result:', result); // Add this
             if (result.status === 'success') {
               const productId = args[0]?.data?.product_id;
+              console.log('Product ID extracted:', productId); // Add this
               if (productId) {
                 UpsellManager.handleAddToCart({ id: productId });
               }
