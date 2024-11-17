@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v1.0.5
+// src/scripts/upsell.js v1.0.6
 // HMStudio Upsell Feature
 
 (function() {
@@ -244,23 +244,57 @@
     },
 
     async addToCart(product) {
+      console.log('Adding product to cart:', product);
       try {
-        const response = await zid.store.cart.addProduct({
+        // Create form data
+        const addToCartData = {
+          formId: null,
           data: {
             product_id: product.id,
-            quantity: 1
+            quantity: 1,
+            options: []
           }
-        });
+        };
 
-        if (response.status === 'success') {
-          if (typeof setCartBadge === 'function') {
-            setCartBadge(response.data.cart.products_count);
+        console.log('Sending add to cart request with data:', addToCartData);
+
+        // Call Zid's cart API
+        const result = await window.zid.store.cart.addProduct(addToCartData);
+        
+        console.log('Add to cart response:', result);
+
+        if (result && result.status === 'success') {
+          // Call setCartBadge if it exists
+          if (typeof setCartBadge === 'function' && result.data && result.data.cart) {
+            setCartBadge(result.data.cart.products_count);
           }
-          // Close modal after successful add
+          
+          // Call updateMiniCart if it exists
+          if (typeof updateMiniCart === 'function') {
+            updateMiniCart();
+          }
+
+          // Close the modal
           this.closeModal();
+
+          // Show success message if toastr exists
+          if (window.toastr) {
+            const message = getCurrentLanguage() === 'ar'
+              ? 'تمت إضافة المنتج إلى السلة بنجاح'
+              : 'Product added to cart successfully';
+            window.toastr.success(message);
+          }
+        } else {
+          throw new Error('Failed to add product to cart');
         }
       } catch (error) {
         console.error('Error adding upsell product to cart:', error);
+        if (window.toastr) {
+          const message = getCurrentLanguage() === 'ar'
+            ? 'حدث خطأ أثناء إضافة المنتج إلى السلة'
+            : 'Error occurred while adding product to cart';
+          window.toastr.error(message);
+        }
       }
     },
 
