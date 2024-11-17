@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v1.0.4
+// src/scripts/upsell.js v1.0.5
 // HMStudio Upsell Feature
 
 (function() {
@@ -50,130 +50,141 @@
     activeTimeout: null,
 
     showUpsellModal(campaign, productCart) {
+      console.log('showUpsellModal called with:', { campaign, productCart });
+      
+      if (!campaign || !campaign.upsellProducts || campaign.upsellProducts.length === 0) {
+        console.warn('Invalid campaign data:', campaign);
+        return;
+      }
+
       const currentLang = getCurrentLanguage();
       const isRTL = currentLang === 'ar';
 
-      console.log('Showing upsell modal for campaign:', campaign);
+      try {
+        // Remove existing modal if any
+        if (this.currentModal) {
+          this.currentModal.remove();
+        }
 
-      // Remove existing modal if any
-      if (this.currentModal) {
-        this.currentModal.remove();
+        const modal = document.createElement('div');
+        modal.className = 'hmstudio-upsell-modal';
+        modal.style.cssText = `
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background-color: rgba(0, 0, 0, 0.5);
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          z-index: 999999;
+          opacity: 0;
+          transition: opacity 0.3s ease;
+        `;
+
+        const content = document.createElement('div');
+        content.className = 'hmstudio-upsell-content';
+        content.style.cssText = `
+          background: white;
+          padding: 25px;
+          border-radius: 8px;
+          max-width: 800px;
+          width: 90%;
+          max-height: 90vh;
+          overflow-y: auto;
+          position: relative;
+          transform: translateY(20px);
+          transition: transform 0.3s ease;
+          direction: ${isRTL ? 'rtl' : 'ltr'};
+        `;
+
+        // Close button
+        const closeButton = document.createElement('button');
+        closeButton.innerHTML = '✕';
+        closeButton.style.cssText = `
+          position: absolute;
+          top: 15px;
+          ${isRTL ? 'left' : 'right'}: 15px;
+          background: none;
+          border: none;
+          font-size: 20px;
+          cursor: pointer;
+          color: #666;
+          padding: 5px;
+          line-height: 1;
+        `;
+        closeButton.addEventListener('click', () => this.closeModal());
+
+        // Title
+        const title = document.createElement('h3');
+        title.style.cssText = `
+          font-size: 1.5em;
+          margin: 0 0 20px;
+          padding-${isRTL ? 'left' : 'right'}: 30px;
+        `;
+        title.textContent = currentLang === 'ar' ? 'عروض خاصة لك!' : 'Special Offers for You!';
+
+        // Subtitle with trigger product name
+        const subtitle = document.createElement('p');
+        subtitle.style.cssText = `
+          color: #666;
+          margin-bottom: 20px;
+          font-size: 1.1em;
+        `;
+        subtitle.textContent = currentLang === 'ar' 
+          ? `أضف هذه المنتجات المكملة لـ ${productCart.name}!`
+          : `Add these complementary products for ${productCart.name}!`;
+
+        // Products grid
+        const productsGrid = document.createElement('div');
+        productsGrid.style.cssText = `
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+          gap: 20px;
+          margin-top: 20px;
+        `;
+
+        // Add upsell products
+        campaign.upsellProducts.forEach(product => {
+          const productCard = this.createProductCard(product);
+          productsGrid.appendChild(productCard);
+        });
+
+        // Assemble modal
+        content.appendChild(closeButton);
+        content.appendChild(title);
+        content.appendChild(subtitle);
+        content.appendChild(productsGrid);
+        modal.appendChild(content);
+        document.body.appendChild(modal);
+
+        // Show modal with animation
+        requestAnimationFrame(() => {
+          modal.style.opacity = '1';
+          content.style.transform = 'translateY(0)';
+        });
+
+        this.currentModal = modal;
+
+        // Close modal when clicking outside
+        modal.addEventListener('click', (e) => {
+          if (e.target === modal) {
+            this.closeModal();
+          }
+        });
+
+        // Handle escape key
+        document.addEventListener('keydown', (e) => {
+          if (e.key === 'Escape') {
+            this.closeModal();
+          }
+        });
+
+        console.log('Modal created successfully');
+      } catch (error) {
+        console.error('Error creating upsell modal:', error);
       }
-
-      const modal = document.createElement('div');
-      modal.className = 'hmstudio-upsell-modal';
-      modal.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background-color: rgba(0, 0, 0, 0.5);
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        z-index: 999999;
-        opacity: 0;
-        transition: opacity 0.3s ease;
-      `;
-
-      const content = document.createElement('div');
-      content.className = 'hmstudio-upsell-content';
-      content.style.cssText = `
-        background: white;
-        padding: 25px;
-        border-radius: 8px;
-        max-width: 800px;
-        width: 90%;
-        max-height: 90vh;
-        overflow-y: auto;
-        position: relative;
-        transform: translateY(20px);
-        transition: transform 0.3s ease;
-        direction: ${isRTL ? 'rtl' : 'ltr'};
-      `;
-
-      // Close button
-      const closeButton = document.createElement('button');
-      closeButton.innerHTML = '✕';
-      closeButton.style.cssText = `
-        position: absolute;
-        top: 15px;
-        ${isRTL ? 'left' : 'right'}: 15px;
-        background: none;
-        border: none;
-        font-size: 20px;
-        cursor: pointer;
-        color: #666;
-        padding: 5px;
-        line-height: 1;
-      `;
-      closeButton.addEventListener('click', () => this.closeModal());
-
-      // Title
-      const title = document.createElement('h3');
-      title.style.cssText = `
-        font-size: 1.5em;
-        margin: 0 0 20px;
-        padding-${isRTL ? 'left' : 'right'}: 30px;
-      `;
-      title.textContent = currentLang === 'ar' ? 'عروض خاصة لك!' : 'Special Offers for You!';
-
-      // Subtitle with trigger product name
-      const subtitle = document.createElement('p');
-      subtitle.style.cssText = `
-        color: #666;
-        margin-bottom: 20px;
-        font-size: 1.1em;
-      `;
-      subtitle.textContent = currentLang === 'ar' 
-        ? `أضف هذه المنتجات المكملة لـ ${productCart.name}!`
-        : `Add these complementary products for ${productCart.name}!`;
-
-      // Products grid
-      const productsGrid = document.createElement('div');
-      productsGrid.style.cssText = `
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 20px;
-        margin-top: 20px;
-      `;
-
-      // Add upsell products
-      campaign.upsellProducts.forEach(product => {
-        const productCard = this.createProductCard(product);
-        productsGrid.appendChild(productCard);
-      });
-
-      // Assemble modal
-      content.appendChild(closeButton);
-      content.appendChild(title);
-      content.appendChild(subtitle);
-      content.appendChild(productsGrid);
-      modal.appendChild(content);
-      document.body.appendChild(modal);
-
-      // Show modal with animation
-      requestAnimationFrame(() => {
-        modal.style.opacity = '1';
-        content.style.transform = 'translateY(0)';
-      });
-
-      this.currentModal = modal;
-
-      // Close modal when clicking outside
-      modal.addEventListener('click', (e) => {
-        if (e.target === modal) {
-          this.closeModal();
-        }
-      });
-
-      // Handle escape key
-      document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') {
-          this.closeModal();
-        }
-      });
     },
 
     createProductCard(product) {
@@ -265,13 +276,19 @@
     },
 
     initialize() {
-      console.log('Initializing Upsell with campaigns:', this.campaigns);
-
-      // Expose necessary functions globally
-      window.HMStudioUpsell = {
-        showUpsellModal: this.showUpsellModal.bind(this),
-        closeModal: this.closeModal.bind(this)
-      };
+      console.log('Initializing Upsell');
+      
+      // Make sure the global object is available
+      if (!window.HMStudioUpsell) {
+        window.HMStudioUpsell = {
+          showUpsellModal: (...args) => {
+            console.log('showUpsellModal called with args:', args);
+            return this.showUpsellModal.apply(this, args);
+          },
+          closeModal: () => this.closeModal()
+        };
+        console.log('Global HMStudioUpsell object created');
+      }
 
       // Handle page visibility changes
       document.addEventListener('visibilitychange', () => {
