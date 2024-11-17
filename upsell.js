@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v1.1.2
+// src/scripts/upsell.js v1.1.3
 // HMStudio Upsell Feature
 
 (function() {
@@ -189,62 +189,50 @@
     createProductCard(product) {
       const currentLang = getCurrentLanguage();
       const isRTL = currentLang === 'ar';
-      const uniqueFormId = `product-form-${product.id}`; // Create unique form ID
 
-      // Get the correct product name
-  let productName = product.name;
-  if (typeof product.name === 'object') {
-    productName = currentLang === 'ar' ? product.name.ar : product.name.en;
-  }
-  // Decode the name if it's encoded
-  try {
-    productName = decodeURIComponent(escape(productName));
-  } catch (e) {
-    console.warn('Error decoding product name:', e);
-  }
+      const card = document.createElement('div');
+      card.className = 'hmstudio-upsell-product-card';
+      card.style.cssText = `
+        border: 1px solid #eee;
+        border-radius: 8px;
+        padding: 15px;
+        text-align: center;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+      `;
 
-  const card = document.createElement('div');
-  card.className = 'hmstudio-upsell-product-card';
-  card.style.cssText = `
-    border: 1px solid #eee;
-    border-radius: 8px;
-    padding: 15px;
-    text-align: center;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-  `;
+      // Create form with specific structure that Zid expects
+      const form = document.createElement('form');
+      form.id = 'product-form'; // Keep this ID consistent like in Quick View
 
-       // Create form with unique ID
-  const form = document.createElement('form');
-  form.id = uniqueFormId;
-  form.style.display = 'none';
-      
       // Product ID input
-  const productIdInput = document.createElement('input');
-  productIdInput.type = 'hidden';
-  productIdInput.id = `product-id-${product.id}`; // Unique ID for input
-  productIdInput.name = 'product_id';
-  productIdInput.value = product.id;
-  form.appendChild(productIdInput);
+      const productIdInput = document.createElement('input');
+      productIdInput.type = 'hidden';
+      productIdInput.name = 'product_id';
+      productIdInput.value = product.id;
+      form.appendChild(productIdInput);
 
       // Hidden quantity input
-  const quantityInputHidden = document.createElement('input');
-  quantityInputHidden.type = 'hidden';
-  quantityInputHidden.id = `quantity-${product.id}`; // Unique ID for quantity
-  quantityInputHidden.name = 'quantity';
-  quantityInputHidden.value = '1';
-  form.appendChild(quantityInputHidden);
+      const quantityInputHidden = document.createElement('input');
+      quantityInputHidden.type = 'hidden';
+      quantityInputHidden.name = 'quantity';
+      quantityInputHidden.value = '1';
+      form.appendChild(quantityInputHidden);
 
-      // Product Image and Name
+      // Product content
       const productContent = `
-    <img 
-      src="${product.thumbnail}" 
-      alt="${productName}" 
-      style="width: 100%; height: 150px; object-fit: contain; margin-bottom: 10px;"
-    >
-    <h4 style="font-size: 1em; margin: 10px 0; min-height: 40px;">
-      ${productName}
-    </h4>
-  `;
+        <img 
+          src="${product.thumbnail}" 
+          alt="${product.name}" 
+          style="width: 100%; height: 150px; object-fit: contain; margin-bottom: 10px;"
+        >
+        <h4 style="font-size: 1em; margin: 10px 0; min-height: 40px;">
+          ${product.name}
+        </h4>
+      `;
+
+      // Add form first
+      card.innerHTML = productContent;
+      card.appendChild(form);
 
       // Quantity selector container
       const quantityContainer = document.createElement('div');
@@ -292,7 +280,7 @@
         transition: background-color 0.3s ease;
       `;
 
-      // Visible quantity input
+      // Quantity input
       const quantityInput = document.createElement('input');
       quantityInput.type = 'number';
       quantityInput.min = '1';
@@ -356,6 +344,14 @@
         }
       });
 
+      // Prevent scrolling when focusing input on mobile
+      quantityInput.addEventListener('focus', (e) => {
+        e.preventDefault();
+        if (window.innerWidth <= 768) {
+          quantityInput.blur();
+        }
+      });
+
       // Update hidden input when visible quantity changes
       quantityInput.addEventListener('change', () => {
         let value = parseInt(quantityInput.value);
@@ -367,7 +363,8 @@
 
       // Add to cart button
       const addButton = document.createElement('button');
-      addButton.className = 'hmstudio-upsell-add-to-cart btn btn-primary';
+      addButton.className = 'hmstudio-upsell-add-to-cart';
+      addButton.type = 'button';
       addButton.style.cssText = `
         background: var(--theme-primary, #00b286);
         color: white;
@@ -389,65 +386,40 @@
       quantityContainer.appendChild(quantityLabel);
       quantityContainer.appendChild(quantityWrapper);
 
-      // Add main content
-      card.innerHTML = productContent;
-      card.appendChild(form);
       card.appendChild(quantityContainer);
       card.appendChild(addButton);
 
-      // Hover effects for card
-      card.addEventListener('mouseover', () => {
-        card.style.transform = 'translateY(-5px)';
-        card.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
-      });
-
-      card.addEventListener('mouseout', () => {
-        card.style.transform = 'translateY(0)';
-        card.style.boxShadow = 'none';
-      });
-
       // Add to cart functionality
       addButton.addEventListener('click', () => {
-        const visibleQuantityInput = card.querySelector('input[type="number"]');
-        if (visibleQuantityInput) {
-          const quantity = parseInt(visibleQuantityInput.value);
-          this.addToCart(product, quantity, uniqueFormId);
+        const currentForm = card.querySelector('form');
+        if (currentForm) {
+          // Update form quantity before submission
+          const hiddenQuantity = currentForm.querySelector('input[name="quantity"]');
+          if (hiddenQuantity && quantityInput) {
+            hiddenQuantity.value = quantityInput.value;
+          }
+          this.addToCart(product, currentForm);
         }
       });
-    
+
       return card;
     },
 
-    async addToCart(product, quantity, formId) {
+    async addToCart(product, form) {
       try {
-        console.log('Adding to cart:', { product, quantity, formId });
-        
-        // Get form with unique ID
-        const form = document.getElementById(formId);
-        if (!form) {
-          console.error(`Form not found with ID: ${formId}`);
-          return;
-        }
-    
-        // Update hidden quantity input
-        const quantityInput = form.querySelector(`#quantity-${product.id}`);
-        if (quantityInput) {
-          quantityInput.value = quantity;
-        }
-    
-        // Get the form data
+        // Get form data
         const formData = new FormData(form);
         console.log('Form data being submitted:', {
           product_id: formData.get('product_id'),
           quantity: formData.get('quantity')
         });
-    
-        // Call Zid's cart function with the correct form ID
-        zid.store.cart.addProduct({ 
-          formId: formId,
+
+        // Use Zid's cart function
+        zid.store.cart.addProduct({
+          formId: form.id,
           data: {
             product_id: formData.get('product_id'),
-            quantity: formData.get('quantity')
+            quantity: parseInt(formData.get('quantity'))
           }
         })
         .then((response) => {
@@ -456,8 +428,6 @@
             if (typeof setCartBadge === 'function') {
               setCartBadge(response.data.cart.products_count);
             }
-            // Optional: Don't close modal after adding product
-            // this.closeModal();
           } else {
             console.error('Add to cart failed:', response);
             const errorMessage = getCurrentLanguage() === 'ar' 
@@ -475,10 +445,10 @@
         });
       } catch (error) {
         console.error('Error adding upsell product to cart:', error);
-        const errorMessage = getCurrentLanguage() === 'ar' 
+        alert(getCurrentLanguage() === 'ar' 
           ? 'حدث خطأ أثناء إضافة المنتج إلى السلة'
-          : 'Error occurred while adding product to cart';
-        alert(errorMessage);
+          : 'Error occurred while adding product to cart'
+        );
       }
     },
     closeModal() {
@@ -521,6 +491,20 @@
           if (content) {
             content.style.maxHeight = `${window.innerHeight * 0.9}px`;
           }
+        }
+      });
+
+      // Handle custom close events (e.g., from navigation)
+      document.addEventListener('routeChange', () => {
+        if (this.currentModal) {
+          this.closeModal();
+        }
+      });
+
+      // Close modal on back button press
+      window.addEventListener('popstate', () => {
+        if (this.currentModal) {
+          this.closeModal();
         }
       });
     }
