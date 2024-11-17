@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v1.0.2
+// src/scripts/upsell.js v1.0.3
 // HMStudio Upsell Feature
 
 (function() {
@@ -290,24 +290,28 @@
   
       initialize() {
         console.log('Initializing Upsell with campaigns:', this.campaigns);
-      
-        // Modify the cart override
+    
+        // Add Event-Specific listener for Add to Cart
+        zid.store.on('addToCart', (event) => {
+          console.log('Add to Cart Event triggered:', event);
+          const productData = event.productCart;
+          
+          if (productData && productData.product_id) {
+            this.handleAddToCart({
+              id: productData.product_id,
+              name: productData.name,
+              price: productData.price,
+              category: productData.category
+            });
+          }
+        });
+    
+        // Keep Global Script override as fallback
         const originalAddProduct = zid.store.cart.addProduct;
         zid.store.cart.addProduct = async function(...args) {
-          console.log('Add to cart triggered with args:', args);
           try {
             const result = await originalAddProduct.apply(zid.store.cart, args);
             console.log('Add to cart result:', result);
-            if (result.status === 'success') {
-              // Update this part to correctly get the product ID
-              const productId = result.data.product.product_id || 
-                               args[0]?.data?.product_id;
-              
-              console.log('Product ID extracted:', productId);
-              if (productId) {
-                UpsellManager.handleAddToCart({ id: productId });
-              }
-            }
             return result;
           } catch (error) {
             console.error('Error in cart add:', error);
@@ -315,26 +319,38 @@
           }
         };
       
+        // Add listeners for other events (optional)
+    zid.store.on('removeFromCart', (event) => {
+      console.log('Product removed from cart:', event);
+      // Handle removal if needed
+    });
+
+    zid.store.on('startCheckout', (event) => {
+      console.log('Checkout started:', event);
+      // Close any open upsell modal
+      if (this.currentModal) {
+        this.closeModal();
+      }
+    });
   
         // Handle page visibility changes
-        document.addEventListener('visibilitychange', () => {
-          if (document.hidden && this.currentModal) {
-            this.closeModal();
-          }
-        });
-  
-        // Handle window resize
-        window.addEventListener('resize', () => {
-          if (this.currentModal) {
-            // Adjust modal positioning if needed
-            const content = this.currentModal.querySelector('.hmstudio-upsell-content');
-            if (content) {
-              content.style.maxHeight = `${window.innerHeight * 0.9}px`;
-            }
-          }
-        });
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden && this.currentModal) {
+        this.closeModal();
       }
-    };
+    });
+
+    // Handle window resize
+    window.addEventListener('resize', () => {
+      if (this.currentModal) {
+        const content = this.currentModal.querySelector('.hmstudio-upsell-content');
+        if (content) {
+          content.style.maxHeight = `${window.innerHeight * 0.9}px`;
+        }
+      }
+    });
+  }
+};
   
     // Initialize when DOM is ready
     if (document.readyState === 'loading') {
