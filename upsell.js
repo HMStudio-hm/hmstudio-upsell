@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v1.1.0
+// src/scripts/upsell.js v1.1.1
 // HMStudio Upsell Feature
 
 (function() {
@@ -189,6 +189,19 @@
     createProductCard(product) {
       const currentLang = getCurrentLanguage();
       const isRTL = currentLang === 'ar';
+
+      // Get the correct product name
+  let productName = product.name;
+  if (typeof product.name === 'object') {
+    productName = currentLang === 'ar' ? product.name.ar : product.name.en;
+  }
+  // Decode the name if it's encoded
+  try {
+    productName = decodeURIComponent(escape(productName));
+  } catch (e) {
+    console.warn('Error decoding product name:', e);
+  }
+
       const card = document.createElement('div');
       card.className = 'hmstudio-upsell-product-card';
       card.style.cssText = `
@@ -221,15 +234,15 @@
 
       // Product Image and Name
       const productContent = `
-        <img 
-          src="${product.thumbnail}" 
-          alt="${product.name}" 
-          style="width: 100%; height: 150px; object-fit: contain; margin-bottom: 10px;"
-        >
-        <h4 style="font-size: 1em; margin: 10px 0; min-height: 40px;">
-          ${product.name}
-        </h4>
-      `;
+    <img 
+      src="${product.thumbnail}" 
+      alt="${productName}" 
+      style="width: 100%; height: 150px; object-fit: contain; margin-bottom: 10px;"
+    >
+    <h4 style="font-size: 1em; margin: 10px 0; min-height: 40px;">
+      ${productName}
+    </h4>
+  `;
 
       // Quantity selector container
       const quantityContainer = document.createElement('div');
