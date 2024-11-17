@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v1.1.5
+// src/scripts/upsell.js v1.1.6
 // HMStudio Upsell Feature
 
 (function() {
@@ -44,23 +44,6 @@
     return;
   }
 
-  function decodeArabicText(text) {
-    try {
-      // First try to decode as URI encoded
-      return decodeURIComponent(text);
-    } catch (e) {
-      try {
-        // If that fails, try escape/unescape method
-        return decodeURIComponent(escape(text));
-      } catch (e2) {
-        // If all decoding fails, return original text
-        console.warn('Failed to decode text:', text);
-        return text;
-      }
-    }
-  }
-  
-
   const UpsellManager = {
     campaigns: getCampaignsFromUrl(),
     currentModal: null,
@@ -76,6 +59,21 @@
 
       const currentLang = getCurrentLanguage();
       const isRTL = currentLang === 'ar';
+
+      // Helper function for decoding names
+      const decodeProductName = (name) => {
+        if (!name) return '';
+        try {
+          return decodeURIComponent(escape(name));
+        } catch (e) {
+          try {
+            return decodeURIComponent(name);
+          } catch (e2) {
+            console.warn('Could not decode product name:', e2);
+            return name;
+          }
+        }
+      };
 
       try {
         // Remove existing modal if any
@@ -142,17 +140,17 @@
         `;
         title.textContent = currentLang === 'ar' ? 'عروض خاصة لك!' : 'Special Offers for You!';
 
-        // Subtitle with trigger product name
+        // Subtitle with trigger product name (decode the product name)
         const subtitle = document.createElement('p');
-subtitle.style.cssText = `
-  color: #666;
-  margin-bottom: 20px;
-  font-size: 1.1em;
-`;
-const decodedProductName = decodeArabicText(productCart.name);
-subtitle.textContent = currentLang === 'ar' 
-  ? `أضف هذه المنتجات المكملة لـ ${decodedProductName}!`
-  : `Add these complementary products for ${decodedProductName}!`;
+        subtitle.style.cssText = `
+          color: #666;
+          margin-bottom: 20px;
+          font-size: 1.1em;
+        `;
+        const decodedProductName = decodeProductName(productCart.name);
+        subtitle.textContent = currentLang === 'ar' 
+          ? `أضف هذه المنتجات المكملة لـ ${decodedProductName}!`
+          : `Add these complementary products for ${decodedProductName}!`;
 
         // Products grid
         const productsGrid = document.createElement('div');
@@ -209,6 +207,28 @@ subtitle.textContent = currentLang === 'ar'
       const isRTL = currentLang === 'ar';
       const uniqueId = `product-form-${product.id}`;
 
+      // Helper function for name decoding
+      const decodeProductName = (name) => {
+        if (!name) return '';
+        try {
+          return decodeURIComponent(escape(name));
+        } catch (e) {
+          try {
+            return decodeURIComponent(name);
+          } catch (e2) {
+            console.warn('Could not decode product name:', e2);
+            return name;
+          }
+        }
+      };
+
+      // Get the correct product name
+      let productName = product.name;
+      if (typeof product.name === 'object') {
+        productName = currentLang === 'ar' ? product.name.ar : product.name.en;
+      }
+      productName = decodeProductName(productName);
+
       const card = document.createElement('div');
       card.className = 'hmstudio-upsell-product-card';
       card.style.cssText = `
@@ -238,17 +258,16 @@ subtitle.textContent = currentLang === 'ar'
       form.appendChild(quantityInput);
 
       // Product content
-      const productName = decodeArabicText(product.name);
-const productContent = `
-  <img 
-    src="${product.thumbnail}" 
-    alt="${productName}" 
-    style="width: 100%; height: 150px; object-fit: contain; margin-bottom: 10px;"
-  >
-  <h4 style="font-size: 1em; margin: 10px 0; min-height: 40px;">
-    ${productName}
-  </h4>
-`;
+      const productContent = `
+        <img 
+          src="${product.thumbnail}" 
+          alt="${productName}" 
+          style="width: 100%; height: 150px; object-fit: contain; margin-bottom: 10px;"
+        >
+        <h4 style="font-size: 1em; margin: 10px 0; min-height: 40px;">
+          ${productName}
+        </h4>
+      `;
 
       // Add components to card
       card.innerHTML = productContent;
@@ -527,6 +546,22 @@ const productContent = `
         .add-to-cart-progress {
           animation: spin 1s linear infinite;
         }
+
+        .hmstudio-upsell-modal {
+          font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 
+                       Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 
+                       'Helvetica Neue', sans-serif;
+        }
+
+        .hmstudio-upsell-modal input[type="number"]::-webkit-inner-spin-button,
+        .hmstudio-upsell-modal input[type="number"]::-webkit-outer-spin-button {
+          -webkit-appearance: none;
+          margin: 0;
+        }
+
+        .hmstudio-upsell-modal input[type="number"] {
+          -moz-appearance: textfield;
+        }
       `;
       document.head.appendChild(styleSheet);
 
@@ -541,6 +576,39 @@ const productContent = `
           return result;
         };
       }
+
+      // Add RTL stylesheet if needed
+      if (getCurrentLanguage() === 'ar') {
+        const rtlStyles = document.createElement('style');
+        rtlStyles.textContent = `
+          .hmstudio-upsell-modal {
+            direction: rtl;
+          }
+          
+          .hmstudio-upsell-modal .add-to-cart-progress {
+            margin-right: 8px;
+            margin-left: 0;
+          }
+        `;
+        document.head.appendChild(rtlStyles);
+      }
+
+      // Set up mutation observer to handle dynamic content changes
+      const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+          if (mutation.type === 'childList' && this.currentModal) {
+            const modalStillExists = document.contains(this.currentModal);
+            if (!modalStillExists) {
+              this.currentModal = null;
+            }
+          }
+        });
+      });
+
+      observer.observe(document.body, {
+        childList: true,
+        subtree: true
+      });
     }
   };
 
