@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v1.1.4
+// src/scripts/upsell.js v1.1.5
 // HMStudio Upsell Feature
 
 (function() {
@@ -43,6 +43,23 @@
     console.error('Store ID not found in script URL');
     return;
   }
+
+  function decodeArabicText(text) {
+    try {
+      // First try to decode as URI encoded
+      return decodeURIComponent(text);
+    } catch (e) {
+      try {
+        // If that fails, try escape/unescape method
+        return decodeURIComponent(escape(text));
+      } catch (e2) {
+        // If all decoding fails, return original text
+        console.warn('Failed to decode text:', text);
+        return text;
+      }
+    }
+  }
+  
 
   const UpsellManager = {
     campaigns: getCampaignsFromUrl(),
@@ -127,14 +144,15 @@
 
         // Subtitle with trigger product name
         const subtitle = document.createElement('p');
-        subtitle.style.cssText = `
-          color: #666;
-          margin-bottom: 20px;
-          font-size: 1.1em;
-        `;
-        subtitle.textContent = currentLang === 'ar' 
-          ? `أضف هذه المنتجات المكملة لـ ${productCart.name}!`
-          : `Add these complementary products for ${productCart.name}!`;
+subtitle.style.cssText = `
+  color: #666;
+  margin-bottom: 20px;
+  font-size: 1.1em;
+`;
+const decodedProductName = decodeArabicText(productCart.name);
+subtitle.textContent = currentLang === 'ar' 
+  ? `أضف هذه المنتجات المكملة لـ ${decodedProductName}!`
+  : `Add these complementary products for ${decodedProductName}!`;
 
         // Products grid
         const productsGrid = document.createElement('div');
@@ -220,16 +238,17 @@
       form.appendChild(quantityInput);
 
       // Product content
-      const productContent = `
-        <img 
-          src="${product.thumbnail}" 
-          alt="${product.name}" 
-          style="width: 100%; height: 150px; object-fit: contain; margin-bottom: 10px;"
-        >
-        <h4 style="font-size: 1em; margin: 10px 0; min-height: 40px;">
-          ${product.name}
-        </h4>
-      `;
+      const productName = decodeArabicText(product.name);
+const productContent = `
+  <img 
+    src="${product.thumbnail}" 
+    alt="${productName}" 
+    style="width: 100%; height: 150px; object-fit: contain; margin-bottom: 10px;"
+  >
+  <h4 style="font-size: 1em; margin: 10px 0; min-height: 40px;">
+    ${productName}
+  </h4>
+`;
 
       // Add components to card
       card.innerHTML = productContent;
