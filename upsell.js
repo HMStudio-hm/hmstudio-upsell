@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v1.1.3
+// src/scripts/upsell.js v1.1.4
 // HMStudio Upsell Feature
 
 (function() {
@@ -189,6 +189,7 @@
     createProductCard(product) {
       const currentLang = getCurrentLanguage();
       const isRTL = currentLang === 'ar';
+      const uniqueId = `product-form-${product.id}`;
 
       const card = document.createElement('div');
       card.className = 'hmstudio-upsell-product-card';
@@ -200,23 +201,23 @@
         transition: transform 0.2s ease, box-shadow 0.2s ease;
       `;
 
-      // Create form with specific structure that Zid expects
+      // Create form exactly as Zid expects
       const form = document.createElement('form');
-      form.id = 'product-form'; // Keep this ID consistent like in Quick View
-
-      // Product ID input
+      form.id = uniqueId;
+      
+      // Product ID input - MUST use these exact IDs
       const productIdInput = document.createElement('input');
       productIdInput.type = 'hidden';
-      productIdInput.name = 'product_id';
-      productIdInput.value = product.id;
+      productIdInput.id = 'product-id';  // Required by Zid
+      productIdInput.value = product.selected_product ? product.selected_product.id : product.id;
       form.appendChild(productIdInput);
 
-      // Hidden quantity input
-      const quantityInputHidden = document.createElement('input');
-      quantityInputHidden.type = 'hidden';
-      quantityInputHidden.name = 'quantity';
-      quantityInputHidden.value = '1';
-      form.appendChild(quantityInputHidden);
+      // Quantity input - MUST use these exact IDs
+      const quantityInput = document.createElement('input');
+      quantityInput.type = 'hidden';
+      quantityInput.id = 'product-quantity';  // Required by Zid
+      quantityInput.value = '1';
+      form.appendChild(quantityInput);
 
       // Product content
       const productContent = `
@@ -230,7 +231,7 @@
         </h4>
       `;
 
-      // Add form first
+      // Add components to card
       card.innerHTML = productContent;
       card.appendChild(form);
 
@@ -280,13 +281,13 @@
         transition: background-color 0.3s ease;
       `;
 
-      // Quantity input
-      const quantityInput = document.createElement('input');
-      quantityInput.type = 'number';
-      quantityInput.min = '1';
-      quantityInput.max = '10';
-      quantityInput.value = '1';
-      quantityInput.style.cssText = `
+      // Visible quantity input (for user interaction)
+      const visibleQuantityInput = document.createElement('input');
+      visibleQuantityInput.type = 'number';
+      visibleQuantityInput.min = '1';
+      visibleQuantityInput.max = '10';
+      visibleQuantityInput.value = '1';
+      visibleQuantityInput.style.cssText = `
         width: 40px;
         height: 28px;
         border: none;
@@ -325,45 +326,48 @@
         });
       });
 
-      // Quantity change handlers
+      // Add quantity change handlers
       decreaseBtn.addEventListener('click', () => {
-        const currentValue = parseInt(quantityInput.value);
+        const currentValue = parseInt(visibleQuantityInput.value);
         if (currentValue > 1) {
-          const newValue = currentValue - 1;
-          quantityInput.value = newValue;
-          quantityInputHidden.value = newValue;
+          visibleQuantityInput.value = currentValue - 1;
+          quantityInput.value = currentValue - 1;
         }
       });
 
       increaseBtn.addEventListener('click', () => {
-        const currentValue = parseInt(quantityInput.value);
+        const currentValue = parseInt(visibleQuantityInput.value);
         if (currentValue < 10) {
-          const newValue = currentValue + 1;
-          quantityInput.value = newValue;
-          quantityInputHidden.value = newValue;
-        }
-      });
-
-      // Prevent scrolling when focusing input on mobile
-      quantityInput.addEventListener('focus', (e) => {
-        e.preventDefault();
-        if (window.innerWidth <= 768) {
-          quantityInput.blur();
+          visibleQuantityInput.value = currentValue + 1;
+          quantityInput.value = currentValue + 1;
         }
       });
 
       // Update hidden input when visible quantity changes
-      quantityInput.addEventListener('change', () => {
-        let value = parseInt(quantityInput.value);
+      visibleQuantityInput.addEventListener('change', () => {
+        let value = parseInt(visibleQuantityInput.value);
         if (isNaN(value) || value < 1) value = 1;
         if (value > 10) value = 10;
+        visibleQuantityInput.value = value;
         quantityInput.value = value;
-        quantityInputHidden.value = value;
       });
+
+      // Loading spinner
+      const spinner = document.createElement('div');
+      spinner.className = 'add-to-cart-progress d-none';
+      spinner.style.cssText = `
+        width: 20px;
+        height: 20px;
+        border: 2px solid #ffffff;
+        border-top: 2px solid transparent;
+        border-radius: 50%;
+        margin-left: 8px;
+        display: inline-block;
+      `;
 
       // Add to cart button
       const addButton = document.createElement('button');
-      addButton.className = 'hmstudio-upsell-add-to-cart';
+      addButton.className = 'btn btn-primary';  // Required Zid classes
       addButton.type = 'button';
       addButton.style.cssText = `
         background: var(--theme-primary, #00b286);
@@ -375,12 +379,19 @@
         width: 100%;
         transition: opacity 0.2s;
         margin-top: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
       `;
-      addButton.textContent = currentLang === 'ar' ? 'أضف إلى السلة' : 'Add to Cart';
+      
+      const buttonText = document.createElement('span');
+      buttonText.textContent = currentLang === 'ar' ? 'أضف إلى السلة' : 'Add to Cart';
+      addButton.appendChild(buttonText);
+      addButton.appendChild(spinner);
 
       // Assemble quantity controls
       quantityWrapper.appendChild(decreaseBtn);
-      quantityWrapper.appendChild(quantityInput);
+      quantityWrapper.appendChild(visibleQuantityInput);
       quantityWrapper.appendChild(increaseBtn);
 
       quantityContainer.appendChild(quantityLabel);
@@ -391,64 +402,42 @@
 
       // Add to cart functionality
       addButton.addEventListener('click', () => {
-        const currentForm = card.querySelector('form');
-        if (currentForm) {
-          // Update form quantity before submission
-          const hiddenQuantity = currentForm.querySelector('input[name="quantity"]');
-          if (hiddenQuantity && quantityInput) {
-            hiddenQuantity.value = quantityInput.value;
-          }
-          this.addToCart(product, currentForm);
+        const progress = card.querySelector('.add-to-cart-progress');
+        if (progress) {
+          progress.classList.remove('d-none');
         }
+        this.productAddToCart(uniqueId, progress);
       });
 
       return card;
     },
 
-    async addToCart(product, form) {
+    async productAddToCart(formId, progressElement) {
       try {
-        // Get form data
-        const formData = new FormData(form);
-        console.log('Form data being submitted:', {
-          product_id: formData.get('product_id'),
-          quantity: formData.get('quantity')
+        const response = await zid.store.cart.addProduct({ 
+          formId: formId
         });
 
-        // Use Zid's cart function
-        zid.store.cart.addProduct({
-          formId: form.id,
-          data: {
-            product_id: formData.get('product_id'),
-            quantity: parseInt(formData.get('quantity'))
+        if (response.status === 'success') {
+          if (typeof setCartBadge === 'function') {
+            setCartBadge(response.data.cart.products_count);
           }
-        })
-        .then((response) => {
-          console.log('Add to cart response:', response);
-          if (response.status === 'success') {
-            if (typeof setCartBadge === 'function') {
-              setCartBadge(response.data.cart.products_count);
-            }
-          } else {
-            console.error('Add to cart failed:', response);
-            const errorMessage = getCurrentLanguage() === 'ar' 
-              ? response.data.message || 'فشل إضافة المنتج إلى السلة'
-              : response.data.message || 'Failed to add product to cart';
-            alert(errorMessage);
-          }
-        })
-        .catch((error) => {
-          console.error('Error adding to cart:', error);
+        } else {
           const errorMessage = getCurrentLanguage() === 'ar' 
-            ? 'حدث خطأ أثناء إضافة المنتج إلى السلة'
-            : 'Error occurred while adding product to cart';
+            ? 'فشل إضافة المنتج إلى السلة'
+            : 'Failed to add product to cart';
           alert(errorMessage);
-        });
+        }
       } catch (error) {
-        console.error('Error adding upsell product to cart:', error);
-        alert(getCurrentLanguage() === 'ar' 
+        console.error('Error adding to cart:', error);
+        const errorMessage = getCurrentLanguage() === 'ar' 
           ? 'حدث خطأ أثناء إضافة المنتج إلى السلة'
-          : 'Error occurred while adding product to cart'
-        );
+          : 'Error occurred while adding product to cart';
+        alert(errorMessage);
+      } finally {
+        if (progressElement) {
+          progressElement.classList.add('d-none');
+        }
       }
     },
     closeModal() {
@@ -507,6 +496,32 @@
           this.closeModal();
         }
       });
+
+      // Add keyframe animation for spinner
+      const styleSheet = document.createElement('style');
+      styleSheet.textContent = `
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+        
+        .add-to-cart-progress {
+          animation: spin 1s linear infinite;
+        }
+      `;
+      document.head.appendChild(styleSheet);
+
+      // Handle mini cart updates if supported
+      if (typeof updateMiniCart === 'function') {
+        const originalAddProduct = zid.store.cart.addProduct;
+        zid.store.cart.addProduct = async function(...args) {
+          const result = await originalAddProduct.apply(this, args);
+          if (result.status === 'success') {
+            updateMiniCart();
+          }
+          return result;
+        };
+      }
     }
   };
 
