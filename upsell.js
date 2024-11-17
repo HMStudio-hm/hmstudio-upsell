@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v1.0.1
+// src/scripts/upsell.js v1.0.2
 // HMStudio Upsell Feature
 
 (function() {
@@ -247,10 +247,24 @@
       },
   
       findMatchingCampaign(productId) {
-        return this.campaigns.find(campaign => 
-          campaign.triggerProducts.some(p => p.id === productId) &&
-          campaign.status === 'active'
-        );
+        console.log('Finding campaign for product ID:', productId);
+        console.log('Available campaigns:', this.campaigns);
+        
+        const matchingCampaign = this.campaigns.find(campaign => {
+          console.log('Checking campaign:', campaign.name);
+          console.log('Trigger products:', campaign.triggerProducts);
+          
+          return campaign.triggerProducts && 
+                 Array.isArray(campaign.triggerProducts) &&
+                 campaign.triggerProducts.some(p => {
+                   console.log('Comparing product IDs:', p.id, productId);
+                   return p.id === productId;
+                 }) &&
+                 campaign.status === 'active';
+        });
+      
+        console.log('Matching campaign found:', matchingCampaign);
+        return matchingCampaign;
       },
   
       handleAddToCart(productData) {
@@ -276,18 +290,20 @@
   
       initialize() {
         console.log('Initializing Upsell with campaigns:', this.campaigns);
-  
-        // Listen for add to cart events
+      
+        // Modify the cart override
         const originalAddProduct = zid.store.cart.addProduct;
         zid.store.cart.addProduct = async function(...args) {
-          console.log('Add to cart triggered with args:', args); // Add this
-
+          console.log('Add to cart triggered with args:', args);
           try {
             const result = await originalAddProduct.apply(zid.store.cart, args);
-            console.log('Add to cart result:', result); // Add this
+            console.log('Add to cart result:', result);
             if (result.status === 'success') {
-              const productId = args[0]?.data?.product_id;
-              console.log('Product ID extracted:', productId); // Add this
+              // Update this part to correctly get the product ID
+              const productId = result.data.product.product_id || 
+                               args[0]?.data?.product_id;
+              
+              console.log('Product ID extracted:', productId);
               if (productId) {
                 UpsellManager.handleAddToCart({ id: productId });
               }
@@ -298,6 +314,7 @@
             throw error;
           }
         };
+      
   
         // Handle page visibility changes
         document.addEventListener('visibilitychange', () => {
