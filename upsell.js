@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v1.0.6
+// src/scripts/upsell.js v1.0.7
 // HMStudio Upsell Feature
 
 (function() {
@@ -186,9 +186,9 @@
         console.error('Error creating upsell modal:', error);
       }
     },
-
     createProductCard(product) {
       const currentLang = getCurrentLanguage();
+      const isRTL = currentLang === 'ar';
       const card = document.createElement('div');
       card.className = 'hmstudio-upsell-product-card';
       card.style.cssText = `
@@ -199,7 +199,19 @@
         transition: transform 0.2s ease, box-shadow 0.2s ease;
       `;
 
-      card.innerHTML = `
+      // Add hidden form
+      const form = document.createElement('form');
+      form.id = 'product-form';
+      form.style.display = 'none';
+      
+      const productIdInput = document.createElement('input');
+      productIdInput.type = 'hidden';
+      productIdInput.name = 'product_id';
+      productIdInput.value = product.id;
+      form.appendChild(productIdInput);
+
+      // Product Image and Name
+      const productContent = `
         <img 
           src="${product.thumbnail}" 
           alt="${product.name}" 
@@ -208,24 +220,164 @@
         <h4 style="font-size: 1em; margin: 10px 0; min-height: 40px;">
           ${product.name}
         </h4>
-        <button 
-          class="hmstudio-upsell-add-to-cart"
-          style="
-            background: var(--theme-primary, #00b286);
-            color: white;
-            border: none;
-            padding: 8px 15px;
-            border-radius: 4px;
-            cursor: pointer;
-            width: 100%;
-            transition: opacity 0.2s;
-          "
-        >
-          ${currentLang === 'ar' ? 'أضف إلى السلة' : 'Add to Cart'}
-        </button>
       `;
 
-      // Hover effects
+      // Quantity selector container
+      const quantityContainer = document.createElement('div');
+      quantityContainer.style.cssText = `
+        margin: 15px 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+      `;
+
+      // Quantity label
+      const quantityLabel = document.createElement('label');
+      quantityLabel.textContent = isRTL ? 'الكمية:' : 'Quantity:';
+      quantityLabel.style.cssText = `
+        font-size: 0.9em;
+        color: #666;
+      `;
+
+      // Quantity controls wrapper
+      const quantityWrapper = document.createElement('div');
+      quantityWrapper.style.cssText = `
+        display: flex;
+        align-items: center;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        overflow: hidden;
+      `;
+
+      // Decrease button
+      const decreaseBtn = document.createElement('button');
+      decreaseBtn.type = 'button';
+      decreaseBtn.textContent = '-';
+      decreaseBtn.style.cssText = `
+        width: 28px;
+        height: 28px;
+        border: none;
+        background: #f5f5f5;
+        cursor: pointer;
+        font-size: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #666;
+        transition: background-color 0.3s ease;
+      `;
+
+      // Quantity input
+      const quantityInput = document.createElement('input');
+      quantityInput.type = 'number';
+      quantityInput.name = 'quantity';
+      quantityInput.min = '1';
+      quantityInput.max = '10';
+      quantityInput.value = '1';
+      quantityInput.style.cssText = `
+        width: 40px;
+        height: 28px;
+        border: none;
+        border-left: 1px solid #ddd;
+        border-right: 1px solid #ddd;
+        text-align: center;
+        font-size: 14px;
+        -moz-appearance: textfield;
+      `;
+
+      // Increase button
+      const increaseBtn = document.createElement('button');
+      increaseBtn.type = 'button';
+      increaseBtn.textContent = '+';
+      increaseBtn.style.cssText = `
+        width: 28px;
+        height: 28px;
+        border: none;
+        background: #f5f5f5;
+        cursor: pointer;
+        font-size: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #666;
+        transition: background-color 0.3s ease;
+      `;
+
+      // Add button hover effects
+      [decreaseBtn, increaseBtn].forEach(btn => {
+        btn.addEventListener('mouseover', () => {
+          btn.style.backgroundColor = '#e0e0e0';
+        });
+        btn.addEventListener('mouseout', () => {
+          btn.style.backgroundColor = '#f5f5f5';
+        });
+      });
+
+      // Add quantity change handlers
+      decreaseBtn.addEventListener('click', () => {
+        const currentValue = parseInt(quantityInput.value);
+        if (currentValue > 1) {
+          quantityInput.value = currentValue - 1;
+        }
+      });
+
+      increaseBtn.addEventListener('click', () => {
+        const currentValue = parseInt(quantityInput.value);
+        if (currentValue < 10) {
+          quantityInput.value = currentValue + 1;
+        }
+      });
+
+      // Prevent scrolling when focusing input on mobile
+      quantityInput.addEventListener('focus', (e) => {
+        e.preventDefault();
+        if (window.innerWidth <= 768) {
+          quantityInput.blur();
+        }
+      });
+
+      // Validate input
+      quantityInput.addEventListener('input', () => {
+        let value = parseInt(quantityInput.value);
+        if (isNaN(value) || value < 1) {
+          quantityInput.value = 1;
+        } else if (value > 10) {
+          quantityInput.value = 10;
+        }
+      });
+
+      // Add to cart button
+      const addButton = document.createElement('button');
+      addButton.className = 'hmstudio-upsell-add-to-cart';
+      addButton.style.cssText = `
+        background: var(--theme-primary, #00b286);
+        color: white;
+        border: none;
+        padding: 8px 15px;
+        border-radius: 4px;
+        cursor: pointer;
+        width: 100%;
+        transition: opacity 0.2s;
+        margin-top: 10px;
+      `;
+      addButton.textContent = currentLang === 'ar' ? 'أضف إلى السلة' : 'Add to Cart';
+
+      // Assemble quantity controls
+      quantityWrapper.appendChild(decreaseBtn);
+      quantityWrapper.appendChild(quantityInput);
+      quantityWrapper.appendChild(increaseBtn);
+
+      quantityContainer.appendChild(quantityLabel);
+      quantityContainer.appendChild(quantityWrapper);
+
+      // Add main content
+      card.innerHTML = productContent;
+      card.appendChild(form);
+      card.appendChild(quantityContainer);
+      card.appendChild(addButton);
+
+      // Hover effects for card
       card.addEventListener('mouseover', () => {
         card.style.transform = 'translateY(-5px)';
         card.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
@@ -237,64 +389,42 @@
       });
 
       // Add to cart functionality
-      const addButton = card.querySelector('.hmstudio-upsell-add-to-cart');
-      addButton.addEventListener('click', () => this.addToCart(product));
+      addButton.addEventListener('click', () => {
+        const quantity = parseInt(quantityInput.value);
+        this.addToCart(product, quantity);
+      });
 
       return card;
     },
 
-    async addToCart(product) {
-      console.log('Adding product to cart:', product);
+    async addToCart(product, quantity) {
       try {
-        // Create form data
-        const addToCartData = {
-          formId: null,
+        const response = await zid.store.cart.addProduct({ 
+          formId: 'product-form',
           data: {
             product_id: product.id,
-            quantity: 1,
-            options: []
+            quantity: quantity
           }
-        };
+        });
 
-        console.log('Sending add to cart request with data:', addToCartData);
-
-        // Call Zid's cart API
-        const result = await window.zid.store.cart.addProduct(addToCartData);
-        
-        console.log('Add to cart response:', result);
-
-        if (result && result.status === 'success') {
-          // Call setCartBadge if it exists
-          if (typeof setCartBadge === 'function' && result.data && result.data.cart) {
-            setCartBadge(result.data.cart.products_count);
+        if (response.status === 'success') {
+          if (typeof setCartBadge === 'function') {
+            setCartBadge(response.data.cart.products_count);
           }
-          
-          // Call updateMiniCart if it exists
-          if (typeof updateMiniCart === 'function') {
-            updateMiniCart();
-          }
-
-          // Close the modal
           this.closeModal();
-
-          // Show success message if toastr exists
-          if (window.toastr) {
-            const message = getCurrentLanguage() === 'ar'
-              ? 'تمت إضافة المنتج إلى السلة بنجاح'
-              : 'Product added to cart successfully';
-            window.toastr.success(message);
-          }
         } else {
-          throw new Error('Failed to add product to cart');
+          console.error('Add to cart failed:', response);
+          const errorMessage = getCurrentLanguage() === 'ar' 
+            ? 'فشل إضافة المنتج إلى السلة'
+            : 'Failed to add product to cart';
+          alert(errorMessage);
         }
       } catch (error) {
         console.error('Error adding upsell product to cart:', error);
-        if (window.toastr) {
-          const message = getCurrentLanguage() === 'ar'
-            ? 'حدث خطأ أثناء إضافة المنتج إلى السلة'
-            : 'Error occurred while adding product to cart';
-          window.toastr.error(message);
-        }
+        const errorMessage = getCurrentLanguage() === 'ar' 
+          ? 'حدث خطأ أثناء إضافة المنتج إلى السلة'
+          : 'Error occurred while adding product to cart';
+        alert(errorMessage);
       }
     },
 
