@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v1.0.7
+// src/scripts/upsell.js v1.0.8
 // HMStudio Upsell Feature
 
 (function() {
@@ -199,9 +199,12 @@
         transition: transform 0.2s ease, box-shadow 0.2s ease;
       `;
 
+      // Create unique form ID for this product
+      const formId = `product-form-${product.id}`;
+
       // Add hidden form
       const form = document.createElement('form');
-      form.id = 'product-form';
+      form.id = formId;
       form.style.display = 'none';
       
       const productIdInput = document.createElement('input');
@@ -209,6 +212,12 @@
       productIdInput.name = 'product_id';
       productIdInput.value = product.id;
       form.appendChild(productIdInput);
+
+      const quantityInput = document.createElement('input');
+      quantityInput.type = 'hidden';
+      quantityInput.name = 'quantity';
+      quantityInput.value = '1';
+      form.appendChild(quantityInput);
 
       // Product Image and Name
       const productContent = `
@@ -269,13 +278,12 @@
       `;
 
       // Quantity input
-      const quantityInput = document.createElement('input');
-      quantityInput.type = 'number';
-      quantityInput.name = 'quantity';
-      quantityInput.min = '1';
-      quantityInput.max = '10';
-      quantityInput.value = '1';
-      quantityInput.style.cssText = `
+      const quantityDisplayInput = document.createElement('input');
+      quantityDisplayInput.type = 'number';
+      quantityDisplayInput.min = '1';
+      quantityDisplayInput.max = '10';
+      quantityDisplayInput.value = '1';
+      quantityDisplayInput.style.cssText = `
         width: 40px;
         height: 28px;
         border: none;
@@ -316,35 +324,39 @@
 
       // Add quantity change handlers
       decreaseBtn.addEventListener('click', () => {
-        const currentValue = parseInt(quantityInput.value);
+        const currentValue = parseInt(quantityDisplayInput.value);
         if (currentValue > 1) {
+          quantityDisplayInput.value = currentValue - 1;
           quantityInput.value = currentValue - 1;
         }
       });
 
       increaseBtn.addEventListener('click', () => {
-        const currentValue = parseInt(quantityInput.value);
+        const currentValue = parseInt(quantityDisplayInput.value);
         if (currentValue < 10) {
+          quantityDisplayInput.value = currentValue + 1;
           quantityInput.value = currentValue + 1;
         }
       });
 
       // Prevent scrolling when focusing input on mobile
-      quantityInput.addEventListener('focus', (e) => {
+      quantityDisplayInput.addEventListener('focus', (e) => {
         e.preventDefault();
         if (window.innerWidth <= 768) {
-          quantityInput.blur();
+          quantityDisplayInput.blur();
         }
       });
 
       // Validate input
-      quantityInput.addEventListener('input', () => {
-        let value = parseInt(quantityInput.value);
+      quantityDisplayInput.addEventListener('input', () => {
+        let value = parseInt(quantityDisplayInput.value);
         if (isNaN(value) || value < 1) {
-          quantityInput.value = 1;
+          value = 1;
         } else if (value > 10) {
-          quantityInput.value = 10;
+          value = 10;
         }
+        quantityDisplayInput.value = value;
+        quantityInput.value = value;
       });
 
       // Add to cart button
@@ -365,7 +377,7 @@
 
       // Assemble quantity controls
       quantityWrapper.appendChild(decreaseBtn);
-      quantityWrapper.appendChild(quantityInput);
+      quantityWrapper.appendChild(quantityDisplayInput);
       quantityWrapper.appendChild(increaseBtn);
 
       quantityContainer.appendChild(quantityLabel);
@@ -388,43 +400,78 @@
         card.style.boxShadow = 'none';
       });
 
-      // Add to cart functionality
+      // Add to cart functionality - pass formId
       addButton.addEventListener('click', () => {
         const quantity = parseInt(quantityInput.value);
-        this.addToCart(product, quantity);
+        this.addToCart(product, quantity, formId);
       });
 
       return card;
     },
 
-    async addToCart(product, quantity) {
+    async addToCart(product, quantity, formId) {
       try {
+        console.log('Adding to cart:', { product, quantity, formId });
+        
+        const formData = new FormData();
+        formData.append('product_id', product.id);
+        formData.append('quantity', quantity.toString());
+
         const response = await zid.store.cart.addProduct({ 
-          formId: 'product-form',
+          formId: formId,
           data: {
             product_id: product.id,
-            quantity: quantity
+            quantity: quantity,
+            options: []
           }
         });
+
+        console.log('Add to cart response:', response);
 
         if (response.status === 'success') {
           if (typeof setCartBadge === 'function') {
             setCartBadge(response.data.cart.products_count);
           }
+          if (typeof updateMiniCart === 'function') {
+            updateMiniCart();
+          }
           this.closeModal();
+
+          // Show success message if toastr exists
+          if (window.toastr) {
+            const message = getCurrentLanguage() === 'ar' 
+              ? 'تمت إضافة المنتج إلى السلة بنجاح'
+              : 'Product added to cart successfully';
+            window.toastr.success(message);
+          }
         } else {
           console.error('Add to cart failed:', response);
-          const errorMessage = getCurrentLanguage() === 'ar' 
-            ? 'فشل إضافة المنتج إلى السلة'
-            : 'Failed to add product to cart';
-          alert(errorMessage);
+          if (window.toastr) {
+            const message = getCurrentLanguage() === 'ar'
+              ? 'فشل إضافة المنتج إلى السلة'
+              : 'Failed to add product to cart';
+            window.toastr.error(message);
+          } else {
+            alert(getCurrentLanguage() === 'ar'
+              ? 'فشل إضافة المنتج إلى السلة'
+              : 'Failed to add product to cart'
+            );
+          }
         }
       } catch (error) {
         console.error('Error adding upsell product to cart:', error);
-        const errorMessage = getCurrentLanguage() === 'ar' 
-          ? 'حدث خطأ أثناء إضافة المنتج إلى السلة'
-          : 'Error occurred while adding product to cart';
-        alert(errorMessage);
+        // Show error message
+        if (window.toastr) {
+          const message = getCurrentLanguage() === 'ar'
+            ? 'حدث خطأ أثناء إضافة المنتج إلى السلة'
+            : 'Error occurred while adding product to cart';
+          window.toastr.error(message);
+        } else {
+          alert(getCurrentLanguage() === 'ar'
+            ? 'حدث خطأ أثناء إضافة المنتج إلى السلة'
+            : 'Error occurred while adding product to cart'
+          );
+        }
       }
     },
 
