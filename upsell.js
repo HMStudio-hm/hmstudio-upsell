@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v1.2.8
+// src/scripts/upsell.js v1.2.9
 // HMStudio Upsell Feature
 
 (function() {
@@ -199,9 +199,33 @@
 
         // Add to cart handler using Zid's convention
         addButton.addEventListener('click', function() {
+          // Check if product has variants
+          if (fullProductData.has_options && fullProductData.variants?.length > 0) {
+            // Get all variant selections
+            const selectedVariants = {};
+            const missingSelections = [];
+            
+            form.querySelectorAll('.variant-select').forEach(select => {
+              const labelText = select.previousElementSibling.textContent;
+              if (!select.value) {
+                missingSelections.push(labelText);
+              }
+              selectedVariants[labelText] = select.value;
+            });
+        
+            // Check if all variants are selected
+            if (missingSelections.length > 0) {
+              const message = currentLang === 'ar' 
+                ? `الرجاء اختيار ${missingSelections.join(', ')}`
+                : `Please select ${missingSelections.join(', ')}`;
+              alert(message);
+              return;
+            }
+          }
+        
           const spinners = form.querySelectorAll('.add-to-cart-progress');
           spinners.forEach(s => s.classList.remove('d-none'));
-
+        
           zid.store.cart.addProduct({ 
             formId: form.id
           }).then(function(response) {
