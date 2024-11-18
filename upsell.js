@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v1.2.1
+// src/scripts/upsell.js v1.2.2
 // HMStudio Upsell Feature
 
 (function() {
@@ -206,8 +206,8 @@
         console.error('Error creating upsell modal:', error);
       }
     },
-    async createProductCard(product) {
-      console.log('Creating card for product with full data:', product);
+    createProductCard(product) {
+      console.log('Creating card for product:', product);
       const currentLang = getCurrentLanguage();
       const isRTL = currentLang === 'ar';
       const uniqueId = `product-form-${product.id}`;
