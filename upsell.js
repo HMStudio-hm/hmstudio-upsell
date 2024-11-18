@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v1.3.1
+// src/scripts/upsell.js v1.3.2
 // HMStudio Upsell Feature
 
 (function() {
@@ -392,12 +392,40 @@
     },
     async showUpsellModal(campaign, productCart) {
       console.log('showUpsellModal called with:', { campaign, productCart });
-      console.log('Campaign texts:', campaign.texts);
       
       if (!campaign || !campaign.upsellProducts || campaign.upsellProducts.length === 0) {
         console.warn('Invalid campaign data:', campaign);
         return;
       }
+
+      // Decode Arabic text properly
+      const decodeText = (text) => {
+        try {
+          // First try decoding as URI component
+          return decodeURIComponent(text);
+        } catch (e) {
+          try {
+            // If that fails, try decoding from UTF-8
+            return decodeURIComponent(escape(text));
+          } catch (err) {
+            console.error('Error decoding text:', err);
+            return text;
+          }
+        }
+      };
+
+      // Get and decode texts
+      const titleAr = campaign.texts?.titleAr ? decodeText(campaign.texts.titleAr) : '';
+      const titleEn = campaign.texts?.titleEn ? decodeText(campaign.texts.titleEn) : '';
+      const subtitleAr = campaign.texts?.subtitleAr ? decodeText(campaign.texts.subtitleAr) : '';
+      const subtitleEn = campaign.texts?.subtitleEn ? decodeText(campaign.texts.subtitleEn) : '';
+
+      console.log('Decoded texts:', {
+        titleAr,
+        titleEn,
+        subtitleAr,
+        subtitleEn
+      });
 
       const currentLang = getCurrentLanguage();
       const isRTL = currentLang === 'ar';
@@ -464,9 +492,7 @@
           margin: 0 0 20px;
           padding-${isRTL ? 'left' : 'right'}: 30px;
         `;
-        title.textContent = currentLang === 'ar' 
-          ? campaign.texts?.titleAr 
-          : campaign.texts?.titleEn;
+        title.textContent = currentLang === 'ar' ? titleAr : titleEn;
 
         // Subtitle
         const subtitle = document.createElement('p');
@@ -477,10 +503,7 @@
           display: none;
         `;
 
-        const subtitleText = currentLang === 'ar'
-          ? campaign.texts?.subtitleAr
-          : campaign.texts?.subtitleEn;
-
+        const subtitleText = currentLang === 'ar' ? subtitleAr : subtitleEn;
         if (subtitleText) {
           subtitle.textContent = subtitleText;
           subtitle.style.display = 'block';
