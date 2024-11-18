@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v1.1.8
+// src/scripts/upsell.js v1.1.9
 // HMStudio Upsell Feature
 
 (function() {
@@ -203,108 +203,9 @@
       }
     },
     createProductCard(product) {
-      console.log('Creating card for product:', product);
       const currentLang = getCurrentLanguage();
       const isRTL = currentLang === 'ar';
       const uniqueId = `product-form-${product.id}`;
-
-// Add price container before variants
-const priceContainer = document.createElement('div');
-priceContainer.style.cssText = 'margin: 10px 0;';
-
-// Regular price
-const priceDisplay = document.createElement('span');
-priceDisplay.id = `${uniqueId}-price`;
-priceDisplay.className = 'product-price';
-priceDisplay.style.cssText = 'font-weight: bold; color: var(--theme-primary, #00b286);';
-
-// Sale price (if applicable)
-const oldPriceDisplay = document.createElement('span');
-oldPriceDisplay.id = `${uniqueId}-old-price`;
-oldPriceDisplay.style.cssText = 'text-decoration: line-through; margin-left: 8px; color: #999; display: none;';
-
-priceContainer.appendChild(priceDisplay);
-priceContainer.appendChild(oldPriceDisplay);
-
-// Add price container to card
-card.appendChild(priceContainer);
-
-// Handle variants
-if (product.variants && product.variants.length > 0) {
-  console.log('Product has variants:', product.variants);
-
-  const variantsContainer = document.createElement('div');
-  variantsContainer.className = 'variants-container';
-  variantsContainer.style.cssText = 'margin: 15px 0;';
-
-  // Get unique variant options
-  const variantOptions = {};
-  product.variants.forEach(variant => {
-    if (variant.attributes) {
-      variant.attributes.forEach(attr => {
-        if (!variantOptions[attr.name]) {
-          variantOptions[attr.name] = new Set();
-        }
-        variantOptions[attr.name].add(attr.value);
-      });
-    }
-  });
-
-  // Create dropdown for each variant option
-  Object.entries(variantOptions).forEach(([optionName, values]) => {
-    const selectGroup = document.createElement('div');
-    selectGroup.style.cssText = 'margin-bottom: 10px;';
-
-    const label = document.createElement('label');
-    label.textContent = optionName;
-    label.style.cssText = 'display: block; margin-bottom: 5px; font-size: 0.9em;';
-
-    const select = document.createElement('select');
-    select.className = 'variant-select';
-    select.setAttribute('data-option', optionName);
-    select.style.cssText = `
-      width: 100%;
-      padding: 8px;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      margin-bottom: 5px;
-      ${isRTL ? 'direction: rtl;' : ''}
-    `;
-
-    // Add default option
-    const defaultOption = document.createElement('option');
-    defaultOption.value = '';
-    defaultOption.textContent = currentLang === 'ar' 
-      ? `اختر ${optionName}`
-      : `Select ${optionName}`;
-    select.appendChild(defaultOption);
-
-    // Add variant options
-    values.forEach(value => {
-      const option = document.createElement('option');
-      option.value = value;
-      option.textContent = value;
-      select.appendChild(option);
-    });
-
-    selectGroup.appendChild(label);
-    selectGroup.appendChild(select);
-    variantsContainer.appendChild(selectGroup);
-
-    // Handle variant selection
-    select.addEventListener('change', () => {
-      this.handleVariantChange(product, uniqueId);
-    });
-  });
-
-  card.appendChild(variantsContainer);
-
-  // Initial price display
-  this.updatePriceDisplay(product, uniqueId);
-} else {
-  // Set initial price for non-variant products
-  priceDisplay.textContent = product.formatted_price;
-}
 
       // Helper function for name decoding
       const decodeProductName = (name) => {
@@ -328,6 +229,7 @@ if (product.variants && product.variants.length > 0) {
       }
       productName = decodeProductName(productName);
 
+      // Create main card container first
       const card = document.createElement('div');
       card.className = 'hmstudio-upsell-product-card';
       card.style.cssText = `
@@ -338,7 +240,7 @@ if (product.variants && product.variants.length > 0) {
         transition: transform 0.2s ease, box-shadow 0.2s ease;
       `;
 
-      // Create form with proper variant handling
+      // Create form
       const form = document.createElement('form');
       form.id = uniqueId;
 
@@ -356,6 +258,9 @@ if (product.variants && product.variants.length > 0) {
       quantityInput.value = '1';
       form.appendChild(quantityInput);
 
+      // Add form to card
+      card.appendChild(form);
+
       // Product content
       const productContent = `
         <img 
@@ -367,87 +272,97 @@ if (product.variants && product.variants.length > 0) {
           ${productName}
         </h4>
       `;
-
-      // Price display section
-      const priceSection = document.createElement('div');
-      priceSection.className = 'price-section';
-      priceSection.style.cssText = 'margin: 10px 0;';
-
-      const regularPrice = document.createElement('span');
-      regularPrice.id = `${uniqueId}-price`;
-      regularPrice.className = 'product-price';
-      regularPrice.style.cssText = 'font-weight: bold; color: var(--theme-primary, #00b286);';
       
-      const oldPrice = document.createElement('span');
-      oldPrice.id = `${uniqueId}-old-price`;
-      oldPrice.className = 'product-old-price';
-      oldPrice.style.cssText = 'text-decoration: line-through; color: #999; margin-left: 8px; display: none;';
+      // Add product content container
+      const contentContainer = document.createElement('div');
+      contentContainer.innerHTML = productContent;
+      card.appendChild(contentContainer);
 
-      priceSection.appendChild(regularPrice);
-      priceSection.appendChild(oldPrice);
+      // Add price container
+      const priceContainer = document.createElement('div');
+      priceContainer.style.cssText = 'margin: 10px 0;';
+      
+      // Regular price
+      const priceDisplay = document.createElement('span');
+      priceDisplay.id = `${uniqueId}-price`;
+      priceDisplay.className = 'product-price';
+      priceDisplay.style.cssText = 'font-weight: bold; color: var(--theme-primary, #00b286); direction: ltr; display: inline-block;';
+      
+      // Sale price
+      const oldPriceDisplay = document.createElement('span');
+      oldPriceDisplay.id = `${uniqueId}-old-price`;
+      oldPriceDisplay.style.cssText = 'text-decoration: line-through; margin-left: 8px; color: #999; display: none; direction: ltr;';
 
-      // Add components to card
-      card.innerHTML = productContent;
-      card.appendChild(form);
-      card.appendChild(priceSection);
+      priceContainer.appendChild(priceDisplay);
+      priceContainer.appendChild(oldPriceDisplay);
+      card.appendChild(priceContainer);
 
-      // Handle variants if product has them
+      // Handle variants
       if (product.variants && product.variants.length > 0) {
         console.log('Product has variants:', product.variants);
-        
+
         const variantsContainer = document.createElement('div');
         variantsContainer.className = 'variants-container';
         variantsContainer.style.cssText = 'margin: 15px 0;';
 
-        // Create dropdowns for each variant type
-        const variantTypes = new Set(product.variants.flatMap(v => 
-          v.attributes ? v.attributes.map(attr => attr.name) : []
-        ));
+        // Get unique variant options
+        const variantOptions = {};
+        product.variants.forEach(variant => {
+          if (variant.attributes) {
+            variant.attributes.forEach(attr => {
+              if (!variantOptions[attr.name]) {
+                variantOptions[attr.name] = new Set();
+              }
+              variantOptions[attr.name].add(attr.value);
+            });
+          }
+        });
 
-        variantTypes.forEach(variantType => {
-          const variantValues = new Set(product.variants
-            .flatMap(v => v.attributes ? v.attributes.filter(attr => attr.name === variantType) : [])
-            .map(attr => attr.value));
-
-          const selectContainer = document.createElement('div');
-          selectContainer.style.cssText = 'margin-bottom: 10px;';
+        // Create dropdown for each variant option
+        Object.entries(variantOptions).forEach(([optionName, values]) => {
+          const selectGroup = document.createElement('div');
+          selectGroup.style.cssText = 'margin-bottom: 10px;';
 
           const label = document.createElement('label');
-          label.textContent = variantType;
-          label.style.cssText = 'display: block; margin-bottom: 5px; font-size: 0.9em; color: #666;';
+          label.textContent = optionName;
+          label.style.cssText = 'display: block; margin-bottom: 5px; font-size: 0.9em;';
 
           const select = document.createElement('select');
           select.className = 'variant-select';
+          select.setAttribute('data-option', optionName);
           select.style.cssText = `
             width: 100%;
             padding: 8px;
             border: 1px solid #ddd;
             border-radius: 4px;
             margin-bottom: 5px;
+            ${isRTL ? 'direction: rtl;' : ''}
           `;
 
           // Add default option
           const defaultOption = document.createElement('option');
           defaultOption.value = '';
           defaultOption.textContent = currentLang === 'ar' 
-            ? `اختر ${variantType}`
-            : `Select ${variantType}`;
+            ? `اختر ${optionName}`
+            : `Select ${optionName}`;
           select.appendChild(defaultOption);
 
           // Add variant options
-          variantValues.forEach(value => {
+          values.forEach(value => {
             const option = document.createElement('option');
             option.value = value;
             option.textContent = value;
             select.appendChild(option);
           });
 
-          selectContainer.appendChild(label);
-          selectContainer.appendChild(select);
-          variantsContainer.appendChild(selectContainer);
+          selectGroup.appendChild(label);
+          selectGroup.appendChild(select);
+          variantsContainer.appendChild(selectGroup);
 
-          // Handle variant changes
-          select.addEventListener('change', () => this.handleVariantChange(product, uniqueId));
+          // Handle variant selection
+          select.addEventListener('change', () => {
+            this.handleVariantChange(product, uniqueId);
+          });
         });
 
         card.appendChild(variantsContainer);
@@ -499,7 +414,7 @@ if (product.variants && product.variants.length > 0) {
         transition: background-color 0.3s ease;
       `;
 
-      // Visible quantity input (for user interaction)
+      // Visible quantity input
       const visibleQuantityInput = document.createElement('input');
       visibleQuantityInput.type = 'number';
       visibleQuantityInput.min = '1';
@@ -627,55 +542,59 @@ if (product.variants && product.variants.length > 0) {
         this.productAddToCart(uniqueId, progress);
       });
 
-      // Update initial price display
+      // Initial price display
       if (product.selected_product) {
         this.updatePriceDisplay(product.selected_product, uniqueId);
       } else {
-        regularPrice.textContent = product.formatted_price;
+        priceDisplay.textContent = product.formatted_price;
       }
+
+      // Add hover effects to card
+      card.addEventListener('mouseover', () => {
+        card.style.transform = 'translateY(-5px)';
+        card.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
+      });
+
+      card.addEventListener('mouseout', () => {
+        card.style.transform = 'translateY(0)';
+        card.style.boxShadow = 'none';
+      });
 
       return card;
     },
 
     handleVariantChange(product, formId) {
       const form = document.getElementById(formId);
-      if (!form) return;
-    
       const selects = form.querySelectorAll('.variant-select');
-      const selectedOptions = {};
-    
-      selects.forEach(select => {
-        selectedOptions[select.getAttribute('data-option')] = select.value;
-      });
-    
+      const selectedValues = Array.from(selects).map(select => select.value);
+
       // Find matching variant
       const matchingVariant = product.variants.find(variant => {
+        if (!variant.attributes) return false;
         return variant.attributes.every(attr => 
-          selectedOptions[attr.name] === attr.value
+          selectedValues.includes(attr.value)
         );
       });
-    
+
       if (matchingVariant) {
-        // Update product ID input
+        // Update product ID
         const productIdInput = form.querySelector('#product-id');
         if (productIdInput) {
           productIdInput.value = matchingVariant.id;
         }
-    
+
         // Update price display
         this.updatePriceDisplay(matchingVariant, formId);
-    
+
         // Update button state
         const addButton = form.querySelector('.btn-primary');
         if (addButton) {
-          if (matchingVariant.unavailable) {
-            addButton.disabled = true;
-            addButton.style.opacity = '0.5';
-            addButton.textContent = getCurrentLanguage() === 'ar' ? 'غير متوفر' : 'Unavailable';
-          } else {
+          if (!matchingVariant.unavailable) {
             addButton.disabled = false;
             addButton.style.opacity = '1';
-            addButton.textContent = getCurrentLanguage() === 'ar' ? 'أضف إلى السلة' : 'Add to Cart';
+          } else {
+            addButton.disabled = true;
+            addButton.style.opacity = '0.5';
           }
         }
       }
@@ -684,25 +603,30 @@ if (product.variants && product.variants.length > 0) {
     updatePriceDisplay(variant, formId) {
       const priceElement = document.getElementById(`${formId}-price`);
       const oldPriceElement = document.getElementById(`${formId}-old-price`);
-    
-      if (!priceElement) return;
-    
-      if (variant.formatted_sale_price) {
-        priceElement.textContent = variant.formatted_sale_price;
-        if (oldPriceElement) {
-          oldPriceElement.textContent = variant.formatted_price;
-          oldPriceElement.style.display = 'inline';
-        }
-      } else {
-        priceElement.textContent = variant.formatted_price;
-        if (oldPriceElement) {
-          oldPriceElement.style.display = 'none';
+      
+      if (priceElement) {
+        if (variant.formatted_sale_price) {
+          priceElement.textContent = variant.formatted_sale_price;
+          if (oldPriceElement) {
+            oldPriceElement.textContent = variant.formatted_price;
+            oldPriceElement.style.display = 'inline';
+          }
+        } else {
+          priceElement.textContent = variant.formatted_price;
+          if (oldPriceElement) {
+            oldPriceElement.style.display = 'none';
+          }
         }
       }
     },
     async productAddToCart(formId, progressElement) {
       try {
         const form = document.getElementById(formId);
+        if (!form) {
+          console.error(`Form not found with ID: ${formId}`);
+          return;
+        }
+
         const formData = new FormData(form);
         console.log('Adding to cart:', {
           formId,
@@ -723,6 +647,7 @@ if (product.variants && product.variants.length > 0) {
           if (typeof updateMiniCart === 'function') {
             updateMiniCart();
           }
+          // Don't close modal to allow adding multiple products
         } else {
           console.error('Add to cart failed:', response);
           const errorMessage = getCurrentLanguage() === 'ar' 
@@ -764,7 +689,32 @@ if (product.variants && product.variants.length > 0) {
             console.log('showUpsellModal called with args:', args);
             return this.showUpsellModal.apply(this, args);
           },
-          closeModal: () => this.closeModal()
+          closeModal: () => this.closeModal(),
+          productOptionsChanged: (selected_product) => {
+            console.log('Product options changed:', selected_product);
+            if (selected_product) {
+              const form = document.querySelector('#product-form');
+              if (form) {
+                const productIdInput = form.querySelector('#product-id');
+                if (productIdInput) {
+                  productIdInput.value = selected_product.id;
+                }
+
+                const addButton = form.querySelector('.btn-primary');
+                if (addButton) {
+                  if (!selected_product.unavailable) {
+                    addButton.disabled = false;
+                    addButton.style.opacity = '1';
+                    addButton.textContent = getCurrentLanguage() === 'ar' ? 'أضف إلى السلة' : 'Add to Cart';
+                  } else {
+                    addButton.disabled = true;
+                    addButton.style.opacity = '0.5';
+                    addButton.textContent = getCurrentLanguage() === 'ar' ? 'غير متوفر' : 'Unavailable';
+                  }
+                }
+              }
+            }
+          }
         };
         console.log('Global HMStudioUpsell object created');
       }
@@ -841,6 +791,20 @@ if (product.variants && product.variants.length > 0) {
           display: inline-block;
           direction: ltr;
         }
+
+        .hmstudio-upsell-modal select {
+          appearance: none;
+          background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='none' stroke='currentColor' viewBox='0 0 12 12'%3E%3Cpath d='M3 5l3 3 3-3'/%3E%3C/svg%3E");
+          background-repeat: no-repeat;
+          background-position: right 8px center;
+          padding-right: 24px;
+        }
+
+        .hmstudio-upsell-modal[dir="rtl"] select {
+          background-position: left 8px center;
+          padding-right: 8px;
+          padding-left: 24px;
+        }
       `;
       document.head.appendChild(styleSheet);
 
@@ -863,30 +827,6 @@ if (product.variants && product.variants.length > 0) {
         `;
         document.head.appendChild(rtlStyles);
       }
-
-      // Handle Zid product variants script
-      window.productOptionsChanged = (selected_product) => {
-        if (selected_product) {
-          const form = document.querySelector('#product-form');
-          if (form) {
-            const productIdInput = form.querySelector('#product-id');
-            if (productIdInput) {
-              productIdInput.value = selected_product.id;
-            }
-
-            const addButton = form.querySelector('.btn-primary');
-            if (addButton) {
-              if (!selected_product.unavailable) {
-                addButton.disabled = false;
-                addButton.style.opacity = '1';
-              } else {
-                addButton.disabled = true;
-                addButton.style.opacity = '0.5';
-              }
-            }
-          }
-        }
-      };
 
       // Set up mutation observer to handle dynamic content changes
       const observer = new MutationObserver((mutations) => {
