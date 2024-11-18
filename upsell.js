@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v1.1.7
+// src/scripts/upsell.js v1.1.8
 // HMStudio Upsell Feature
 
 (function() {
@@ -207,6 +207,104 @@
       const currentLang = getCurrentLanguage();
       const isRTL = currentLang === 'ar';
       const uniqueId = `product-form-${product.id}`;
+
+// Add price container before variants
+const priceContainer = document.createElement('div');
+priceContainer.style.cssText = 'margin: 10px 0;';
+
+// Regular price
+const priceDisplay = document.createElement('span');
+priceDisplay.id = `${uniqueId}-price`;
+priceDisplay.className = 'product-price';
+priceDisplay.style.cssText = 'font-weight: bold; color: var(--theme-primary, #00b286);';
+
+// Sale price (if applicable)
+const oldPriceDisplay = document.createElement('span');
+oldPriceDisplay.id = `${uniqueId}-old-price`;
+oldPriceDisplay.style.cssText = 'text-decoration: line-through; margin-left: 8px; color: #999; display: none;';
+
+priceContainer.appendChild(priceDisplay);
+priceContainer.appendChild(oldPriceDisplay);
+
+// Add price container to card
+card.appendChild(priceContainer);
+
+// Handle variants
+if (product.variants && product.variants.length > 0) {
+  console.log('Product has variants:', product.variants);
+
+  const variantsContainer = document.createElement('div');
+  variantsContainer.className = 'variants-container';
+  variantsContainer.style.cssText = 'margin: 15px 0;';
+
+  // Get unique variant options
+  const variantOptions = {};
+  product.variants.forEach(variant => {
+    if (variant.attributes) {
+      variant.attributes.forEach(attr => {
+        if (!variantOptions[attr.name]) {
+          variantOptions[attr.name] = new Set();
+        }
+        variantOptions[attr.name].add(attr.value);
+      });
+    }
+  });
+
+  // Create dropdown for each variant option
+  Object.entries(variantOptions).forEach(([optionName, values]) => {
+    const selectGroup = document.createElement('div');
+    selectGroup.style.cssText = 'margin-bottom: 10px;';
+
+    const label = document.createElement('label');
+    label.textContent = optionName;
+    label.style.cssText = 'display: block; margin-bottom: 5px; font-size: 0.9em;';
+
+    const select = document.createElement('select');
+    select.className = 'variant-select';
+    select.setAttribute('data-option', optionName);
+    select.style.cssText = `
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      margin-bottom: 5px;
+      ${isRTL ? 'direction: rtl;' : ''}
+    `;
+
+    // Add default option
+    const defaultOption = document.createElement('option');
+    defaultOption.value = '';
+    defaultOption.textContent = currentLang === 'ar' 
+      ? `اختر ${optionName}`
+      : `Select ${optionName}`;
+    select.appendChild(defaultOption);
+
+    // Add variant options
+    values.forEach(value => {
+      const option = document.createElement('option');
+      option.value = value;
+      option.textContent = value;
+      select.appendChild(option);
+    });
+
+    selectGroup.appendChild(label);
+    selectGroup.appendChild(select);
+    variantsContainer.appendChild(selectGroup);
+
+    // Handle variant selection
+    select.addEventListener('change', () => {
+      this.handleVariantChange(product, uniqueId);
+    });
+  });
+
+  card.appendChild(variantsContainer);
+
+  // Initial price display
+  this.updatePriceDisplay(product, uniqueId);
+} else {
+  // Set initial price for non-variant products
+  priceDisplay.textContent = product.formatted_price;
+}
 
       // Helper function for name decoding
       const decodeProductName = (name) => {
@@ -541,38 +639,43 @@
 
     handleVariantChange(product, formId) {
       const form = document.getElementById(formId);
+      if (!form) return;
+    
       const selects = form.querySelectorAll('.variant-select');
-      const selectedValues = Array.from(selects).map(select => select.value);
-
+      const selectedOptions = {};
+    
+      selects.forEach(select => {
+        selectedOptions[select.getAttribute('data-option')] = select.value;
+      });
+    
       // Find matching variant
       const matchingVariant = product.variants.find(variant => {
-        if (!variant.attributes) return false;
         return variant.attributes.every(attr => 
-          selectedValues.includes(attr.value)
+          selectedOptions[attr.name] === attr.value
         );
       });
-
-      console.log('Selected variant:', matchingVariant);
-
+    
       if (matchingVariant) {
-        // Update product ID
+        // Update product ID input
         const productIdInput = form.querySelector('#product-id');
         if (productIdInput) {
           productIdInput.value = matchingVariant.id;
         }
-
+    
         // Update price display
         this.updatePriceDisplay(matchingVariant, formId);
-
-        // Enable/disable add to cart button based on availability
+    
+        // Update button state
         const addButton = form.querySelector('.btn-primary');
         if (addButton) {
-          if (!matchingVariant.unavailable) {
-            addButton.disabled = false;
-            addButton.style.opacity = '1';
-          } else {
+          if (matchingVariant.unavailable) {
             addButton.disabled = true;
             addButton.style.opacity = '0.5';
+            addButton.textContent = getCurrentLanguage() === 'ar' ? 'غير متوفر' : 'Unavailable';
+          } else {
+            addButton.disabled = false;
+            addButton.style.opacity = '1';
+            addButton.textContent = getCurrentLanguage() === 'ar' ? 'أضف إلى السلة' : 'Add to Cart';
           }
         }
       }
@@ -581,19 +684,19 @@
     updatePriceDisplay(variant, formId) {
       const priceElement = document.getElementById(`${formId}-price`);
       const oldPriceElement = document.getElementById(`${formId}-old-price`);
-      
-      if (priceElement) {
-        if (variant.formatted_sale_price) {
-          priceElement.textContent = variant.formatted_sale_price;
-          if (oldPriceElement) {
-            oldPriceElement.textContent = variant.formatted_price;
-            oldPriceElement.style.display = 'inline';
-          }
-        } else {
-          priceElement.textContent = variant.formatted_price;
-          if (oldPriceElement) {
-            oldPriceElement.style.display = 'none';
-          }
+    
+      if (!priceElement) return;
+    
+      if (variant.formatted_sale_price) {
+        priceElement.textContent = variant.formatted_sale_price;
+        if (oldPriceElement) {
+          oldPriceElement.textContent = variant.formatted_price;
+          oldPriceElement.style.display = 'inline';
+        }
+      } else {
+        priceElement.textContent = variant.formatted_price;
+        if (oldPriceElement) {
+          oldPriceElement.style.display = 'none';
         }
       }
     },
