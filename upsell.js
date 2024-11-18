@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v1.2.6
+// src/scripts/upsell.js v1.2.7
 // HMStudio Upsell Feature
 
 (function() {
@@ -240,14 +240,25 @@
 
       // Create form
       const form = document.createElement('form');
-      form.id = `product-form-${fullProductData.id}`;
+form.id = `upsell-product-form-${fullProductData.id}`;  // Unique ID for each form
+form.className = 'product-form';  // Add class for easier selection
+form.style.cssText = 'margin-bottom: 10px;';
       
       // Product ID input
       const productIdInput = document.createElement('input');
-      productIdInput.type = 'hidden';
-      productIdInput.name = 'product_id';
-      productIdInput.value = fullProductData.selected_product?.id || fullProductData.id;
-      form.appendChild(productIdInput);
+productIdInput.type = 'hidden';
+productIdInput.id = `product-id-${fullProductData.id}`;  // Add unique ID
+productIdInput.name = 'product_id';
+productIdInput.value = fullProductData.selected_product?.id || fullProductData.id;
+form.appendChild(productIdInput);
+
+// Hidden quantity input
+const quantityInputHidden = document.createElement('input');
+quantityInputHidden.type = 'hidden';
+quantityInputHidden.id = `product-quantity-${fullProductData.id}`;  // Add unique ID
+quantityInputHidden.name = 'quantity';
+quantityInputHidden.value = '1';
+form.appendChild(quantityInputHidden);
 
       // Quantity input
       const quantityInput = document.createElement('input');
@@ -310,42 +321,77 @@
 
       // Add to cart button
       const addButton = document.createElement('button');
-      addButton.className = 'hmstudio-upsell-add-to-cart';
-      addButton.type = 'button';
-      addButton.textContent = currentLang === 'ar' ? 'أضف إلى السلة' : 'Add to Cart';
-      addButton.style.cssText = `
-        background: var(--theme-primary, #00b286);
-        color: white;
-        border: none;
-        padding: 8px 15px;
-        border-radius: 4px;
-        cursor: pointer;
-        width: 100%;
-        transition: opacity 0.2s;
-      `;
+  addButton.className = 'hmstudio-upsell-add-to-cart btn btn-primary';
+  addButton.type = 'button';
+  addButton.textContent = currentLang === 'ar' ? 'أضف إلى السلة' : 'Add to Cart';
+  addButton.style.cssText = `
+    background: var(--theme-primary, #00b286);
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 4px;
+    cursor: pointer;
+    width: 100%;
+    transition: opacity 0.2s;
+    margin-top: 10px;
+  `;
+
+  // Add loading spinner div
+  const loadingSpinner = document.createElement('div');
+  loadingSpinner.className = 'add-to-cart-progress d-none';
+  loadingSpinner.style.cssText = `
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    margin-left: 10px;
+    border: 3px solid #f3f3f3;
+    border-top: 3px solid #3498db;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    display: none;
+  `;
+  addButton.appendChild(loadingSpinner);
 
       // Add to cart handler
       addButton.addEventListener('click', async () => {
         try {
+          // Show loading spinner
+          loadingSpinner.style.display = 'inline-block';
           addButton.disabled = true;
-          const formData = new FormData(form);
-          
-          const response = await zid.store.cart.addProduct({ 
+    
+          // Get the form
+          const form = card.querySelector('form');
+          if (!form) {
+            throw new Error('Product form not found');
+          }
+    
+          // Get form data
+          const productId = form.querySelector('input[name="product_id"]')?.value;
+          const quantity = form.querySelector('input[name="quantity"]')?.value || '1';
+    
+          if (!productId) {
+            throw new Error('Product ID not found');
+          }
+    
+          // Call Zid's cart function
+          const response = await zid.store.cart.addProduct({
             formId: form.id,
             data: {
-              product_id: formData.get('product_id'),
-              quantity: formData.get('quantity')
+              product_id: productId,
+              quantity: quantity
             }
           });
-
+    
           console.log('Add to cart response:', response);
-          
+    
           if (response.status === 'success') {
             if (typeof setCartBadge === 'function') {
               setCartBadge(response.data.cart.products_count);
             }
+            // Close modal immediately without alert
             this.closeModal();
           } else {
+            console.error('Add to cart failed:', response);
             const errorMessage = currentLang === 'ar' 
               ? response.data.message || 'فشل إضافة المنتج إلى السلة'
               : response.data.message || 'Failed to add product to cart';
@@ -358,13 +404,15 @@
             : 'Error occurred while adding product to cart';
           alert(errorMessage);
         } finally {
+          // Hide loading spinner and enable button
+          loadingSpinner.style.display = 'none';
           addButton.disabled = false;
         }
       });
-
+    
       card.appendChild(form);
       card.appendChild(addButton);
-
+    
       return card;
     },
 
