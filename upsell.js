@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v1.3.2
+// src/scripts/upsell.js v1.3.3
 // HMStudio Upsell Feature
 
 (function() {
@@ -397,39 +397,31 @@
         console.warn('Invalid campaign data:', campaign);
         return;
       }
-
-      // Decode Arabic text properly
-      const decodeText = (text) => {
+    
+      // Decode text function
+      const decodeText = (encodedText) => {
+        if (!encodedText) return '';
         try {
-          // First try decoding as URI component
-          return decodeURIComponent(text);
+          return decodeURIComponent(escape(window.atob(encodedText)));
         } catch (e) {
-          try {
-            // If that fails, try decoding from UTF-8
-            return decodeURIComponent(escape(text));
-          } catch (err) {
-            console.error('Error decoding text:', err);
-            return text;
-          }
+          console.error('Error decoding text:', e);
+          return encodedText;
         }
       };
-
-      // Get and decode texts
-      const titleAr = campaign.texts?.titleAr ? decodeText(campaign.texts.titleAr) : '';
-      const titleEn = campaign.texts?.titleEn ? decodeText(campaign.texts.titleEn) : '';
-      const subtitleAr = campaign.texts?.subtitleAr ? decodeText(campaign.texts.subtitleAr) : '';
-      const subtitleEn = campaign.texts?.subtitleEn ? decodeText(campaign.texts.subtitleEn) : '';
-
-      console.log('Decoded texts:', {
-        titleAr,
-        titleEn,
-        subtitleAr,
-        subtitleEn
-      });
-
+    
+      // Decode the texts
+      const texts = {
+        titleAr: decodeText(campaign.texts?.titleAr),
+        titleEn: decodeText(campaign.texts?.titleEn),
+        subtitleAr: campaign.texts?.subtitleAr ? decodeText(campaign.texts.subtitleAr) : '',
+        subtitleEn: campaign.texts?.subtitleEn ? decodeText(campaign.texts.subtitleEn) : ''
+      };
+    
+      console.log('Decoded texts:', texts);
+    
       const currentLang = getCurrentLanguage();
       const isRTL = currentLang === 'ar';
-
+    
       try {
         if (this.currentModal) {
           this.currentModal.remove();
@@ -486,28 +478,29 @@
         closeButton.addEventListener('click', () => this.closeModal());
 
         // Title
-        const title = document.createElement('h3');
-        title.style.cssText = `
-          font-size: 1.5em;
-          margin: 0 0 20px;
-          padding-${isRTL ? 'left' : 'right'}: 30px;
-        `;
-        title.textContent = currentLang === 'ar' ? titleAr : titleEn;
+    const title = document.createElement('h3');
+    title.style.cssText = `
+      font-size: 1.5em;
+      margin: 0 0 20px;
+      padding-${isRTL ? 'left' : 'right'}: 30px;
+    `;
+    title.textContent = currentLang === 'ar' ? texts.titleAr : texts.titleEn;
 
-        // Subtitle
-        const subtitle = document.createElement('p');
-        subtitle.style.cssText = `
-          color: #666;
-          margin-bottom: 20px;
-          font-size: 1.1em;
-          display: none;
-        `;
+    // Subtitle
+    const subtitle = document.createElement('p');
+    subtitle.style.cssText = `
+      color: #666;
+      margin-bottom: 20px;
+      font-size: 1.1em;
+      display: none;
+    `;
 
-        const subtitleText = currentLang === 'ar' ? subtitleAr : subtitleEn;
-        if (subtitleText) {
-          subtitle.textContent = subtitleText;
-          subtitle.style.display = 'block';
-        }
+    const subtitleText = currentLang === 'ar' ? texts.subtitleAr : texts.subtitleEn;
+    if (subtitleText) {
+      subtitle.textContent = subtitleText;
+      subtitle.style.display = 'block';
+    }
+
 
         // Products grid
         const productsGrid = document.createElement('div');
