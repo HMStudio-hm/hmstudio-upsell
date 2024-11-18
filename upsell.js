@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v1.2.7
+// src/scripts/upsell.js v1.2.8
 // HMStudio Upsell Feature
 
 (function() {
@@ -46,15 +46,12 @@
     currentModal: null,
     activeTimeout: null,
 
-    // New function to fetch full product data including variants
     async fetchProductData(productId) {
-      if (!storeId || !productId) {
-        console.error('Store ID or Product ID missing');
-        return null;
-      }
-
+      console.log('Fetching product data for ID:', productId);
+      const url = `https://europe-west3-hmstudio-85f42.cloudfunctions.net/getProductData?storeId=${storeId}&productId=${productId}`;
+      
       try {
-        const response = await fetch(`https://europe-west3-hmstudio-85f42.cloudfunctions.net/getProductData?storeId=${storeId}&productId=${productId}`);
+        const response = await fetch(url);
         if (!response.ok) {
           throw new Error(`Failed to fetch product data: ${response.statusText}`);
         }
@@ -63,6 +60,171 @@
         return data;
       } catch (error) {
         console.error('Error fetching product data:', error);
+        throw error;
+      }
+    },
+
+    async createProductCard(product) {
+      try {
+        const fullProductData = await this.fetchProductData(product.id);
+        console.log('Full product data:', fullProductData);
+
+        if (!fullProductData) {
+          throw new Error('Failed to fetch full product data');
+        }
+
+        const currentLang = getCurrentLanguage();
+        const isRTL = currentLang === 'ar';
+
+        let productName = fullProductData.name;
+        if (typeof productName === 'object') {
+          productName = currentLang === 'ar' ? productName.ar : productName.en;
+        }
+
+        const card = document.createElement('div');
+        card.className = 'hmstudio-upsell-product-card';
+        card.style.cssText = `
+          border: 1px solid #eee;
+          border-radius: 8px;
+          padding: 15px;
+          text-align: center;
+          transition: transform 0.2s ease, box-shadow 0.2s ease;
+        `;
+
+        // Create form with proper structure for Zid API
+        const form = document.createElement('form');
+        form.id = `product-form-${fullProductData.id}`;
+
+        // Product ID input following Zid's convention
+        const productIdInput = document.createElement('input');
+        productIdInput.type = 'hidden';
+        productIdInput.id = 'product-id';  // Required by Zid
+        productIdInput.name = 'product_id';
+        productIdInput.value = fullProductData.selected_product?.id || fullProductData.id;
+        form.appendChild(productIdInput);
+
+        // Quantity input following Zid's convention
+        const quantityInput = document.createElement('input');
+        quantityInput.type = 'hidden';
+        quantityInput.id = 'product-quantity';  // Required by Zid
+        quantityInput.name = 'quantity';
+        quantityInput.value = '1';
+        form.appendChild(quantityInput);
+
+        // Product content
+        const productContent = document.createElement('div');
+        productContent.innerHTML = `
+          <img 
+            src="${fullProductData.images?.[0]?.url || product.thumbnail}" 
+            alt="${productName}" 
+            style="width: 100%; height: 150px; object-fit: contain; margin-bottom: 10px;"
+          >
+          <h4 style="font-size: 1em; margin: 10px 0; min-height: 40px;">
+            ${productName}
+          </h4>
+        `;
+        card.appendChild(productContent);
+
+        // Add variants section if product has options
+        if (fullProductData.has_options && fullProductData.variants?.length > 0) {
+          const variantsSection = this.createVariantsSection(fullProductData, currentLang);
+          form.appendChild(variantsSection);
+
+          // Initialize with default variant
+          if (fullProductData.selected_product) {
+            this.updateSelectedVariant(fullProductData, form);
+          }
+        }
+
+        // Price display
+        const priceContainer = document.createElement('div');
+        priceContainer.style.cssText = `margin: 15px 0; font-weight: bold;`;
+        
+        const currentPrice = document.createElement('span');
+        currentPrice.className = 'product-price';
+        currentPrice.style.color = 'var(--theme-primary, #00b286)';
+        
+        const oldPrice = document.createElement('span');
+        oldPrice.className = 'product-old-price';
+        oldPrice.style.cssText = `
+          text-decoration: line-through;
+          color: #999;
+          margin-${isRTL ? 'right' : 'left'}: 10px;
+          display: none;
+        `;
+
+        if (fullProductData.formatted_sale_price) {
+          currentPrice.textContent = fullProductData.formatted_sale_price;
+          oldPrice.textContent = fullProductData.formatted_price;
+          oldPrice.style.display = 'inline';
+        } else {
+          currentPrice.textContent = fullProductData.formatted_price;
+        }
+
+        priceContainer.appendChild(currentPrice);
+        priceContainer.appendChild(oldPrice);
+        card.appendChild(priceContainer);
+
+        // Add to cart button with spinner
+        const addButton = document.createElement('button');
+        addButton.className = 'btn btn-primary add-to-cart-btn';
+        addButton.type = 'button';
+        addButton.textContent = currentLang === 'ar' ? 'أضف إلى السلة' : 'Add to Cart';
+        addButton.style.cssText = `
+          background: var(--theme-primary, #00b286);
+          color: white;
+          width: 100%;
+          padding: 10px;
+          border: none;
+          border-radius: 4px;
+          cursor: pointer;
+          margin-top: 10px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+        `;
+
+        const spinner = document.createElement('div');
+        spinner.className = 'add-to-cart-progress d-none';
+        spinner.style.cssText = `
+          width: 20px;
+          height: 20px;
+          border: 2px solid #ffffff;
+          border-top: 2px solid transparent;
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+        `;
+        addButton.appendChild(spinner);
+
+        // Add to cart handler using Zid's convention
+        addButton.addEventListener('click', function() {
+          const spinners = form.querySelectorAll('.add-to-cart-progress');
+          spinners.forEach(s => s.classList.remove('d-none'));
+
+          zid.store.cart.addProduct({ 
+            formId: form.id
+          }).then(function(response) {
+            console.log('Add to cart response:', response);
+            if(response.status === 'success') {
+              if (typeof setCartBadge === 'function') {
+                setCartBadge(response.data.cart.products_count);
+              }
+              window.HMStudioUpsell.closeModal();
+            }
+            spinners.forEach(s => s.classList.add('d-none'));
+          }).catch(function(error) {
+            console.error('Add to cart error:', error);
+            spinners.forEach(s => s.classList.add('d-none'));
+          });
+        });
+
+        card.appendChild(form);
+        card.appendChild(addButton);
+
+        return card;
+      } catch (error) {
+        console.error('Error creating product card:', error);
         return null;
       }
     },
@@ -76,7 +238,6 @@
       `;
 
       if (product.variants && product.variants.length > 0) {
-        // Get unique variants and their values
         const variantAttributes = new Map();
         
         product.variants.forEach(variant => {
@@ -94,7 +255,6 @@
           }
         });
 
-        // Create dropdowns for each attribute type
         variantAttributes.forEach((attr) => {
           const select = document.createElement('select');
           select.className = 'variant-select';
@@ -148,7 +308,6 @@
       const currentLang = getCurrentLanguage();
       const selectedValues = {};
 
-      // Get all selected values
       form.querySelectorAll('.variant-select').forEach(select => {
         if (select.value) {
           const labelText = select.previousElementSibling.textContent;
@@ -158,7 +317,6 @@
 
       console.log('Selected values:', selectedValues);
 
-      // Find matching variant
       const selectedVariant = product.variants.find(variant => {
         return variant.attributes.every(attr => {
           const attrLabel = currentLang === 'ar' ? attr.slug : attr.name;
@@ -169,14 +327,12 @@
       console.log('Found variant:', selectedVariant);
 
       if (selectedVariant) {
-        // Update product ID input
-        const productIdInput = form.querySelector('input[name="product_id"]');
+        const productIdInput = form.querySelector('#product-id');
         if (productIdInput) {
           productIdInput.value = selectedVariant.id;
           console.log('Updated product ID to:', selectedVariant.id);
         }
 
-        // Update price display
         const priceElement = form.querySelector('.product-price');
         const oldPriceElement = form.querySelector('.product-old-price');
         
@@ -195,8 +351,7 @@
           }
         }
 
-        // Update add to cart button
-        const addToCartBtn = form.querySelector('.hmstudio-upsell-add-to-cart');
+        const addToCartBtn = form.parentElement.querySelector('.add-to-cart-btn');
         if (addToCartBtn) {
           if (!selectedVariant.unavailable) {
             addToCartBtn.disabled = false;
@@ -209,211 +364,6 @@
           }
         }
       }
-    },
-
-    async createProductCard(product) {
-      const currentLang = getCurrentLanguage();
-      const isRTL = currentLang === 'ar';
-
-      // Fetch full product data including variants
-      const fullProductData = await this.fetchProductData(product.id);
-      if (!fullProductData) {
-        console.error('Failed to fetch full product data');
-        return null;
-      }
-
-      // Get the correct product name
-      let productName = fullProductData.name;
-      if (typeof productName === 'object') {
-        productName = currentLang === 'ar' ? productName.ar : productName.en;
-      }
-
-      const card = document.createElement('div');
-      card.className = 'hmstudio-upsell-product-card';
-      card.style.cssText = `
-        border: 1px solid #eee;
-        border-radius: 8px;
-        padding: 15px;
-        text-align: center;
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
-      `;
-
-      // Create form
-      const form = document.createElement('form');
-form.id = `upsell-product-form-${fullProductData.id}`;  // Unique ID for each form
-form.className = 'product-form';  // Add class for easier selection
-form.style.cssText = 'margin-bottom: 10px;';
-      
-      // Product ID input
-      const productIdInput = document.createElement('input');
-productIdInput.type = 'hidden';
-productIdInput.id = `product-id-${fullProductData.id}`;  // Add unique ID
-productIdInput.name = 'product_id';
-productIdInput.value = fullProductData.selected_product?.id || fullProductData.id;
-form.appendChild(productIdInput);
-
-// Hidden quantity input
-const quantityInputHidden = document.createElement('input');
-quantityInputHidden.type = 'hidden';
-quantityInputHidden.id = `product-quantity-${fullProductData.id}`;  // Add unique ID
-quantityInputHidden.name = 'quantity';
-quantityInputHidden.value = '1';
-form.appendChild(quantityInputHidden);
-
-      // Quantity input
-      const quantityInput = document.createElement('input');
-      quantityInput.type = 'hidden';
-      quantityInput.name = 'quantity';
-      quantityInput.value = '1';
-      form.appendChild(quantityInput);
-
-      // Product Image and Title
-      const productContent = document.createElement('div');
-      productContent.innerHTML = `
-        <img 
-          src="${fullProductData.images?.[0]?.url || product.thumbnail}" 
-          alt="${productName}" 
-          style="width: 100%; height: 150px; object-fit: contain; margin-bottom: 10px;"
-        >
-        <h4 style="font-size: 1em; margin: 10px 0; min-height: 40px;">
-          ${productName}
-        </h4>
-      `;
-      card.appendChild(productContent);
-
-      // Add variants section if product has options
-      if (fullProductData.has_options) {
-        const variantsSection = this.createVariantsSection(fullProductData, currentLang);
-        card.appendChild(variantsSection);
-      }
-
-      // Price display
-      const priceContainer = document.createElement('div');
-      priceContainer.style.cssText = `
-        margin: 15px 0;
-        font-weight: bold;
-      `;
-      
-      const currentPrice = document.createElement('span');
-      currentPrice.className = 'product-price';
-      currentPrice.style.color = 'var(--theme-primary, #00b286)';
-      
-      const oldPrice = document.createElement('span');
-      oldPrice.className = 'product-old-price';
-      oldPrice.style.cssText = `
-        text-decoration: line-through;
-        color: #999;
-        margin-${isRTL ? 'right' : 'left'}: 10px;
-        display: none;
-      `;
-
-      if (fullProductData.formatted_sale_price) {
-        currentPrice.textContent = fullProductData.formatted_sale_price;
-        oldPrice.textContent = fullProductData.formatted_price;
-        oldPrice.style.display = 'inline';
-      } else {
-        currentPrice.textContent = fullProductData.formatted_price;
-      }
-
-      priceContainer.appendChild(currentPrice);
-      priceContainer.appendChild(oldPrice);
-      card.appendChild(priceContainer);
-
-      // Add to cart button
-      const addButton = document.createElement('button');
-  addButton.className = 'hmstudio-upsell-add-to-cart btn btn-primary';
-  addButton.type = 'button';
-  addButton.textContent = currentLang === 'ar' ? 'أضف إلى السلة' : 'Add to Cart';
-  addButton.style.cssText = `
-    background: var(--theme-primary, #00b286);
-    color: white;
-    border: none;
-    padding: 8px 15px;
-    border-radius: 4px;
-    cursor: pointer;
-    width: 100%;
-    transition: opacity 0.2s;
-    margin-top: 10px;
-  `;
-
-  // Add loading spinner div
-  const loadingSpinner = document.createElement('div');
-  loadingSpinner.className = 'add-to-cart-progress d-none';
-  loadingSpinner.style.cssText = `
-    display: inline-block;
-    width: 20px;
-    height: 20px;
-    margin-left: 10px;
-    border: 3px solid #f3f3f3;
-    border-top: 3px solid #3498db;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-    display: none;
-  `;
-  addButton.appendChild(loadingSpinner);
-
-      // Add to cart handler
-      addButton.addEventListener('click', async () => {
-        try {
-          // Show loading spinner
-          loadingSpinner.style.display = 'inline-block';
-          addButton.disabled = true;
-    
-          // Get the form
-          const form = card.querySelector('form');
-          if (!form) {
-            throw new Error('Product form not found');
-          }
-    
-          // Get form data
-          const productId = form.querySelector('input[name="product_id"]')?.value;
-          const quantity = form.querySelector('input[name="quantity"]')?.value || '1';
-    
-          if (!productId) {
-            throw new Error('Product ID not found');
-          }
-    
-          // Call Zid's cart function
-          const response = await zid.store.cart.addProduct({
-            formId: form.id,
-            data: {
-              product_id: productId,
-              quantity: quantity
-            }
-          });
-    
-          console.log('Add to cart response:', response);
-    
-          if (response.status === 'success') {
-            if (typeof setCartBadge === 'function') {
-              setCartBadge(response.data.cart.products_count);
-            }
-            // Close modal immediately without alert
-            this.closeModal();
-          } else {
-            console.error('Add to cart failed:', response);
-            const errorMessage = currentLang === 'ar' 
-              ? response.data.message || 'فشل إضافة المنتج إلى السلة'
-              : response.data.message || 'Failed to add product to cart';
-            alert(errorMessage);
-          }
-        } catch (error) {
-          console.error('Error adding to cart:', error);
-          const errorMessage = currentLang === 'ar' 
-            ? 'حدث خطأ أثناء إضافة المنتج إلى السلة'
-            : 'Error occurred while adding product to cart';
-          alert(errorMessage);
-        } finally {
-          // Hide loading spinner and enable button
-          loadingSpinner.style.display = 'none';
-          addButton.disabled = false;
-        }
-      });
-    
-      card.appendChild(form);
-      card.appendChild(addButton);
-    
-      return card;
     },
 
     async showUpsellModal(campaign, productCart) {
@@ -516,10 +466,8 @@ form.appendChild(quantityInputHidden);
           campaign.upsellProducts.map(product => this.createProductCard(product))
         );
 
-        productCards.forEach(card => {
-          if (card) {
-            productsGrid.appendChild(card);
-          }
+        productCards.filter(card => card !== null).forEach(card => {
+          productsGrid.appendChild(card);
         });
 
         // Assemble modal
