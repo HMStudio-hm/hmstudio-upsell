@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v1.3.0
+// src/scripts/upsell.js v1.3.1
 // HMStudio Upsell Feature
 
 (function() {
@@ -76,11 +76,7 @@
         const currentLang = getCurrentLanguage();
         const isRTL = currentLang === 'ar';
 
-        let productName = fullProductData.name;
-        if (typeof productName === 'object') {
-          productName = currentLang === 'ar' ? productName.ar : productName.en;
-        }
-
+        // Create card
         const card = document.createElement('div');
         card.className = 'hmstudio-upsell-product-card';
         card.style.cssText = `
@@ -91,25 +87,31 @@
           transition: transform 0.2s ease, box-shadow 0.2s ease;
         `;
 
-        // Create form with proper structure for Zid API
+        // Create form
         const form = document.createElement('form');
         form.id = `product-form-${fullProductData.id}`;
 
-        // Product ID input following Zid's convention
+        // Product ID input - match Zid's expected structure
         const productIdInput = document.createElement('input');
         productIdInput.type = 'hidden';
-        productIdInput.id = 'product-id';  // Required by Zid
+        productIdInput.id = 'product-id';  // Must match Zid's expected ID
         productIdInput.name = 'product_id';
         productIdInput.value = fullProductData.selected_product?.id || fullProductData.id;
         form.appendChild(productIdInput);
 
-        // Quantity input following Zid's convention
+        // Quantity input - match Zid's expected structure
         const quantityInput = document.createElement('input');
         quantityInput.type = 'hidden';
-        quantityInput.id = 'product-quantity';  // Required by Zid
+        quantityInput.id = 'product-quantity';  // Must match Zid's expected ID
         quantityInput.name = 'quantity';
         quantityInput.value = '1';
         form.appendChild(quantityInput);
+
+        // Get the correct product name
+        let productName = fullProductData.name;
+        if (typeof productName === 'object') {
+          productName = currentLang === 'ar' ? productName.ar : productName.en;
+        }
 
         // Product content
         const productContent = document.createElement('div');
@@ -125,7 +127,7 @@
         `;
         card.appendChild(productContent);
 
-        // Add variants section if product has options
+        // Variants section if product has options
         if (fullProductData.has_options && fullProductData.variants?.length > 0) {
           const variantsSection = this.createVariantsSection(fullProductData, currentLang);
           form.appendChild(variantsSection);
@@ -164,7 +166,6 @@
         priceContainer.appendChild(currentPrice);
         priceContainer.appendChild(oldPrice);
         card.appendChild(priceContainer);
-
         // Add to cart button with spinner
         const addButton = document.createElement('button');
         addButton.className = 'btn btn-primary add-to-cart-btn';
@@ -197,8 +198,8 @@
         `;
         addButton.appendChild(spinner);
 
-        // Add to cart handler using Zid's convention
-        addButton.addEventListener('click', function() {
+        // Add to cart handler
+        addButton.addEventListener('click', () => {
           // Check if product has variants
           if (fullProductData.has_options && fullProductData.variants?.length > 0) {
             // Get all variant selections
@@ -212,7 +213,7 @@
               }
               selectedVariants[labelText] = select.value;
             });
-        
+
             // Check if all variants are selected
             if (missingSelections.length > 0) {
               const message = currentLang === 'ar' 
@@ -222,10 +223,10 @@
               return;
             }
           }
-        
+
           const spinners = form.querySelectorAll('.add-to-cart-progress');
           spinners.forEach(s => s.classList.remove('d-none'));
-        
+
           zid.store.cart.addProduct({ 
             formId: form.id
           }).then(function(response) {
@@ -389,18 +390,18 @@
         }
       }
     },
-
     async showUpsellModal(campaign, productCart) {
       console.log('showUpsellModal called with:', { campaign, productCart });
+      console.log('Campaign texts:', campaign.texts);
       
       if (!campaign || !campaign.upsellProducts || campaign.upsellProducts.length === 0) {
         console.warn('Invalid campaign data:', campaign);
         return;
       }
-    
+
       const currentLang = getCurrentLanguage();
       const isRTL = currentLang === 'ar';
-    
+
       try {
         if (this.currentModal) {
           this.currentModal.remove();
@@ -456,45 +457,62 @@
         `;
         closeButton.addEventListener('click', () => this.closeModal());
 
-         // Title
-    const title = document.createElement('h3');
-    title.style.cssText = `
-      font-size: 1.5em;
-      margin: 0 0 20px;
-      padding-${isRTL ? 'left' : 'right'}: 30px;
-    `;
-    // Use the custom title from campaign data
-    title.textContent = currentLang === 'ar' 
-      ? campaign.texts.titleAr 
-      : campaign.texts.titleEn;
+        // Title
+        const title = document.createElement('h3');
+        title.style.cssText = `
+          font-size: 1.5em;
+          margin: 0 0 20px;
+          padding-${isRTL ? 'left' : 'right'}: 30px;
+        `;
+        title.textContent = currentLang === 'ar' 
+          ? campaign.texts?.titleAr 
+          : campaign.texts?.titleEn;
 
-    // Subtitle with custom text (if provided)
-    const subtitle = document.createElement('p');
-    subtitle.style.cssText = `
-      color: #666;
-      margin-bottom: 20px;
-      font-size: 1.1em;
-    `;
-    // Use the custom subtitle if provided, otherwise don't show it
-    const subtitleText = currentLang === 'ar'
-      ? campaign.texts.subtitleAr
-      : campaign.texts.subtitleEn;
-    
-    if (subtitleText) {
-      subtitle.textContent = subtitleText;
-      subtitle.style.display = 'block';
-    } else {
-      subtitle.style.display = 'none';
-    }
+        // Subtitle
+        const subtitle = document.createElement('p');
+        subtitle.style.cssText = `
+          color: #666;
+          margin-bottom: 20px;
+          font-size: 1.1em;
+          display: none;
+        `;
 
-    // Assemble modal
-    content.appendChild(closeButton);
-    content.appendChild(title);
-    // Only append subtitle if there is text
-    if (subtitleText) {
-      content.appendChild(subtitle);
-    }
-    content.appendChild(productsGrid);
+        const subtitleText = currentLang === 'ar'
+          ? campaign.texts?.subtitleAr
+          : campaign.texts?.subtitleEn;
+
+        if (subtitleText) {
+          subtitle.textContent = subtitleText;
+          subtitle.style.display = 'block';
+        }
+
+        // Products grid
+        const productsGrid = document.createElement('div');
+        productsGrid.style.cssText = `
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+          gap: 20px;
+          margin-top: 20px;
+        `;
+
+        // Create and add product cards
+        const productCards = await Promise.all(
+          campaign.upsellProducts.map(product => this.createProductCard(product))
+        );
+
+        productCards.filter(card => card !== null).forEach(card => {
+          productsGrid.appendChild(card);
+        });
+
+        // Assemble modal
+        content.appendChild(closeButton);
+        content.appendChild(title);
+        if (subtitleText) {
+          content.appendChild(subtitle);
+        }
+        content.appendChild(productsGrid);
+        modal.appendChild(content);
+        document.body.appendChild(modal);
 
         // Show modal with animation
         requestAnimationFrame(() => {
