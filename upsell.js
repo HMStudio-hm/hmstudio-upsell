@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v1.2.9
+// src/scripts/upsell.js v1.3.0
 // HMStudio Upsell Feature
 
 (function() {
@@ -397,10 +397,10 @@
         console.warn('Invalid campaign data:', campaign);
         return;
       }
-
+    
       const currentLang = getCurrentLanguage();
       const isRTL = currentLang === 'ar';
-
+    
       try {
         if (this.currentModal) {
           this.currentModal.remove();
@@ -456,51 +456,45 @@
         `;
         closeButton.addEventListener('click', () => this.closeModal());
 
-        // Title
-        const title = document.createElement('h3');
-        title.style.cssText = `
-          font-size: 1.5em;
-          margin: 0 0 20px;
-          padding-${isRTL ? 'left' : 'right'}: 30px;
-        `;
-        title.textContent = currentLang === 'ar' ? 'عروض خاصة لك!' : 'Special Offers for You!';
+         // Title
+    const title = document.createElement('h3');
+    title.style.cssText = `
+      font-size: 1.5em;
+      margin: 0 0 20px;
+      padding-${isRTL ? 'left' : 'right'}: 30px;
+    `;
+    // Use the custom title from campaign data
+    title.textContent = currentLang === 'ar' 
+      ? campaign.texts.titleAr 
+      : campaign.texts.titleEn;
 
-        // Subtitle with trigger product name
-        const subtitle = document.createElement('p');
-        subtitle.style.cssText = `
-          color: #666;
-          margin-bottom: 20px;
-          font-size: 1.1em;
-        `;
-        subtitle.textContent = currentLang === 'ar' 
-          ? `أضف هذه المنتجات المكملة لـ ${productCart.name}!`
-          : `Add these complementary products for ${productCart.name}!`;
+    // Subtitle with custom text (if provided)
+    const subtitle = document.createElement('p');
+    subtitle.style.cssText = `
+      color: #666;
+      margin-bottom: 20px;
+      font-size: 1.1em;
+    `;
+    // Use the custom subtitle if provided, otherwise don't show it
+    const subtitleText = currentLang === 'ar'
+      ? campaign.texts.subtitleAr
+      : campaign.texts.subtitleEn;
+    
+    if (subtitleText) {
+      subtitle.textContent = subtitleText;
+      subtitle.style.display = 'block';
+    } else {
+      subtitle.style.display = 'none';
+    }
 
-        // Products grid
-        const productsGrid = document.createElement('div');
-        productsGrid.style.cssText = `
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-          gap: 20px;
-          margin-top: 20px;
-        `;
-
-        // Create and add product cards
-        const productCards = await Promise.all(
-          campaign.upsellProducts.map(product => this.createProductCard(product))
-        );
-
-        productCards.filter(card => card !== null).forEach(card => {
-          productsGrid.appendChild(card);
-        });
-
-        // Assemble modal
-        content.appendChild(closeButton);
-        content.appendChild(title);
-        content.appendChild(subtitle);
-        content.appendChild(productsGrid);
-        modal.appendChild(content);
-        document.body.appendChild(modal);
+    // Assemble modal
+    content.appendChild(closeButton);
+    content.appendChild(title);
+    // Only append subtitle if there is text
+    if (subtitleText) {
+      content.appendChild(subtitle);
+    }
+    content.appendChild(productsGrid);
 
         // Show modal with animation
         requestAnimationFrame(() => {
