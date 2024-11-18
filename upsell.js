@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v1.2.2
+// src/scripts/upsell.js v1.2.3
 // HMStudio Upsell Feature
 
 (function() {
@@ -154,7 +154,6 @@
           : `Add these complementary products for ${decodedProductName}!`;
 
         // Products grid
-       // Products grid
         const productsGrid = document.createElement('div');
         productsGrid.style.cssText = `
           display: grid;
@@ -163,7 +162,7 @@
           margin-top: 20px;
         `;
 
-        // Add upsell products directly without fetching
+        // Add upsell products directly
         campaign.upsellProducts.forEach(product => {
           const productCard = this.createProductCard(product);
           productsGrid.appendChild(productCard);
@@ -177,12 +176,10 @@
         modal.appendChild(content);
         document.body.appendChild(modal);
 
-        // Load products and show modal with animation
-        loadProducts().then(() => {
-          requestAnimationFrame(() => {
-            modal.style.opacity = '1';
-            content.style.transform = 'translateY(0)';
-          });
+        // Show modal with animation
+        requestAnimationFrame(() => {
+          modal.style.opacity = '1';
+          content.style.transform = 'translateY(0)';
         });
 
         this.currentModal = modal;
