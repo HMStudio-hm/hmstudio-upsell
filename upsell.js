@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v1.2.0
+// src/scripts/upsell.js v1.2.1
 // HMStudio Upsell Feature
 
 (function() {
@@ -49,19 +49,7 @@
     currentModal: null,
     activeTimeout: null,
 
-    async getFullProductData(productId) {
-      try {
-        const response = await fetch(`https://europe-west3-hmstudio-85f42.cloudfunctions.net/getUpsellProductData?storeId=${storeId}&productId=${productId}`);
-        if (!response.ok) {
-          throw new Error(`Failed to fetch product data: ${response.statusText}`);
-        }
-        return await response.json();
-      } catch (error) {
-        console.error('Error fetching product data:', error);
-        throw error;
-      }
-    },
-
+    
     showUpsellModal(campaign, productCart) {
       console.log('showUpsellModal called with:', { campaign, productCart });
       
@@ -166,6 +154,7 @@
           : `Add these complementary products for ${decodedProductName}!`;
 
         // Products grid
+       // Products grid
         const productsGrid = document.createElement('div');
         productsGrid.style.cssText = `
           display: grid;
@@ -174,18 +163,11 @@
           margin-top: 20px;
         `;
 
-        // Add upsell products
-        const loadProducts = async () => {
-          for (const product of campaign.upsellProducts) {
-            try {
-              const fullProductData = await this.getFullProductData(product.id);
-              const productCard = await this.createProductCard(fullProductData);
-              productsGrid.appendChild(productCard);
-            } catch (error) {
-              console.error('Error loading product:', error);
-            }
-          }
-        };
+        // Add upsell products directly without fetching
+        campaign.upsellProducts.forEach(product => {
+          const productCard = this.createProductCard(product);
+          productsGrid.appendChild(productCard);
+        });
 
         // Assemble modal
         content.appendChild(closeButton);
