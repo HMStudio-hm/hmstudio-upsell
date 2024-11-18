@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v1.1.9
+// src/scripts/upsell.js v1.2.0
 // HMStudio Upsell Feature
 
 (function() {
@@ -48,6 +48,19 @@
     campaigns: getCampaignsFromUrl(),
     currentModal: null,
     activeTimeout: null,
+
+    async getFullProductData(productId) {
+      try {
+        const response = await fetch(`https://europe-west3-hmstudio-85f42.cloudfunctions.net/getUpsellProductData?storeId=${storeId}&productId=${productId}`);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch product data: ${response.statusText}`);
+        }
+        return await response.json();
+      } catch (error) {
+        console.error('Error fetching product data:', error);
+        throw error;
+      }
+    },
 
     showUpsellModal(campaign, productCart) {
       console.log('showUpsellModal called with:', { campaign, productCart });
@@ -140,7 +153,7 @@
         `;
         title.textContent = currentLang === 'ar' ? 'عروض خاصة لك!' : 'Special Offers for You!';
 
-        // Subtitle with trigger product name (decode the product name)
+        // Subtitle with trigger product name
         const subtitle = document.createElement('p');
         subtitle.style.cssText = `
           color: #666;
@@ -162,10 +175,17 @@
         `;
 
         // Add upsell products
-        campaign.upsellProducts.forEach(product => {
-          const productCard = this.createProductCard(product);
-          productsGrid.appendChild(productCard);
-        });
+        const loadProducts = async () => {
+          for (const product of campaign.upsellProducts) {
+            try {
+              const fullProductData = await this.getFullProductData(product.id);
+              const productCard = await this.createProductCard(fullProductData);
+              productsGrid.appendChild(productCard);
+            } catch (error) {
+              console.error('Error loading product:', error);
+            }
+          }
+        };
 
         // Assemble modal
         content.appendChild(closeButton);
@@ -175,10 +195,12 @@
         modal.appendChild(content);
         document.body.appendChild(modal);
 
-        // Show modal with animation
-        requestAnimationFrame(() => {
-          modal.style.opacity = '1';
-          content.style.transform = 'translateY(0)';
+        // Load products and show modal with animation
+        loadProducts().then(() => {
+          requestAnimationFrame(() => {
+            modal.style.opacity = '1';
+            content.style.transform = 'translateY(0)';
+          });
         });
 
         this.currentModal = modal;
@@ -202,7 +224,8 @@
         console.error('Error creating upsell modal:', error);
       }
     },
-    createProductCard(product) {
+    async createProductCard(product) {
+      console.log('Creating card for product with full data:', product);
       const currentLang = getCurrentLanguage();
       const isRTL = currentLang === 'ar';
       const uniqueId = `product-form-${product.id}`;
@@ -229,7 +252,7 @@
       }
       productName = decodeProductName(productName);
 
-      // Create main card container first
+      // Create main card container
       const card = document.createElement('div');
       card.className = 'hmstudio-upsell-product-card';
       card.style.cssText = `
@@ -240,29 +263,30 @@
         transition: transform 0.2s ease, box-shadow 0.2s ease;
       `;
 
-      // Create form
+      // Create form with proper structure for Zid's theme library
       const form = document.createElement('form');
       form.id = uniqueId;
+      form.className = 'product-form';
 
-      // Product ID input
+      // Product ID input with specific ID as required by Zid
       const productIdInput = document.createElement('input');
       productIdInput.type = 'hidden';
       productIdInput.id = 'product-id';
+      productIdInput.name = 'product_id';
       productIdInput.value = product.selected_product ? product.selected_product.id : product.id;
       form.appendChild(productIdInput);
 
-      // Quantity input
+      // Hidden quantity input with specific ID as required by Zid
       const quantityInput = document.createElement('input');
       quantityInput.type = 'hidden';
       quantityInput.id = 'product-quantity';
+      quantityInput.name = 'quantity';
       quantityInput.value = '1';
       form.appendChild(quantityInput);
 
-      // Add form to card
-      card.appendChild(form);
-
       // Product content
-      const productContent = `
+      const contentContainer = document.createElement('div');
+      contentContainer.innerHTML = `
         <img 
           src="${product.thumbnail}" 
           alt="${productName}" 
@@ -272,64 +296,65 @@
           ${productName}
         </h4>
       `;
-      
-      // Add product content container
-      const contentContainer = document.createElement('div');
-      contentContainer.innerHTML = productContent;
       card.appendChild(contentContainer);
 
-      // Add price container
+      // Price container with required IDs for Zid's variant system
       const priceContainer = document.createElement('div');
-      priceContainer.style.cssText = 'margin: 10px 0;';
+      priceContainer.style.cssText = 'margin: 10px 0; text-align: center;';
       
-      // Regular price
-      const priceDisplay = document.createElement('span');
-      priceDisplay.id = `${uniqueId}-price`;
-      priceDisplay.className = 'product-price';
-      priceDisplay.style.cssText = 'font-weight: bold; color: var(--theme-primary, #00b286); direction: ltr; display: inline-block;';
-      
-      // Sale price
-      const oldPriceDisplay = document.createElement('span');
-      oldPriceDisplay.id = `${uniqueId}-old-price`;
-      oldPriceDisplay.style.cssText = 'text-decoration: line-through; margin-left: 8px; color: #999; display: none; direction: ltr;';
+      const regularPrice = document.createElement('span');
+      regularPrice.id = `${uniqueId}-price`;
+      regularPrice.className = 'product-price';
+      regularPrice.style.cssText = 'font-weight: bold; color: var(--theme-primary, #00b286); direction: ltr; display: inline-block;';
 
-      priceContainer.appendChild(priceDisplay);
-      priceContainer.appendChild(oldPriceDisplay);
+      const oldPrice = document.createElement('span');
+      oldPrice.id = `${uniqueId}-old-price`;
+      oldPrice.style.cssText = 'text-decoration: line-through; margin-left: 8px; color: #999; display: none; direction: ltr;';
+
+      priceContainer.appendChild(regularPrice);
+      priceContainer.appendChild(oldPrice);
       card.appendChild(priceContainer);
 
-      // Handle variants
+      // Handle variants using Zid's template system
       if (product.variants && product.variants.length > 0) {
         console.log('Product has variants:', product.variants);
-
+        
         const variantsContainer = document.createElement('div');
         variantsContainer.className = 'variants-container';
         variantsContainer.style.cssText = 'margin: 15px 0;';
 
-        // Get unique variant options
-        const variantOptions = {};
+        // Get unique attributes from variants
+        const attributes = {};
         product.variants.forEach(variant => {
           if (variant.attributes) {
             variant.attributes.forEach(attr => {
-              if (!variantOptions[attr.name]) {
-                variantOptions[attr.name] = new Set();
+              if (!attributes[attr.name]) {
+                attributes[attr.name] = new Set();
               }
-              variantOptions[attr.name].add(attr.value);
+              attributes[attr.name].add(JSON.stringify({
+                value: attr.value,
+                label: attr.value,
+                attribute: attr.name
+              }));
             });
           }
         });
 
-        // Create dropdown for each variant option
-        Object.entries(variantOptions).forEach(([optionName, values]) => {
-          const selectGroup = document.createElement('div');
-          selectGroup.style.cssText = 'margin-bottom: 10px;';
+        // Create dropdowns for each attribute
+        Object.entries(attributes).forEach(([attrName, valuesSet]) => {
+          const values = Array.from(valuesSet).map(v => JSON.parse(v));
+          
+          const selectContainer = document.createElement('div');
+          selectContainer.style.cssText = 'margin-bottom: 10px;';
 
           const label = document.createElement('label');
-          label.textContent = optionName;
-          label.style.cssText = 'display: block; margin-bottom: 5px; font-size: 0.9em;';
+          label.textContent = attrName;
+          label.style.cssText = 'display: block; margin-bottom: 5px; font-size: 0.9em; color: #666;';
 
           const select = document.createElement('select');
           select.className = 'variant-select';
-          select.setAttribute('data-option', optionName);
+          select.name = `variant-${attrName.toLowerCase().replace(/\s+/g, '-')}`;
+          select.setAttribute('data-attribute', attrName);
           select.style.cssText = `
             width: 100%;
             padding: 8px;
@@ -339,36 +364,57 @@
             ${isRTL ? 'direction: rtl;' : ''}
           `;
 
-          // Add default option
+          // Default option
           const defaultOption = document.createElement('option');
           defaultOption.value = '';
           defaultOption.textContent = currentLang === 'ar' 
-            ? `اختر ${optionName}`
-            : `Select ${optionName}`;
+            ? `اختر ${attrName}`
+            : `Select ${attrName}`;
           select.appendChild(defaultOption);
 
           // Add variant options
           values.forEach(value => {
             const option = document.createElement('option');
-            option.value = value;
-            option.textContent = value;
+            option.value = value.value;
+            option.textContent = value.label;
             select.appendChild(option);
           });
 
-          selectGroup.appendChild(label);
-          selectGroup.appendChild(select);
-          variantsContainer.appendChild(selectGroup);
+          selectContainer.appendChild(label);
+          selectContainer.appendChild(select);
+          variantsContainer.appendChild(selectContainer);
 
           // Handle variant selection
           select.addEventListener('change', () => {
-            this.handleVariantChange(product, uniqueId);
+            const selections = {};
+            variantsContainer.querySelectorAll('select').forEach(sel => {
+              const attribute = sel.getAttribute('data-attribute');
+              selections[attribute] = sel.value;
+            });
+
+            // Find matching variant
+            const matchingVariant = product.variants.find(variant => 
+              variant.attributes &&
+              variant.attributes.every(attr => 
+                selections[attr.name] === attr.value
+              )
+            );
+
+            if (matchingVariant) {
+              productIdInput.value = matchingVariant.id;
+              this.updatePriceDisplay(matchingVariant, uniqueId);
+              this.updateAddToCartButton(matchingVariant, form);
+            }
           });
         });
 
         card.appendChild(variantsContainer);
       }
 
-      // Quantity selector container
+      // Add form to card
+      card.appendChild(form);
+
+      // Quantity selector container and controls
       const quantityContainer = document.createElement('div');
       quantityContainer.style.cssText = `
         margin: 15px 0;
@@ -377,6 +423,7 @@
         justify-content: center;
         gap: 10px;
       `;
+      // Continuing from the quantity container...
 
       // Quantity label
       const quantityLabel = document.createElement('label');
@@ -449,16 +496,6 @@
         transition: background-color 0.3s ease;
       `;
 
-      // Add button hover effects
-      [decreaseBtn, increaseBtn].forEach(btn => {
-        btn.addEventListener('mouseover', () => {
-          btn.style.backgroundColor = '#e0e0e0';
-        });
-        btn.addEventListener('mouseout', () => {
-          btn.style.backgroundColor = '#f5f5f5';
-        });
-      });
-
       // Add quantity change handlers
       decreaseBtn.addEventListener('click', () => {
         const currentValue = parseInt(visibleQuantityInput.value);
@@ -476,7 +513,6 @@
         }
       });
 
-      // Update hidden input when visible quantity changes
       visibleQuantityInput.addEventListener('change', () => {
         let value = parseInt(visibleQuantityInput.value);
         if (isNaN(value) || value < 1) value = 1;
@@ -485,23 +521,21 @@
         quantityInput.value = value;
       });
 
-      // Loading spinner
-      const spinner = document.createElement('div');
-      spinner.className = 'add-to-cart-progress d-none';
-      spinner.style.cssText = `
-        width: 20px;
-        height: 20px;
-        border: 2px solid #ffffff;
-        border-top: 2px solid transparent;
-        border-radius: 50%;
-        margin-left: 8px;
-        display: inline-block;
-      `;
+      // Assemble quantity controls
+      quantityWrapper.appendChild(decreaseBtn);
+      quantityWrapper.appendChild(visibleQuantityInput);
+      quantityWrapper.appendChild(increaseBtn);
+      quantityContainer.appendChild(quantityLabel);
+      quantityContainer.appendChild(quantityWrapper);
+      card.appendChild(quantityContainer);
 
-      // Add to cart button
+      // Add to cart button and loading spinner
+      const buttonContainer = document.createElement('div');
+      buttonContainer.style.cssText = 'position: relative;';
+
       const addButton = document.createElement('button');
-      addButton.className = 'btn btn-primary';
       addButton.type = 'button';
+      addButton.className = 'btn btn-primary add-to-cart-btn';
       addButton.style.cssText = `
         background: var(--theme-primary, #00b286);
         color: white;
@@ -516,40 +550,39 @@
         align-items: center;
         justify-content: center;
       `;
-      
+
       const buttonText = document.createElement('span');
       buttonText.textContent = currentLang === 'ar' ? 'أضف إلى السلة' : 'Add to Cart';
       addButton.appendChild(buttonText);
+
+      const spinner = document.createElement('img');
+      spinner.className = 'add-to-cart-progress d-none';
+      spinner.src = '/path/to/spinner.gif'; // Update with actual spinner path
+      spinner.style.cssText = `
+        width: 20px;
+        height: 20px;
+        margin-left: 8px;
+        display: none;
+      `;
       addButton.appendChild(spinner);
 
-      // Assemble quantity controls
-      quantityWrapper.appendChild(decreaseBtn);
-      quantityWrapper.appendChild(visibleQuantityInput);
-      quantityWrapper.appendChild(increaseBtn);
-
-      quantityContainer.appendChild(quantityLabel);
-      quantityContainer.appendChild(quantityWrapper);
-
-      card.appendChild(quantityContainer);
-      card.appendChild(addButton);
+      buttonContainer.appendChild(addButton);
+      card.appendChild(buttonContainer);
 
       // Add to cart functionality
       addButton.addEventListener('click', () => {
-        const progress = card.querySelector('.add-to-cart-progress');
-        if (progress) {
-          progress.classList.remove('d-none');
-        }
-        this.productAddToCart(uniqueId, progress);
+        console.log('Add to cart clicked for form:', uniqueId);
+        this.productAddToCart(uniqueId);
       });
 
-      // Initial price display
+      // Set initial price
       if (product.selected_product) {
         this.updatePriceDisplay(product.selected_product, uniqueId);
       } else {
-        priceDisplay.textContent = product.formatted_price;
+        regularPrice.textContent = product.formatted_price;
       }
 
-      // Add hover effects to card
+      // Add hover effects
       card.addEventListener('mouseover', () => {
         card.style.transform = 'translateY(-5px)';
         card.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
@@ -561,43 +594,6 @@
       });
 
       return card;
-    },
-
-    handleVariantChange(product, formId) {
-      const form = document.getElementById(formId);
-      const selects = form.querySelectorAll('.variant-select');
-      const selectedValues = Array.from(selects).map(select => select.value);
-
-      // Find matching variant
-      const matchingVariant = product.variants.find(variant => {
-        if (!variant.attributes) return false;
-        return variant.attributes.every(attr => 
-          selectedValues.includes(attr.value)
-        );
-      });
-
-      if (matchingVariant) {
-        // Update product ID
-        const productIdInput = form.querySelector('#product-id');
-        if (productIdInput) {
-          productIdInput.value = matchingVariant.id;
-        }
-
-        // Update price display
-        this.updatePriceDisplay(matchingVariant, formId);
-
-        // Update button state
-        const addButton = form.querySelector('.btn-primary');
-        if (addButton) {
-          if (!matchingVariant.unavailable) {
-            addButton.disabled = false;
-            addButton.style.opacity = '1';
-          } else {
-            addButton.disabled = true;
-            addButton.style.opacity = '0.5';
-          }
-        }
-      }
     },
 
     updatePriceDisplay(variant, formId) {
@@ -619,55 +615,70 @@
         }
       }
     },
-    async productAddToCart(formId, progressElement) {
-      try {
-        const form = document.getElementById(formId);
-        if (!form) {
-          console.error(`Form not found with ID: ${formId}`);
-          return;
-        }
 
-        const formData = new FormData(form);
-        console.log('Adding to cart:', {
-          formId,
-          productId: formData.get('product_id'),
-          quantity: formData.get('quantity')
-        });
-
-        const response = await zid.store.cart.addProduct({ 
-          formId: formId
-        });
-
-        console.log('Cart response:', response);
-
-        if (response.status === 'success') {
-          if (typeof setCartBadge === 'function') {
-            setCartBadge(response.data.cart.products_count);
+    updateAddToCartButton(variant, form) {
+      const button = form.querySelector('.add-to-cart-btn');
+      if (button) {
+        if (variant.unavailable) {
+          button.disabled = true;
+          button.style.opacity = '0.5';
+          const textSpan = button.querySelector('span');
+          if (textSpan) {
+            textSpan.textContent = getCurrentLanguage() === 'ar' ? 'غير متوفر' : 'Unavailable';
           }
-          if (typeof updateMiniCart === 'function') {
-            updateMiniCart();
-          }
-          // Don't close modal to allow adding multiple products
         } else {
-          console.error('Add to cart failed:', response);
-          const errorMessage = getCurrentLanguage() === 'ar' 
-            ? response.data?.message || 'فشل إضافة المنتج إلى السلة'
-            : response.data?.message || 'Failed to add product to cart';
-          alert(errorMessage);
-        }
-      } catch (error) {
-        console.error('Error adding to cart:', error);
-        const errorMessage = getCurrentLanguage() === 'ar' 
-          ? 'حدث خطأ أثناء إضافة المنتج إلى السلة'
-          : 'Error occurred while adding product to cart';
-        alert(errorMessage);
-      } finally {
-        if (progressElement) {
-          progressElement.classList.add('d-none');
+          button.disabled = false;
+          button.style.opacity = '1';
+          const textSpan = button.querySelector('span');
+          if (textSpan) {
+            textSpan.textContent = getCurrentLanguage() === 'ar' ? 'أضف إلى السلة' : 'Add to Cart';
+          }
         }
       }
     },
 
+    productAddToCart(formId) {
+      const form = document.getElementById(formId);
+      if (!form) {
+        console.error('Form not found:', formId);
+        return;
+      }
+
+      const progress = form.querySelector('.add-to-cart-progress');
+      if (progress) {
+        progress.style.display = 'inline-block';
+      }
+
+      zid.store.cart.addProduct({ formId })
+        .then((response) => {
+          console.log('Add to cart response:', response);
+          if (response.status === 'success') {
+            if (typeof setCartBadge === 'function') {
+              setCartBadge(response.data.cart.products_count);
+            }
+            if (typeof updateMiniCart === 'function') {
+              updateMiniCart();
+            }
+          } else {
+            const errorMessage = getCurrentLanguage() === 'ar' 
+              ? response.data?.message || 'فشل إضافة المنتج إلى السلة'
+              : response.data?.message || 'Failed to add product to cart';
+            alert(errorMessage);
+          }
+        })
+        .catch((error) => {
+          console.error('Error adding to cart:', error);
+          const errorMessage = getCurrentLanguage() === 'ar' 
+            ? 'حدث خطأ أثناء إضافة المنتج إلى السلة'
+            : 'Error occurred while adding product to cart';
+          alert(errorMessage);
+        })
+        .finally(() => {
+          if (progress) {
+            progress.style.display = 'none';
+          }
+        });
+    },
     closeModal() {
       if (this.currentModal) {
         this.currentModal.style.opacity = '0';
@@ -689,35 +700,67 @@
             console.log('showUpsellModal called with args:', args);
             return this.showUpsellModal.apply(this, args);
           },
-          closeModal: () => this.closeModal(),
-          productOptionsChanged: (selected_product) => {
-            console.log('Product options changed:', selected_product);
-            if (selected_product) {
-              const form = document.querySelector('#product-form');
-              if (form) {
-                const productIdInput = form.querySelector('#product-id');
-                if (productIdInput) {
-                  productIdInput.value = selected_product.id;
-                }
-
-                const addButton = form.querySelector('.btn-primary');
-                if (addButton) {
-                  if (!selected_product.unavailable) {
-                    addButton.disabled = false;
-                    addButton.style.opacity = '1';
-                    addButton.textContent = getCurrentLanguage() === 'ar' ? 'أضف إلى السلة' : 'Add to Cart';
-                  } else {
-                    addButton.disabled = true;
-                    addButton.style.opacity = '0.5';
-                    addButton.textContent = getCurrentLanguage() === 'ar' ? 'غير متوفر' : 'Unavailable';
-                  }
-                }
-              }
-            }
-          }
+          closeModal: () => this.closeModal()
         };
         console.log('Global HMStudioUpsell object created');
       }
+
+      // Add window-level function for variant changes
+      window.productOptionsChanged = function(selected_product) {
+        console.log('Product options changed:', selected_product);
+        if (selected_product) {
+          const formId = document.querySelector('.product-form')?.id;
+          if (!formId) return;
+
+          const form = document.getElementById(formId);
+          if (!form) return;
+
+          // Update product ID
+          const productIdInput = form.querySelector('#product-id');
+          if (productIdInput) {
+            productIdInput.value = selected_product.id;
+          }
+
+          // Update price display
+          const priceDisplay = document.getElementById(`${formId}-price`);
+          const oldPriceDisplay = document.getElementById(`${formId}-old-price`);
+
+          if (priceDisplay) {
+            if (selected_product.formatted_sale_price) {
+              priceDisplay.textContent = selected_product.formatted_sale_price;
+              if (oldPriceDisplay) {
+                oldPriceDisplay.textContent = selected_product.formatted_price;
+                oldPriceDisplay.style.display = 'inline';
+              }
+            } else {
+              priceDisplay.textContent = selected_product.formatted_price;
+              if (oldPriceDisplay) {
+                oldPriceDisplay.style.display = 'none';
+              }
+            }
+          }
+
+          // Update add to cart button state
+          const addButton = form.querySelector('.add-to-cart-btn');
+          if (addButton) {
+            if (selected_product.unavailable) {
+              addButton.disabled = true;
+              addButton.style.opacity = '0.5';
+              const buttonText = addButton.querySelector('span');
+              if (buttonText) {
+                buttonText.textContent = getCurrentLanguage() === 'ar' ? 'غير متوفر' : 'Unavailable';
+              }
+            } else {
+              addButton.disabled = false;
+              addButton.style.opacity = '1';
+              const buttonText = addButton.querySelector('span');
+              if (buttonText) {
+                buttonText.textContent = getCurrentLanguage() === 'ar' ? 'أضف إلى السلة' : 'Add to Cart';
+              }
+            }
+          }
+        }
+      };
 
       // Handle page visibility changes
       document.addEventListener('visibilitychange', () => {
@@ -733,20 +776,6 @@
           if (content) {
             content.style.maxHeight = `${window.innerHeight * 0.9}px`;
           }
-        }
-      });
-
-      // Handle custom close events (e.g., from navigation)
-      document.addEventListener('routeChange', () => {
-        if (this.currentModal) {
-          this.closeModal();
-        }
-      });
-
-      // Close modal on back button press
-      window.addEventListener('popstate', () => {
-        if (this.currentModal) {
-          this.closeModal();
         }
       });
 
@@ -804,6 +833,10 @@
           background-position: left 8px center;
           padding-right: 8px;
           padding-left: 24px;
+        }
+
+        .add-to-cart-btn:disabled {
+          cursor: not-allowed;
         }
       `;
       document.head.appendChild(styleSheet);
