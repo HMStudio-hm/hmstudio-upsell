@@ -1,7 +1,14 @@
-// src/scripts/upsell.js v1.4.1
+// src/scripts/upsell.js v1.4.2
 // HMStudio Upsell Feature
 
 (function() {
+  // Ensure UTF-8 charset
+  if (!document.querySelector('meta[charset="UTF-8"]')) {
+    const meta = document.createElement('meta');
+    meta.setAttribute('charset', 'UTF-8');
+    document.head.appendChild(meta);
+  }
+
   console.log('Upsell script initialized');
 
   function getStoreIdFromUrl() {
@@ -466,20 +473,31 @@
     
         // Main Title with proper encoding
         const title = document.createElement('h3');
-        const titleText = document.createTextNode(
-          currentLang === 'ar' 
-            ? campaign.displaySettings?.titleAr || 'عروض خاصة لك!'
-            : campaign.displaySettings?.titleEn || 'Special Offers for You!'
-        );
-        title.appendChild(titleText);
-        title.style.cssText = `
-          font-size: 1.5em;
-          font-weight: bold;
-          color: #333;
-          text-align: ${isRTL ? 'right' : 'left'};
-          margin: 0;
-        `;
-        titleContainer.appendChild(title);
+  const titleContent = currentLang === 'ar' 
+    ? campaign.displaySettings?.titleAr || 'عروض خاصة لك!'
+    : campaign.displaySettings?.titleEn || 'Special Offers for You!';
+    
+  title.innerHTML = titleContent; // Using innerHTML for proper UTF-8 rendering
+  title.style.cssText = `
+    font-size: 1.5em;
+    font-weight: bold;
+    color: #333;
+    text-align: ${isRTL ? 'right' : 'left'};
+    margin: 0;
+  `;
+
+  // For subtitle
+  if (subtitleText) {
+    const subtitle = document.createElement('p');
+    subtitle.innerHTML = subtitleText; // Using innerHTML here as well
+    subtitle.style.cssText = `
+      color: #666;
+      margin: 10px 0 0 0;
+      font-size: 1.1em;
+      text-align: ${isRTL ? 'right' : 'left'};
+    `;
+    titleContainer.appendChild(subtitle);
+  }
     
         // Subtitle if exists
         const subtitleText = currentLang === 'ar'
