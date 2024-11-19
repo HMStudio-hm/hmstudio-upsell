@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v1.3.4
+// src/scripts/upsell.js v1.3.5
 // HMStudio Upsell Feature
 
 (function() {
@@ -35,6 +35,16 @@
     return document.documentElement.lang || 'ar';
   }
 
+  function getDisplayText(text) {
+    if (!text) return '';
+    try {
+      return decodeURIComponent(escape(text));
+    } catch (e) {
+      console.error('Error decoding text:', e);
+      return text;
+    }
+  }
+
   const storeId = getStoreIdFromUrl();
   if (!storeId) {
     console.error('Store ID not found in script URL');
@@ -51,7 +61,12 @@
       const url = `https://europe-west3-hmstudio-85f42.cloudfunctions.net/getProductData?storeId=${storeId}&productId=${productId}`;
       
       try {
-        const response = await fetch(url);
+        const response = await fetch(url, {
+          headers: {
+            'Content-Type': 'application/json; charset=utf-8',
+            'Accept': 'application/json'
+          }
+        });
         if (!response.ok) {
           throw new Error(`Failed to fetch product data: ${response.statusText}`);
         }
@@ -63,7 +78,6 @@
         throw error;
       }
     },
-
     async createProductCard(product) {
       try {
         const fullProductData = await this.fetchProductData(product.id);
@@ -76,7 +90,12 @@
         const currentLang = getCurrentLanguage();
         const isRTL = currentLang === 'ar';
 
-        // Create card
+        // Get the correct product name
+        let productName = fullProductData.name;
+        if (typeof fullProductData.name === 'object') {
+          productName = currentLang === 'ar' ? fullProductData.name.ar : fullProductData.name.en;
+        }
+
         const card = document.createElement('div');
         card.className = 'hmstudio-upsell-product-card';
         card.style.cssText = `
@@ -87,31 +106,25 @@
           transition: transform 0.2s ease, box-shadow 0.2s ease;
         `;
 
-        // Create form
+        // Create form with proper structure for Zid API
         const form = document.createElement('form');
         form.id = `product-form-${fullProductData.id}`;
 
-        // Product ID input - match Zid's expected structure
+        // Product ID input
         const productIdInput = document.createElement('input');
         productIdInput.type = 'hidden';
-        productIdInput.id = 'product-id';  // Must match Zid's expected ID
+        productIdInput.id = 'product-id';  // Required by Zid
         productIdInput.name = 'product_id';
         productIdInput.value = fullProductData.selected_product?.id || fullProductData.id;
         form.appendChild(productIdInput);
 
-        // Quantity input - match Zid's expected structure
+        // Quantity input
         const quantityInput = document.createElement('input');
         quantityInput.type = 'hidden';
-        quantityInput.id = 'product-quantity';  // Must match Zid's expected ID
+        quantityInput.id = 'product-quantity';  // Required by Zid
         quantityInput.name = 'quantity';
         quantityInput.value = '1';
         form.appendChild(quantityInput);
-
-        // Get the correct product name
-        let productName = fullProductData.name;
-        if (typeof productName === 'object') {
-          productName = currentLang === 'ar' ? productName.ar : productName.en;
-        }
 
         // Product content
         const productContent = document.createElement('div');
@@ -127,7 +140,7 @@
         `;
         card.appendChild(productContent);
 
-        // Variants section if product has options
+        // Add variants section if product has options
         if (fullProductData.has_options && fullProductData.variants?.length > 0) {
           const variantsSection = this.createVariantsSection(fullProductData, currentLang);
           form.appendChild(variantsSection);
@@ -166,6 +179,7 @@
         priceContainer.appendChild(currentPrice);
         priceContainer.appendChild(oldPrice);
         card.appendChild(priceContainer);
+
         // Add to cart button with spinner
         const addButton = document.createElement('button');
         addButton.className = 'btn btn-primary add-to-cart-btn';
@@ -253,7 +267,6 @@
         return null;
       }
     },
-
     createVariantsSection(product, currentLang) {
       const variantsContainer = document.createElement('div');
       variantsContainer.className = 'hmstudio-upsell-variants';
@@ -397,10 +410,10 @@
         console.warn('Invalid campaign data:', campaign);
         return;
       }
-    
+
       const currentLang = getCurrentLanguage();
       const isRTL = currentLang === 'ar';
-    
+
       try {
         if (this.currentModal) {
           this.currentModal.remove();
@@ -456,19 +469,18 @@
         `;
         closeButton.addEventListener('click', () => this.closeModal());
 
-        // Title
+        // Title with properly decoded text
         const title = document.createElement('h3');
         title.style.cssText = `
           font-size: 1.5em;
           margin: 0 0 20px;
           padding-${isRTL ? 'left' : 'right'}: 30px;
         `;
-        // Use text directly without decoding
         title.textContent = currentLang === 'ar' 
-          ? (campaign.texts?.titleAr || '') 
-          : (campaign.texts?.titleEn || '');
-    
-        // Subtitle
+          ? getDisplayText(campaign.texts?.titleAr) 
+          : campaign.texts?.titleEn || '';
+
+        // Subtitle with properly decoded text
         const subtitle = document.createElement('p');
         subtitle.style.cssText = `
           color: #666;
@@ -476,17 +488,15 @@
           font-size: 1.1em;
           display: none;
         `;
-    
-        // Use text directly without decoding
+
         const subtitleText = currentLang === 'ar'
-          ? campaign.texts?.subtitleAr
-          : campaign.texts?.subtitleEn;
-    
+          ? campaign.texts?.subtitleAr ? getDisplayText(campaign.texts.subtitleAr) : ''
+          : campaign.texts?.subtitleEn || '';
+
         if (subtitleText) {
           subtitle.textContent = subtitleText;
           subtitle.style.display = 'block';
         }
-
 
         // Products grid
         const productsGrid = document.createElement('div');
