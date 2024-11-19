@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v1.4.0
+// src/scripts/upsell.js v1.4.1
 // HMStudio Upsell Feature
 
 (function() {
@@ -396,15 +396,16 @@
         console.warn('Invalid campaign data:', campaign);
         return;
       }
-
+    
       const currentLang = getCurrentLanguage();
       const isRTL = currentLang === 'ar';
-
+    
       try {
         if (this.currentModal) {
           this.currentModal.remove();
         }
-
+    
+        // Create modal container
         const modal = document.createElement('div');
         modal.className = 'hmstudio-upsell-modal';
         modal.style.cssText = `
@@ -421,7 +422,8 @@
           opacity: 0;
           transition: opacity 0.3s ease;
         `;
-
+    
+        // Create content container
         const content = document.createElement('div');
         content.className = 'hmstudio-upsell-content';
         content.style.cssText = `
@@ -437,7 +439,7 @@
           transition: transform 0.3s ease;
           direction: ${isRTL ? 'rtl' : 'ltr'};
         `;
-
+    
         // Close button
         const closeButton = document.createElement('button');
         closeButton.innerHTML = '✕';
@@ -454,40 +456,49 @@
           line-height: 1;
         `;
         closeButton.addEventListener('click', () => this.closeModal());
-
-       // Main Title
-  const title = document.createElement('h3');
-  title.style.cssText = `
-    font-size: 1.5em;
-    margin: 0 0 20px;
-    padding-${isRTL ? 'left' : 'right'}: 30px;
-    font-weight: bold;
-    color: #333;
-    text-align: ${isRTL ? 'right' : 'left'};
-  `;
-  
-  // Use the Arabic text directly without any encoding/decoding
-  title.textContent = currentLang === 'ar' 
-    ? (campaign.displaySettings?.titleAr || 'عروض خاصة لك!')
-    : (campaign.displaySettings?.titleEn || 'Special Offers for You!');
-
-  // Optional Subtitle - also use directly without encoding/decoding
-  const subtitleText = currentLang === 'ar'
-    ? campaign.displaySettings?.subtitleAr
-    : campaign.displaySettings?.subtitleEn;
-
-  if (subtitleText) {
-    const subtitle = document.createElement('p');
-    subtitle.style.cssText = `
-      color: #666;
-      margin-bottom: 20px;
-      font-size: 1.1em;
-      text-align: ${isRTL ? 'right' : 'left'};
-    `;
-    subtitle.textContent = subtitleText;
-    content.appendChild(subtitle);
-  }
-
+    
+        // Title container
+        const titleContainer = document.createElement('div');
+        titleContainer.style.cssText = `
+          margin: 0 0 20px;
+          padding-${isRTL ? 'left' : 'right'}: 30px;
+        `;
+    
+        // Main Title with proper encoding
+        const title = document.createElement('h3');
+        const titleText = document.createTextNode(
+          currentLang === 'ar' 
+            ? campaign.displaySettings?.titleAr || 'عروض خاصة لك!'
+            : campaign.displaySettings?.titleEn || 'Special Offers for You!'
+        );
+        title.appendChild(titleText);
+        title.style.cssText = `
+          font-size: 1.5em;
+          font-weight: bold;
+          color: #333;
+          text-align: ${isRTL ? 'right' : 'left'};
+          margin: 0;
+        `;
+        titleContainer.appendChild(title);
+    
+        // Subtitle if exists
+        const subtitleText = currentLang === 'ar'
+          ? campaign.displaySettings?.subtitleAr
+          : campaign.displaySettings?.subtitleEn;
+    
+        if (subtitleText) {
+          const subtitle = document.createElement('p');
+          const subtitleNode = document.createTextNode(subtitleText);
+          subtitle.appendChild(subtitleNode);
+          subtitle.style.cssText = `
+            color: #666;
+            margin: 10px 0 0 0;
+            font-size: 1.1em;
+            text-align: ${isRTL ? 'right' : 'left'};
+          `;
+          titleContainer.appendChild(subtitle);
+        }
+    
         // Products grid
         const productsGrid = document.createElement('div');
         productsGrid.style.cssText = `
@@ -496,45 +507,47 @@
           gap: 20px;
           margin-top: 20px;
         `;
-
+    
         // Create and add product cards
         const productCards = await Promise.all(
           campaign.upsellProducts.map(product => this.createProductCard(product))
         );
-
+    
         productCards.filter(card => card !== null).forEach(card => {
           productsGrid.appendChild(card);
         });
-
+    
         // Assemble modal
         content.appendChild(closeButton);
-        content.appendChild(title);
+        content.appendChild(titleContainer);
         content.appendChild(productsGrid);
         modal.appendChild(content);
+    
+        // Add to document
         document.body.appendChild(modal);
-
+    
         // Show modal with animation
         requestAnimationFrame(() => {
           modal.style.opacity = '1';
           content.style.transform = 'translateY(0)';
         });
-
+    
         this.currentModal = modal;
-
+    
         // Close modal when clicking outside
         modal.addEventListener('click', (e) => {
           if (e.target === modal) {
             this.closeModal();
           }
         });
-
+    
         // Handle escape key
         document.addEventListener('keydown', (e) => {
           if (e.key === 'Escape') {
             this.closeModal();
           }
         });
-
+    
         console.log('Modal created successfully');
       } catch (error) {
         console.error('Error creating upsell modal:', error);
