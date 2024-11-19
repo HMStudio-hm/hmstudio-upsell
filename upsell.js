@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v1.3.5
+// src/scripts/upsell.js v1.3.6
 // HMStudio Upsell Feature
 
 (function() {
@@ -62,29 +62,119 @@
       
       try {
         const response = await fetch(url, {
+          method: 'GET',
+          mode: 'cors',
+          credentials: 'omit',
           headers: {
-            'Content-Type': 'application/json; charset=utf-8',
-            'Accept': 'application/json'
+            'Accept': '*/*',
+            'Access-Control-Allow-Origin': '*'
           }
         });
+
         if (!response.ok) {
           throw new Error(`Failed to fetch product data: ${response.statusText}`);
         }
+
         const data = await response.json();
         console.log('Received product data:', data);
         return data;
       } catch (error) {
         console.error('Error fetching product data:', error);
-        throw error;
+        return null;  // Return null instead of throwing to prevent cascade failures
       }
+    },
+
+    createBasicProductCard(product) {
+      const currentLang = getCurrentLanguage();
+      const isRTL = currentLang === 'ar';
+
+      const card = document.createElement('div');
+      card.className = 'hmstudio-upsell-product-card';
+      card.style.cssText = `
+        border: 1px solid #eee;
+        border-radius: 8px;
+        padding: 15px;
+        text-align: center;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+      `;
+
+      // Create basic form
+      const form = document.createElement('form');
+      form.id = `product-form-${product.id}`;
+
+      // Product ID input
+      const productIdInput = document.createElement('input');
+      productIdInput.type = 'hidden';
+      productIdInput.id = 'product-id';
+      productIdInput.name = 'product_id';
+      productIdInput.value = product.id;
+      form.appendChild(productIdInput);
+
+      // Quantity input
+      const quantityInput = document.createElement('input');
+      quantityInput.type = 'hidden';
+      quantityInput.id = 'product-quantity';
+      quantityInput.name = 'quantity';
+      quantityInput.value = '1';
+      form.appendChild(quantityInput);
+
+      // Basic content
+      const productContent = document.createElement('div');
+      productContent.innerHTML = `
+        <img 
+          src="${product.thumbnail}" 
+          alt="${product.name}" 
+          style="width: 100%; height: 150px; object-fit: contain; margin-bottom: 10px;"
+        >
+        <h4 style="font-size: 1em; margin: 10px 0; min-height: 40px;">
+          ${product.name}
+        </h4>
+      `;
+      card.appendChild(productContent);
+      card.appendChild(form);
+
+      // Add to cart button
+      const addButton = document.createElement('button');
+      addButton.className = 'btn btn-primary add-to-cart-btn';
+      addButton.type = 'button';
+      addButton.textContent = currentLang === 'ar' ? 'أضف إلى السلة' : 'Add to Cart';
+      addButton.style.cssText = `
+        background: var(--theme-primary, #00b286);
+        color: white;
+        width: 100%;
+        padding: 10px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        margin-top: 10px;
+      `;
+
+      // Add to cart handler
+      addButton.addEventListener('click', () => {
+        zid.store.cart.addProduct({ 
+          formId: form.id
+        }).then(function(response) {
+          if(response.status === 'success') {
+            if (typeof setCartBadge === 'function') {
+              setCartBadge(response.data.cart.products_count);
+            }
+            window.HMStudioUpsell.closeModal();
+          }
+        }).catch(function(error) {
+          console.error('Add to cart error:', error);
+        });
+      });
+
+      card.appendChild(addButton);
+      return card;
     },
     async createProductCard(product) {
       try {
         const fullProductData = await this.fetchProductData(product.id);
-        console.log('Full product data:', fullProductData);
-
         if (!fullProductData) {
-          throw new Error('Failed to fetch full product data');
+          console.log('Using basic product data as fallback');
+          // Fallback to basic product data if fetch fails
+          return this.createBasicProductCard(product);
         }
 
         const currentLang = getCurrentLanguage();
@@ -264,7 +354,7 @@
         return card;
       } catch (error) {
         console.error('Error creating product card:', error);
-        return null;
+        return this.createBasicProductCard(product);
       }
     },
     createVariantsSection(product, currentLang) {
