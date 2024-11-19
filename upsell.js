@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v1.3.9
+// src/scripts/upsell.js v1.4.0
 // HMStudio Upsell Feature
 
 (function() {
@@ -35,16 +35,6 @@
   function getCurrentLanguage() {
     return document.documentElement.lang || 'ar';
   }
-
-  const decodeArabicText = (text) => {
-    if (!text) return '';
-    try {
-      return decodeURIComponent(text);
-    } catch (e) {
-      console.warn('Error decoding text:', e);
-      return text;
-    }
-  };
 
   const storeId = getStoreIdFromUrl();
   if (!storeId) {
