@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v1.3.3
+// src/scripts/upsell.js v1.3.4
 // HMStudio Upsell Feature
 
 (function() {
@@ -398,27 +398,6 @@
         return;
       }
     
-      // Decode text function
-      const decodeText = (encodedText) => {
-        if (!encodedText) return '';
-        try {
-          return decodeURIComponent(escape(window.atob(encodedText)));
-        } catch (e) {
-          console.error('Error decoding text:', e);
-          return encodedText;
-        }
-      };
-    
-      // Decode the texts
-      const texts = {
-        titleAr: decodeText(campaign.texts?.titleAr),
-        titleEn: decodeText(campaign.texts?.titleEn),
-        subtitleAr: campaign.texts?.subtitleAr ? decodeText(campaign.texts.subtitleAr) : '',
-        subtitleEn: campaign.texts?.subtitleEn ? decodeText(campaign.texts.subtitleEn) : ''
-      };
-    
-      console.log('Decoded texts:', texts);
-    
       const currentLang = getCurrentLanguage();
       const isRTL = currentLang === 'ar';
     
@@ -478,28 +457,35 @@
         closeButton.addEventListener('click', () => this.closeModal());
 
         // Title
-    const title = document.createElement('h3');
-    title.style.cssText = `
-      font-size: 1.5em;
-      margin: 0 0 20px;
-      padding-${isRTL ? 'left' : 'right'}: 30px;
-    `;
-    title.textContent = currentLang === 'ar' ? texts.titleAr : texts.titleEn;
-
-    // Subtitle
-    const subtitle = document.createElement('p');
-    subtitle.style.cssText = `
-      color: #666;
-      margin-bottom: 20px;
-      font-size: 1.1em;
-      display: none;
-    `;
-
-    const subtitleText = currentLang === 'ar' ? texts.subtitleAr : texts.subtitleEn;
-    if (subtitleText) {
-      subtitle.textContent = subtitleText;
-      subtitle.style.display = 'block';
-    }
+        const title = document.createElement('h3');
+        title.style.cssText = `
+          font-size: 1.5em;
+          margin: 0 0 20px;
+          padding-${isRTL ? 'left' : 'right'}: 30px;
+        `;
+        // Use text directly without decoding
+        title.textContent = currentLang === 'ar' 
+          ? (campaign.texts?.titleAr || '') 
+          : (campaign.texts?.titleEn || '');
+    
+        // Subtitle
+        const subtitle = document.createElement('p');
+        subtitle.style.cssText = `
+          color: #666;
+          margin-bottom: 20px;
+          font-size: 1.1em;
+          display: none;
+        `;
+    
+        // Use text directly without decoding
+        const subtitleText = currentLang === 'ar'
+          ? campaign.texts?.subtitleAr
+          : campaign.texts?.subtitleEn;
+    
+        if (subtitleText) {
+          subtitle.textContent = subtitleText;
+          subtitle.style.display = 'block';
+        }
 
 
         // Products grid
