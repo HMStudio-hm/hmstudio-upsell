@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v1.4.4
+// src/scripts/upsell.js v1.4.5
 // HMStudio Upsell Feature
 
 (function() {
@@ -20,11 +20,18 @@
       console.log('No campaigns data found in URL');
       return [];
     }
-
+  
     try {
       const decodedData = atob(campaignsData);
       const parsedData = JSON.parse(decodedData);
-      return parsedData;
+      // Decode Arabic text properly
+      return parsedData.map(campaign => ({
+        ...campaign,
+        titleAr: decodeURIComponent(escape(campaign.titleAr || '')),
+        subtitleAr: decodeURIComponent(escape(campaign.subtitleAr || '')),
+        titleEn: campaign.titleEn || '',
+        subtitleEn: campaign.subtitleEn || ''
+      }));
     } catch (error) {
       console.error('Error parsing campaigns data:', error);
       return [];
@@ -466,30 +473,38 @@
         `;
 
         // Main Title
-        const mainTitle = document.createElement('h2');
-        mainTitle.textContent = currentLang === 'ar' ? campaign.titleAr : campaign.titleEn;
-        mainTitle.style.cssText = `
-          font-size: 1.75em;
-          font-weight: bold;
-          color: #333;
-          margin: 0 0 10px;
-          line-height: 1.3;
-        `;
-        headerSection.appendChild(mainTitle);
+  const mainTitle = document.createElement('h2');
+  // Handle Arabic text properly
+  const titleText = currentLang === 'ar' ? 
+    decodeURIComponent(escape(campaign.titleAr)) : 
+    campaign.titleEn;
+  mainTitle.textContent = titleText;
+  mainTitle.style.cssText = `
+    font-size: 1.75em;
+    font-weight: bold;
+    color: #333;
+    margin: 0 0 10px;
+    line-height: 1.3;
+    font-family: ${currentLang === 'ar' ? 'system-ui, -apple-system, sans-serif' : 'inherit'};
+  `;
+  headerSection.appendChild(mainTitle);
 
-        // Second Title (if exists)
-        const secondaryTitle = currentLang === 'ar' ? campaign.subtitleAr : campaign.subtitleEn;
-        if (secondaryTitle) {
-          const subtitle = document.createElement('p');
-          subtitle.textContent = secondaryTitle;
-          subtitle.style.cssText = `
-            font-size: 1.1em;
-            color: #666;
-            margin: 0;
-            line-height: 1.4;
-          `;
-          headerSection.appendChild(subtitle);
-        }
+  // Second Title (if exists)
+  const secondaryTitle = currentLang === 'ar' ? 
+    decodeURIComponent(escape(campaign.subtitleAr)) : 
+    campaign.subtitleEn;
+  if (secondaryTitle) {
+    const subtitle = document.createElement('p');
+    subtitle.textContent = secondaryTitle;
+    subtitle.style.cssText = `
+      font-size: 1.1em;
+      color: #666;
+      margin: 0;
+      line-height: 1.4;
+      font-family: ${currentLang === 'ar' ? 'system-ui, -apple-system, sans-serif' : 'inherit'};
+    `;
+    headerSection.appendChild(subtitle);
+  }
 
         content.appendChild(headerSection);
 
