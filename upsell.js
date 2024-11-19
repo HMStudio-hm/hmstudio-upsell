@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v1.4.3
+// src/scripts/upsell.js v1.4.4
 // HMStudio Upsell Feature
 
 (function() {
@@ -453,66 +453,52 @@
           color: #666;
           padding: 5px;
           line-height: 1;
+          z-index: 1;
         `;
         closeButton.addEventListener('click', () => this.closeModal());
+        content.appendChild(closeButton);
 
-       // Title section with language-specific content
-  const titleSection = document.createElement('div');
-  titleSection.style.cssText = `
-    margin-bottom: 25px;
-    text-align: ${isRTL ? 'right' : 'left'};
-  `;
-
-  // Main Title
-  const title = document.createElement('h3');
-  title.style.cssText = `
-    font-size: 1.75em;
-    margin: 0 0 10px;
-    padding-${isRTL ? 'left' : 'right'}: 30px;
-    font-weight: bold;
-    color: #333;
-  `;
-  title.textContent = currentLang === 'ar' ? campaign.titleAr : campaign.titleEn;
-
-  // Second Title (if provided)
-  const subtitle = document.createElement('p');
-  subtitle.style.cssText = `
-    color: #666;
-    margin: 0;
-    font-size: 1.1em;
-  `;
-  subtitle.textContent = currentLang === 'ar' ? 
-    (campaign.subtitleAr || '') : 
-    (campaign.subtitleEn || '');
-
-  titleSection.appendChild(title);
-  if ((currentLang === 'ar' && campaign.subtitleAr) || 
-      (currentLang === 'en' && campaign.subtitleEn)) {
-    titleSection.appendChild(subtitle);
-  }
-
-        // Products grid
-        const productsGrid = document.createElement('div');
-        productsGrid.style.cssText = `
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-          gap: 20px;
-          margin-top: 20px;
+        // Header Section
+        const headerSection = document.createElement('div');
+        headerSection.style.cssText = `
+          margin: 0 0 25px;
+          padding-${isRTL ? 'left' : 'right'}: 30px;
         `;
 
-        // Create and add product cards
-        const productCards = await Promise.all(
-          campaign.upsellProducts.map(product => this.createProductCard(product))
-        );
+        // Main Title
+        const mainTitle = document.createElement('h2');
+        mainTitle.textContent = currentLang === 'ar' ? campaign.titleAr : campaign.titleEn;
+        mainTitle.style.cssText = `
+          font-size: 1.75em;
+          font-weight: bold;
+          color: #333;
+          margin: 0 0 10px;
+          line-height: 1.3;
+        `;
+        headerSection.appendChild(mainTitle);
 
-        productCards.filter(card => card !== null).forEach(card => {
-          productsGrid.appendChild(card);
-        });
+        // Second Title (if exists)
+        const secondaryTitle = currentLang === 'ar' ? campaign.subtitleAr : campaign.subtitleEn;
+        if (secondaryTitle) {
+          const subtitle = document.createElement('p');
+          subtitle.textContent = secondaryTitle;
+          subtitle.style.cssText = `
+            font-size: 1.1em;
+            color: #666;
+            margin: 0;
+            line-height: 1.4;
+          `;
+          headerSection.appendChild(subtitle);
+        }
 
-        // Assemble modal
-  content.appendChild(closeButton);
-  content.appendChild(titleSection);
-  content.appendChild(productsGrid);
+        content.appendChild(headerSection);
+
+        // Products Grid
+        const productsGrid = await this.createProductsGrid(campaign.upsellProducts);
+        content.appendChild(productsGrid);
+
+        modal.appendChild(content);
+        document.body.appendChild(modal);
 
         // Show modal with animation
         requestAnimationFrame(() => {
@@ -542,6 +528,26 @@
       }
     },
 
+    async createProductsGrid(products) {
+      const productsGrid = document.createElement('div');
+      productsGrid.style.cssText = `
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+        margin-top: 20px;
+      `;
+
+      const productCards = await Promise.all(
+        products.map(product => this.createProductCard(product))
+      );
+
+      productCards.filter(card => card !== null).forEach(card => {
+        productsGrid.appendChild(card);
+      });
+
+      return productsGrid;
+    },
+
     closeModal() {
       if (this.currentModal) {
         this.currentModal.style.opacity = '0';
@@ -559,7 +565,7 @@
     },
 
     initialize() {
-      console.log('Initializing Upsell');
+      console.log('Initializing Upsell with campaign data:', this.campaigns);
       
       // Make sure the global object is available
       if (!window.HMStudioUpsell) {
