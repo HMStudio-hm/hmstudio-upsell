@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v1.3.8
+// src/scripts/upsell.js v1.3.9
 // HMStudio Upsell Feature
 
 (function() {
@@ -465,37 +465,38 @@
         `;
         closeButton.addEventListener('click', () => this.closeModal());
 
-        // Main Title
-        const title = document.createElement('h3');
-        title.style.cssText = `
-          font-size: 1.5em;
-          margin: 0 0 20px;
-          padding-${isRTL ? 'left' : 'right'}: 30px;
-          font-weight: bold;
-          color: #333;
-          text-align: ${isRTL ? 'right' : 'left'};
-        `;
-        // Use decodeArabicText for Arabic title
-        title.textContent = currentLang === 'ar' 
-          ? decodeArabicText(campaign.displaySettings?.titleAr || 'عروض خاصة لك!')
-          : (campaign.displaySettings?.titleEn || 'Special Offers for You!');
+       // Main Title
+  const title = document.createElement('h3');
+  title.style.cssText = `
+    font-size: 1.5em;
+    margin: 0 0 20px;
+    padding-${isRTL ? 'left' : 'right'}: 30px;
+    font-weight: bold;
+    color: #333;
+    text-align: ${isRTL ? 'right' : 'left'};
+  `;
+  
+  // Use the Arabic text directly without any encoding/decoding
+  title.textContent = currentLang === 'ar' 
+    ? (campaign.displaySettings?.titleAr || 'عروض خاصة لك!')
+    : (campaign.displaySettings?.titleEn || 'Special Offers for You!');
 
-        // Optional Subtitle
-        const subtitleText = currentLang === 'ar'
-          ? campaign.displaySettings?.subtitleAr && decodeArabicText(campaign.displaySettings.subtitleAr)
-          : campaign.displaySettings?.subtitleEn;
+  // Optional Subtitle - also use directly without encoding/decoding
+  const subtitleText = currentLang === 'ar'
+    ? campaign.displaySettings?.subtitleAr
+    : campaign.displaySettings?.subtitleEn;
 
-        if (subtitleText) {
-          const subtitle = document.createElement('p');
-          subtitle.style.cssText = `
-            color: #666;
-            margin-bottom: 20px;
-            font-size: 1.1em;
-            text-align: ${isRTL ? 'right' : 'left'};
-          `;
-          subtitle.textContent = subtitleText;
-          content.appendChild(subtitle);
-        }
+  if (subtitleText) {
+    const subtitle = document.createElement('p');
+    subtitle.style.cssText = `
+      color: #666;
+      margin-bottom: 20px;
+      font-size: 1.1em;
+      text-align: ${isRTL ? 'right' : 'left'};
+    `;
+    subtitle.textContent = subtitleText;
+    content.appendChild(subtitle);
+  }
 
         // Products grid
         const productsGrid = document.createElement('div');
