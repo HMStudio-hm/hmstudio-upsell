@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v1.6.6
+// src/scripts/upsell.js v1.6.7
 // HMStudio Upsell Feature
 
 (function() {
@@ -22,19 +22,22 @@
     }
   
     try {
-      // Decode base64 to text
       const decodedData = atob(campaignsData);
       const parsedData = JSON.parse(decodedData);
       
-      return parsedData.map(campaign => ({
-        ...campaign,
-        titles: {
-          titleAr: campaign.titles?.titleAr || '',
-          titleEn: campaign.titles?.titleEn || '',
-          subtitleAr: campaign.titles?.subtitleAr || '',
-          subtitleEn: campaign.titles?.subtitleEn || ''
-        }
-      }));
+      return parsedData.map(campaign => {
+        // Decode UTF-8 characters properly
+        const decoder = new TextDecoder('utf-8');
+        return {
+          ...campaign,
+          titles: {
+            titleAr: decoder.decode(new TextEncoder().encode(campaign.titles?.titleAr || '')),
+            titleEn: campaign.titles?.titleEn || '',
+            subtitleAr: decoder.decode(new TextEncoder().encode(campaign.titles?.subtitleAr || '')),
+            subtitleEn: campaign.titles?.subtitleEn || ''
+          }
+        };
+      });
     } catch (error) {
       console.error('Error parsing campaigns data:', error);
       return [];
