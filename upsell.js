@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v1.5.7
+// src/scripts/upsell.js v1.5.8
 // HMStudio Upsell Feature
 
 (function() {
@@ -10,16 +10,6 @@
     const storeId = scriptUrl.searchParams.get('storeId');
     return storeId ? storeId.split('?')[0] : null;
   }
-
- // Add this helper function at the top of your script
-function decodeBase64Text(encodedText) {
-  try {
-    return decodeURIComponent(atob(encodedText));
-  } catch (e) {
-    console.error('Error decoding text:', e);
-    return encodedText;
-  }
-}
 
   function getCampaignsFromUrl() {
     const scriptTag = document.currentScript;
@@ -34,7 +24,18 @@ function decodeBase64Text(encodedText) {
     try {
       const decodedData = atob(campaignsData);
       const parsedData = JSON.parse(decodedData);
-      return parsedData;
+      
+      // Decode the URL-encoded Arabic text
+      return parsedData.map(campaign => ({
+        ...campaign,
+        titleSettings: {
+          ...campaign.titleSettings,
+          mainTitleAr: decodeURIComponent(campaign.titleSettings.mainTitleAr || ''),
+          secondTitleAr: decodeURIComponent(campaign.titleSettings.secondTitleAr || ''),
+          mainTitleEn: campaign.titleSettings.mainTitleEn,
+          secondTitleEn: campaign.titleSettings.secondTitleEn
+        }
+      }));
     } catch (error) {
       console.error('Error parsing campaigns data:', error);
       return [];
@@ -105,18 +106,18 @@ function decodeBase64Text(encodedText) {
         const form = document.createElement('form');
         form.id = `product-form-${fullProductData.id}`;
 
-        // Product ID input following Zid's convention
+        // Product ID input
         const productIdInput = document.createElement('input');
         productIdInput.type = 'hidden';
-        productIdInput.id = 'product-id';  // Required by Zid
+        productIdInput.id = 'product-id';
         productIdInput.name = 'product_id';
         productIdInput.value = fullProductData.selected_product?.id || fullProductData.id;
         form.appendChild(productIdInput);
 
-        // Quantity input following Zid's convention
+        // Quantity input
         const quantityInput = document.createElement('input');
         quantityInput.type = 'hidden';
-        quantityInput.id = 'product-quantity';  // Required by Zid
+        quantityInput.id = 'product-quantity';
         quantityInput.name = 'quantity';
         quantityInput.value = '1';
         form.appendChild(quantityInput);
@@ -175,7 +176,7 @@ function decodeBase64Text(encodedText) {
         priceContainer.appendChild(oldPrice);
         card.appendChild(priceContainer);
 
-        // Add to cart button with spinner
+        // Add to cart button
         const addButton = document.createElement('button');
         addButton.className = 'btn btn-primary add-to-cart-btn';
         addButton.type = 'button';
@@ -207,11 +208,9 @@ function decodeBase64Text(encodedText) {
         `;
         addButton.appendChild(spinner);
 
-        // Add to cart handler using Zid's convention
-        addButton.addEventListener('click', function() {
-          // Check if product has variants
+        // Add to cart handler
+        addButton.addEventListener('click', () => {
           if (fullProductData.has_options && fullProductData.variants?.length > 0) {
-            // Get all variant selections
             const selectedVariants = {};
             const missingSelections = [];
             
@@ -223,7 +222,6 @@ function decodeBase64Text(encodedText) {
               selectedVariants[labelText] = select.value;
             });
         
-            // Check if all variants are selected
             if (missingSelections.length > 0) {
               const message = currentLang === 'ar' 
                 ? `الرجاء اختيار ${missingSelections.join(', ')}`
@@ -289,7 +287,7 @@ function decodeBase64Text(encodedText) {
           }
         });
 
-        variantAttributes.forEach((attr) => {
+        variantAttributes.forEach(attr => {
           const select = document.createElement('select');
           select.className = 'variant-select';
           select.style.cssText = `
@@ -407,15 +405,15 @@ function decodeBase64Text(encodedText) {
         console.warn('Invalid campaign data:', campaign);
         return;
       }
-    
+
       const currentLang = getCurrentLanguage();
       const isRTL = currentLang === 'ar';
-    
+
       try {
         if (this.currentModal) {
           this.currentModal.remove();
         }
-    
+
         const modal = document.createElement('div');
         modal.className = 'hmstudio-upsell-modal';
         modal.style.cssText = `
@@ -432,12 +430,9 @@ function decodeBase64Text(encodedText) {
           opacity: 0;
           transition: opacity 0.3s ease;
         `;
-    
+
         const content = document.createElement('div');
         content.className = 'hmstudio-upsell-content';
-        content.innerHTML = ''; // Clear any existing content
-        content.dir = isRTL ? 'rtl' : 'ltr'; // Set direction attribute
-        content.lang = isRTL ? 'ar' : 'en'; // Set language attribute
         content.style.cssText = `
           background: white;
           padding: 25px;
@@ -453,7 +448,7 @@ function decodeBase64Text(encodedText) {
           text-align: ${isRTL ? 'right' : 'left'};
           font-family: ${isRTL ? '-apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif' : 'inherit'};
         `;
-    
+
         // Close button
         const closeButton = document.createElement('button');
         closeButton.innerHTML = '✕';
@@ -470,49 +465,42 @@ function decodeBase64Text(encodedText) {
           line-height: 1;
         `;
         closeButton.addEventListener('click', () => this.closeModal());
-    
+
         // Main Title
-    const mainTitle = document.createElement('h3');
-    mainTitle.style.cssText = `
-      font-size: 1.5em;
-      margin: 0 0 20px;
-      padding-${isRTL ? 'left' : 'right'}: 30px;
-      color: #333;
-      font-family: ${isRTL ? '-apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif' : 'inherit'};
-    `;
+        const mainTitle = document.createElement('h3');
+        mainTitle.style.cssText = `
+          font-size: 1.5em;
+          margin: 0 0 20px;
+          padding-${isRTL ? 'left' : 'right'}: 30px;
+          color: #333;
+          font-family: ${isRTL ? '-apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif' : 'inherit'};
+          font-weight: bold;
+        `;
 
-    // Get and decode the appropriate title
-    let mainTitleText = '';
-    if (isRTL && campaign.titleSettings?.mainTitleAr) {
-      mainTitleText = decodeBase64Text(campaign.titleSettings.mainTitleAr);
-    } else if (!isRTL && campaign.titleSettings?.mainTitleEn) {
-      mainTitleText = campaign.titleSettings.mainTitleEn;
-    } else {
-      mainTitleText = isRTL ? 'عروض خاصة لك!' : 'Special Offers for You!';
-    }
+        // Use the text directly (it's already decoded)
+        const mainTitleText = isRTL ? 
+          (campaign.titleSettings?.mainTitleAr || 'عروض خاصة لك!') : 
+          (campaign.titleSettings?.mainTitleEn || 'Special Offers for You!');
+        
+        mainTitle.textContent = mainTitleText;
 
-    mainTitle.textContent = mainTitleText;
+        // Secondary Title
+        const secondaryTitleText = isRTL ?
+          campaign.titleSettings?.secondTitleAr :
+          campaign.titleSettings?.secondTitleEn;
 
-    // Secondary Title
-    let secondaryTitleText = '';
-    if (isRTL && campaign.titleSettings?.secondTitleAr) {
-      secondaryTitleText = decodeBase64Text(campaign.titleSettings.secondTitleAr);
-    } else if (!isRTL && campaign.titleSettings?.secondTitleEn) {
-      secondaryTitleText = campaign.titleSettings.secondTitleEn;
-    }
+        let subtitle = null;
+        if (secondaryTitleText) {
+          subtitle = document.createElement('p');
+          subtitle.style.cssText = `
+            color: #666;
+            margin-bottom: 20px;
+            font-size: 1.1em;
+            font-family: ${isRTL ? '-apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif' : 'inherit'};
+          `;
+          subtitle.textContent = secondaryTitleText;
+        }
 
-    let subtitle = null;
-    if (secondaryTitleText) {
-      subtitle = document.createElement('p');
-      subtitle.style.cssText = `
-        color: #666;
-        margin-bottom: 20px;
-        font-size: 1.1em;
-        font-family: ${isRTL ? '-apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif' : 'inherit'};
-      `;
-      subtitle.textContent = secondaryTitleText;
-    }
-    
         // Products grid
         const productsGrid = document.createElement('div');
         productsGrid.style.cssText = `
@@ -521,16 +509,16 @@ function decodeBase64Text(encodedText) {
           gap: 20px;
           margin-top: 20px;
         `;
-    
+
         // Create and add product cards
         const productCards = await Promise.all(
           campaign.upsellProducts.map(product => this.createProductCard(product))
         );
-    
+
         productCards.filter(card => card !== null).forEach(card => {
           productsGrid.appendChild(card);
         });
-    
+
         // Assemble modal
         content.appendChild(closeButton);
         content.appendChild(mainTitle);
@@ -539,29 +527,29 @@ function decodeBase64Text(encodedText) {
         }
         content.appendChild(productsGrid);
         modal.appendChild(content);
-    
+
         // Add to document and animate
         document.body.appendChild(modal);
         requestAnimationFrame(() => {
           modal.style.opacity = '1';
           content.style.transform = 'translateY(0)';
         });
-    
+
         this.currentModal = modal;
-    
+
         // Event listeners
         modal.addEventListener('click', (e) => {
           if (e.target === modal) {
             this.closeModal();
           }
         });
-    
+
         document.addEventListener('keydown', (e) => {
           if (e.key === 'Escape') {
             this.closeModal();
           }
         });
-    
+
         console.log('Modal created successfully');
       } catch (error) {
         console.error('Error creating upsell modal:', error);
