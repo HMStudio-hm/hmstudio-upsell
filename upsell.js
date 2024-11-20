@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v1.5.4
+// src/scripts/upsell.js v1.5.5
 // HMStudio Upsell Feature
 
 (function() {
@@ -9,6 +9,16 @@
     const scriptUrl = new URL(scriptTag.src);
     const storeId = scriptUrl.searchParams.get('storeId');
     return storeId ? storeId.split('?')[0] : null;
+  }
+
+  function decodeText(text) {
+    try {
+      // First try to decode if it's encoded
+      return decodeURIComponent(text);
+    } catch (e) {
+      // If decoding fails, return original text
+      return text;
+    }
   }
 
   function getCampaignsFromUrl() {
@@ -425,6 +435,9 @@
     
         const content = document.createElement('div');
         content.className = 'hmstudio-upsell-content';
+        content.innerHTML = ''; // Clear any existing content
+        content.dir = isRTL ? 'rtl' : 'ltr'; // Set direction attribute
+        content.lang = isRTL ? 'ar' : 'en'; // Set language attribute
         content.style.cssText = `
           background: white;
           padding: 25px;
@@ -437,6 +450,8 @@
           transform: translateY(20px);
           transition: transform 0.3s ease;
           direction: ${isRTL ? 'rtl' : 'ltr'};
+          text-align: ${isRTL ? 'right' : 'left'};
+          font-family: ${isRTL ? '-apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif' : 'inherit'};
         `;
     
         // Close button
@@ -456,30 +471,53 @@
         `;
         closeButton.addEventListener('click', () => this.closeModal());
     
-        // Main Title
+        // Main Title with proper text
         const mainTitle = document.createElement('h3');
         mainTitle.style.cssText = `
           font-size: 1.5em;
           margin: 0 0 20px;
           padding-${isRTL ? 'left' : 'right'}: 30px;
           color: #333;
+          font-family: ${isRTL ? '-apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif' : 'inherit'};
+          white-space: pre-wrap;
+          word-wrap: break-word;
         `;
-        // Use the appropriate language title from titleSettings
-        mainTitle.textContent = isRTL ? 
-          campaign.titleSettings?.mainTitleAr || 'عروض خاصة لك!' : 
-          campaign.titleSettings?.mainTitleEn || 'Special Offers for You!';
+    
+        // Get the appropriate title text
+        let mainTitleText = '';
+        if (isRTL && campaign.titleSettings?.mainTitleAr) {
+          // For Arabic, directly use the stored text
+          mainTitleText = campaign.titleSettings.mainTitleAr;
+        } else if (!isRTL && campaign.titleSettings?.mainTitleEn) {
+          mainTitleText = campaign.titleSettings.mainTitleEn;
+        } else {
+          // Fallback text
+          mainTitleText = isRTL ? 'عروض خاصة لك!' : 'Special Offers for You!';
+        }
+    
+        // Set the text content using textContent to preserve Arabic characters
+        mainTitle.textContent = mainTitleText;
     
         // Secondary Title (if exists)
-        const secondaryTitle = campaign.titleSettings?.[isRTL ? 'secondTitleAr' : 'secondTitleEn'];
+        let secondaryTitleText = '';
+        if (isRTL && campaign.titleSettings?.secondTitleAr) {
+          secondaryTitleText = campaign.titleSettings.secondTitleAr;
+        } else if (!isRTL && campaign.titleSettings?.secondTitleEn) {
+          secondaryTitleText = campaign.titleSettings.secondTitleEn;
+        }
+    
         let subtitle = null;
-        if (secondaryTitle) {
+        if (secondaryTitleText) {
           subtitle = document.createElement('p');
           subtitle.style.cssText = `
             color: #666;
             margin-bottom: 20px;
             font-size: 1.1em;
+            font-family: ${isRTL ? '-apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif' : 'inherit'};
+            white-space: pre-wrap;
+            word-wrap: break-word;
           `;
-          subtitle.textContent = secondaryTitle;
+          subtitle.textContent = secondaryTitleText;
         }
     
         // Products grid
@@ -508,9 +546,9 @@
         }
         content.appendChild(productsGrid);
         modal.appendChild(content);
-        document.body.appendChild(modal);
     
-        // Show modal with animation
+        // Add to document and animate
+        document.body.appendChild(modal);
         requestAnimationFrame(() => {
           modal.style.opacity = '1';
           content.style.transform = 'translateY(0)';
@@ -518,14 +556,13 @@
     
         this.currentModal = modal;
     
-        // Close modal when clicking outside
+        // Event listeners
         modal.addEventListener('click', (e) => {
           if (e.target === modal) {
             this.closeModal();
           }
         });
     
-        // Handle escape key
         document.addEventListener('keydown', (e) => {
           if (e.key === 'Escape') {
             this.closeModal();
