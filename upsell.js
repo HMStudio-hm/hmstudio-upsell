@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v1.6.5
+// src/scripts/upsell.js v1.6.6
 // HMStudio Upsell Feature
 
 (function() {
@@ -401,21 +401,16 @@
     },
 
     async showUpsellModal(campaign, productCart) {
-      console.log('showUpsellModal called with:', { campaign, productCart });
-      
-      if (!campaign || !campaign.upsellProducts || campaign.upsellProducts.length === 0) {
-        console.warn('Invalid campaign data:', campaign);
-        return;
-      }
-
+      console.log('Showing upsell modal for campaign:', campaign); // Debug log
+    
       const currentLang = getCurrentLanguage();
       const isRTL = currentLang === 'ar';
-
+    
       try {
         if (this.currentModal) {
           this.currentModal.remove();
         }
-
+    
         const modal = document.createElement('div');
         modal.className = 'hmstudio-upsell-modal';
         modal.style.cssText = `
@@ -466,28 +461,36 @@
         `;
         closeButton.addEventListener('click', () => this.closeModal());
 
-        // Title
-        const title = document.createElement('h3');
-        title.style.cssText = `
-          font-size: 1.5em;
-          margin: 0 0 20px;
-          padding-${isRTL ? 'left' : 'right'}: 30px;
-        `;
-        
-        title.textContent = currentLang === 'ar' 
-        ? (campaign.titles?.titleAr || 'عروض خاصة لك!')
-        : (campaign.titles?.titleEn || 'Special Offers for You!');
+        // Title container with proper direction
+    const title = document.createElement('h3');
+    title.style.cssText = `
+      font-size: 1.5em;
+      margin: 0 0 20px;
+      padding-${isRTL ? 'left' : 'right'}: 30px;
+      direction: ${isRTL ? 'rtl' : 'ltr'};
+      text-align: ${isRTL ? 'right' : 'left'};
+      font-family: system-ui, -apple-system, sans-serif;
+    `;
+    // Simply use the stored text based on language
+    title.textContent = isRTL ? campaign.titles.titleAr : campaign.titles.titleEn;
 
-        // Subtitle with trigger product name
-        const subtitle = document.createElement('p');
-        subtitle.style.cssText = `
-          color: #666;
-          margin-bottom: 20px;
-          font-size: 1.1em;
-        `;
-        subtitle.textContent = currentLang === 'ar' 
-        ? (campaign.titles?.subtitleAr || `أضف هذه المنتجات المكملة لـ ${productCart.name}!`)
-        : (campaign.titles?.subtitleEn || `Add these complementary products for ${productCart.name}!`);
+    // Subtitle with proper direction
+    const subtitle = document.createElement('p');
+    subtitle.style.cssText = `
+      color: #666;
+      margin-bottom: 20px;
+      font-size: 1.1em;
+      direction: ${isRTL ? 'rtl' : 'ltr'};
+      text-align: ${isRTL ? 'right' : 'left'};
+      font-family: system-ui, -apple-system, sans-serif;
+    `;
+    // Simply use the stored text based on language
+    subtitle.textContent = isRTL ? campaign.titles.subtitleAr : campaign.titles.subtitleEn;
+
+    // Debug logs
+    console.log('Current language:', currentLang);
+    console.log('Title being displayed:', title.textContent);
+    console.log('Subtitle being displayed:', subtitle.textContent);
 
         // Products grid
         const productsGrid = document.createElement('div');
