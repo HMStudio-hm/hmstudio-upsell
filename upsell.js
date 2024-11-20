@@ -4,6 +4,14 @@
 (function() {
   console.log('Upsell script initialized');
 
+  function decodeText(text) {
+    try {
+      return decodeURIComponent(text);
+    } catch {
+      return text;
+    }
+  }
+
   function getStoreIdFromUrl() {
     const scriptTag = document.currentScript;
     const scriptUrl = new URL(scriptTag.src);
@@ -22,8 +30,21 @@
     }
 
     try {
+      // First decode from base64
       const decodedData = atob(campaignsData);
-      return JSON.parse(decodedData);
+      
+      // Then parse the JSON
+      const campaigns = JSON.parse(decodedData);
+
+      // Return the campaigns without any additional encoding/decoding
+      // The Arabic text should now be preserved as is
+      return campaigns.map(campaign => ({
+        ...campaign,
+        titleAr: campaign.titleAr || '',
+        subtitleAr: campaign.subtitleAr || '',
+        titleEn: campaign.titleEn || '',
+        subtitleEn: campaign.subtitleEn || ''
+      }));
     } catch (error) {
       console.error('Error parsing campaigns data:', error);
       return [];
@@ -78,6 +99,16 @@
           this.currentModal.remove();
         }
 
+        // Add Arabic font to document if not already added
+        if (!document.getElementById('arabic-font-style')) {
+          const style = document.createElement('style');
+          style.id = 'arabic-font-style';
+          style.textContent = `
+            @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700&display=swap');
+          `;
+          document.head.appendChild(style);
+        }
+
         const modal = document.createElement('div');
         modal.className = 'hmstudio-upsell-modal';
         modal.style.cssText = `
@@ -109,7 +140,7 @@
           transform: translateY(20px);
           transition: transform 0.3s ease;
           direction: ${isRTL ? 'rtl' : 'ltr'};
-          font-family: ${isRTL ? '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif' : 'inherit'};
+          font-family: ${isRTL ? 'Cairo, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' : 'inherit'};
         `;
 
         // Close button
@@ -127,6 +158,7 @@
           padding: 5px;
           line-height: 1;
           z-index: 1;
+          font-family: inherit;
         `;
         closeButton.addEventListener('click', () => this.closeModal());
 
@@ -142,11 +174,11 @@
         mainTitle.textContent = currentLang === 'ar' ? campaign.titleAr : campaign.titleEn;
         mainTitle.style.cssText = `
           font-size: 1.75em;
-          font-weight: bold;
+          font-weight: 700;
           color: #333;
           margin: 0 0 10px;
           line-height: 1.3;
-          font-family: inherit;
+          font-family: ${isRTL ? 'Cairo, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' : 'inherit'};
         `;
         headerSection.appendChild(mainTitle);
 
@@ -160,7 +192,7 @@
             color: #666;
             margin: 0;
             line-height: 1.4;
-            font-family: inherit;
+            font-family: ${isRTL ? 'Cairo, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' : 'inherit'};
           `;
           headerSection.appendChild(subtitle);
         }
@@ -216,7 +248,6 @@
         console.error('Error creating upsell modal:', error);
       }
     },
-
     async createProductCard(product) {
       try {
         const fullProductData = await this.fetchProductData(product.id);
@@ -243,7 +274,7 @@
           text-align: center;
           transition: transform 0.2s ease, box-shadow 0.2s ease;
           direction: ${isRTL ? 'rtl' : 'ltr'};
-          font-family: ${isRTL ? '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif' : 'inherit'};
+          font-family: ${isRTL ? 'Cairo, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' : 'inherit'};
         `;
 
         // Create form for API compatibility
@@ -274,7 +305,7 @@
             alt="${productName}" 
             style="width: 100%; height: 150px; object-fit: contain; margin-bottom: 10px;"
           >
-          <h4 style="font-size: 1em; margin: 10px 0; min-height: 40px;">
+          <h4 style="font-size: 1em; margin: 10px 0; min-height: 40px; font-family: inherit;">
             ${productName}
           </h4>
         `;
@@ -285,11 +316,15 @@
         priceContainer.style.cssText = `
           margin: 15px 0;
           font-weight: bold;
+          font-family: inherit;
         `;
 
         const currentPrice = document.createElement('span');
         currentPrice.className = 'product-price';
-        currentPrice.style.color = 'var(--theme-primary, #00b286)';
+        currentPrice.style.cssText = `
+          color: var(--theme-primary, #00b286);
+          font-family: inherit;
+        `;
 
         const oldPrice = document.createElement('span');
         oldPrice.className = 'product-old-price';
@@ -298,6 +333,7 @@
           color: #999;
           margin-${isRTL ? 'right' : 'left'}: 10px;
           display: none;
+          font-family: inherit;
         `;
 
         if (fullProductData.formatted_sale_price) {
@@ -330,7 +366,8 @@
           align-items: center;
           justify-content: center;
           gap: 8px;
-          font-family: inherit;
+          font-family: ${isRTL ? 'Cairo, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' : 'inherit'};
+          font-weight: 500;
         `;
 
         const spinner = document.createElement('div');
@@ -370,7 +407,6 @@
         card.appendChild(form);
         card.appendChild(addButton);
 
-        return card;
       } catch (error) {
         console.error('Error creating product card:', error);
         return null;
