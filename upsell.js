@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v1.6.2
+// src/scripts/upsell.js v1.6.3
 // HMStudio Upsell Feature
 
 (function() {
@@ -20,11 +20,20 @@
       console.log('No campaigns data found in URL');
       return [];
     }
-
+  
     try {
       const decodedData = atob(campaignsData);
       const parsedData = JSON.parse(decodedData);
-      return parsedData;
+      
+      return parsedData.map(campaign => ({
+        ...campaign,
+        titles: {
+          titleAr: campaign.titles?.titleAr || '',
+          titleEn: campaign.titles?.titleEn || '',
+          subtitleAr: campaign.titles?.subtitleAr || '',
+          subtitleEn: campaign.titles?.subtitleEn || ''
+        }
+      }));
     } catch (error) {
       console.error('Error parsing campaigns data:', error);
       return [];
@@ -397,15 +406,11 @@
         console.warn('Invalid campaign data:', campaign);
         return;
       }
-    
+
       const currentLang = getCurrentLanguage();
       const isRTL = currentLang === 'ar';
-    
+
       try {
-        // Fetch store settings to get custom titles
-        const response = await fetch(`https://europe-west3-hmstudio-85f42.cloudfunctions.net/getUpsellSettings?storeId=${storeId}`);
-        const settings = await response.json();
-    
         if (this.currentModal) {
           this.currentModal.remove();
         }
@@ -460,30 +465,27 @@
         `;
         closeButton.addEventListener('click', () => this.closeModal());
 
-        // Title with custom text
-    const title = document.createElement('h3');
-    title.style.cssText = `
-      font-size: 1.5em;
-      margin: 0 0 20px;
-      padding-${isRTL ? 'left' : 'right'}: 30px;
-    `;
-    title.textContent = currentLang === 'ar' 
-      ? (settings.modalTitleAr || 'عروض خاصة لك!')  // Default if not set
-      : (settings.modalTitleEn || 'Special Offers for You!');
+        // Title
+        const title = document.createElement('h3');
+        title.style.cssText = `
+          font-size: 1.5em;
+          margin: 0 0 20px;
+          padding-${isRTL ? 'left' : 'right'}: 30px;
+        `;
+        title.textContent = currentLang === 'ar' 
+  ? (campaign.titles?.titleAr || 'عروض خاصة لك!') 
+  : (campaign.titles?.titleEn || 'Special Offers for You!');
 
-        // Subtitle with custom text
-    const subtitle = document.createElement('p');
-    subtitle.style.cssText = `
-      color: #666;
-      margin-bottom: 20px;
-      font-size: 1.1em;
-    `;
-    const defaultSubtitleAr = `أضف هذه المنتجات المكملة لـ ${productCart.name}!`;
-    const defaultSubtitleEn = `Add these complementary products for ${productCart.name}!`;
-    
-    subtitle.textContent = currentLang === 'ar'
-      ? (settings.modalSubtitleAr || defaultSubtitleAr)
-      : (settings.modalSubtitleEn || defaultSubtitleEn);
+        // Subtitle with trigger product name
+        const subtitle = document.createElement('p');
+        subtitle.style.cssText = `
+          color: #666;
+          margin-bottom: 20px;
+          font-size: 1.1em;
+        `;
+        subtitle.textContent = currentLang === 'ar' 
+  ? (campaign.titles?.subtitleAr || `أضف هذه المنتجات المكملة لـ ${productCart.name}!`)
+  : (campaign.titles?.subtitleEn || `Add these complementary products for ${productCart.name}!`);
 
         // Products grid
         const productsGrid = document.createElement('div');
@@ -503,13 +505,13 @@
           productsGrid.appendChild(card);
         });
 
-        // Assemble modal with custom titles
-    content.appendChild(closeButton);
-    content.appendChild(title);
-    content.appendChild(subtitle);
-    content.appendChild(productsGrid);
-    modal.appendChild(content);
-    document.body.appendChild(modal);
+        // Assemble modal
+        content.appendChild(closeButton);
+        content.appendChild(title);
+        content.appendChild(subtitle);
+        content.appendChild(productsGrid);
+        modal.appendChild(content);
+        document.body.appendChild(modal);
 
         // Show modal with animation
         requestAnimationFrame(() => {
