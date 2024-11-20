@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v1.5.8
+// src/scripts/upsell.js v1.5.9
 // HMStudio Upsell Feature
 
 (function() {
@@ -20,20 +20,19 @@
       console.log('No campaigns data found in URL');
       return [];
     }
-
+  
     try {
       const decodedData = atob(campaignsData);
-      const parsedData = JSON.parse(decodedData);
+      const campaigns = JSON.parse(decodedData);
       
-      // Decode the URL-encoded Arabic text
-      return parsedData.map(campaign => ({
+      return campaigns.map(campaign => ({
         ...campaign,
         titleSettings: {
           ...campaign.titleSettings,
           mainTitleAr: decodeURIComponent(campaign.titleSettings.mainTitleAr || ''),
           secondTitleAr: decodeURIComponent(campaign.titleSettings.secondTitleAr || ''),
-          mainTitleEn: campaign.titleSettings.mainTitleEn,
-          secondTitleEn: campaign.titleSettings.secondTitleEn
+          mainTitleEn: campaign.titleSettings.mainTitleEn || '',
+          secondTitleEn: campaign.titleSettings.secondTitleEn || ''
         }
       }));
     } catch (error) {
@@ -467,37 +466,11 @@
         closeButton.addEventListener('click', () => this.closeModal());
 
         // Main Title
-        const mainTitle = document.createElement('h3');
-        mainTitle.style.cssText = `
-          font-size: 1.5em;
-          margin: 0 0 20px;
-          padding-${isRTL ? 'left' : 'right'}: 30px;
-          color: #333;
-          font-family: ${isRTL ? '-apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif' : 'inherit'};
-          font-weight: bold;
-        `;
-
-        // Use the text directly (it's already decoded)
-        const mainTitleText = isRTL ? 
-          (campaign.titleSettings?.mainTitleAr || 'عروض خاصة لك!') : 
-          (campaign.titleSettings?.mainTitleEn || 'Special Offers for You!');
+        const mainTitleText = isRTL ? campaign.titleSettings.mainTitleAr : campaign.titleSettings.mainTitleEn;
+        const secondaryTitleText = isRTL ? campaign.titleSettings.secondTitleAr : campaign.titleSettings.secondTitleEn;
         
         mainTitle.textContent = mainTitleText;
-
-        // Secondary Title
-        const secondaryTitleText = isRTL ?
-          campaign.titleSettings?.secondTitleAr :
-          campaign.titleSettings?.secondTitleEn;
-
-        let subtitle = null;
         if (secondaryTitleText) {
-          subtitle = document.createElement('p');
-          subtitle.style.cssText = `
-            color: #666;
-            margin-bottom: 20px;
-            font-size: 1.1em;
-            font-family: ${isRTL ? '-apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif' : 'inherit'};
-          `;
           subtitle.textContent = secondaryTitleText;
         }
 
