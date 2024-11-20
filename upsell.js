@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v1.5.5
+// src/scripts/upsell.js v1.5.6
 // HMStudio Upsell Feature
 
 (function() {
@@ -11,15 +11,20 @@
     return storeId ? storeId.split('?')[0] : null;
   }
 
-  function decodeText(text) {
+  // Add this helper function to your upsell.js
+function decodeUnicodeText(text) {
+  try {
+    return decodeURIComponent(escape(text));
+  } catch (e) {
     try {
-      // First try to decode if it's encoded
-      return decodeURIComponent(text);
-    } catch (e) {
-      // If decoding fails, return original text
+      return text.replace(/\\u[\dA-F]{4}/gi, match => 
+        String.fromCharCode(parseInt(match.replace(/\\u/g, ''), 16))
+      );
+    } catch (err) {
       return text;
     }
   }
+}
 
   function getCampaignsFromUrl() {
     const scriptTag = document.currentScript;
@@ -484,27 +489,20 @@
         `;
     
         // Get the appropriate title text
-        let mainTitleText = '';
-        if (isRTL && campaign.titleSettings?.mainTitleAr) {
-          // For Arabic, directly use the stored text
-          mainTitleText = campaign.titleSettings.mainTitleAr;
-        } else if (!isRTL && campaign.titleSettings?.mainTitleEn) {
-          mainTitleText = campaign.titleSettings.mainTitleEn;
-        } else {
-          // Fallback text
-          mainTitleText = isRTL ? 'عروض خاصة لك!' : 'Special Offers for You!';
-        }
-    
-        // Set the text content using textContent to preserve Arabic characters
-        mainTitle.textContent = mainTitleText;
-    
-        // Secondary Title (if exists)
-        let secondaryTitleText = '';
-        if (isRTL && campaign.titleSettings?.secondTitleAr) {
-          secondaryTitleText = campaign.titleSettings.secondTitleAr;
-        } else if (!isRTL && campaign.titleSettings?.secondTitleEn) {
-          secondaryTitleText = campaign.titleSettings.secondTitleEn;
-        }
+        // Update the title handling in showUpsellModal
+let mainTitleText = '';
+if (isRTL && campaign.titleSettings?.mainTitleAr) {
+  mainTitleText = decodeUnicodeText(campaign.titleSettings.mainTitleAr);
+} else if (!isRTL && campaign.titleSettings?.mainTitleEn) {
+  mainTitleText = campaign.titleSettings.mainTitleEn;
+}
+
+let secondaryTitleText = '';
+if (isRTL && campaign.titleSettings?.secondTitleAr) {
+  secondaryTitleText = decodeUnicodeText(campaign.titleSettings.secondTitleAr);
+} else if (!isRTL && campaign.titleSettings?.secondTitleEn) {
+  secondaryTitleText = campaign.titleSettings.secondTitleEn;
+}
     
         let subtitle = null;
         if (secondaryTitleText) {
