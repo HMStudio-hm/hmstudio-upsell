@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v1.6.1
+// src/scripts/upsell.js v1.6.2
 // HMStudio Upsell Feature
 
 (function() {
@@ -20,24 +20,11 @@
       console.log('No campaigns data found in URL');
       return [];
     }
-  
+
     try {
-      // First decode base64
-      const decodedBase64 = atob(campaignsData);
-      // Then parse JSON
-      const parsedData = JSON.parse(decodedBase64);
-      
-      // Finally decode the URL encoded Arabic text
-      return parsedData.map(campaign => ({
-        ...campaign,
-        titleSettings: {
-          ...campaign.titleSettings,
-          mainTitleAr: decodeURIComponent(campaign.titleSettings.mainTitleAr || ''),
-          secondTitleAr: decodeURIComponent(campaign.titleSettings.secondTitleAr || ''),
-          mainTitleEn: campaign.titleSettings.mainTitleEn || '',
-          secondTitleEn: campaign.titleSettings.secondTitleEn || ''
-        }
-      }));
+      const decodedData = atob(campaignsData);
+      const parsedData = JSON.parse(decodedData);
+      return parsedData;
     } catch (error) {
       console.error('Error parsing campaigns data:', error);
       return [];
@@ -108,18 +95,18 @@
         const form = document.createElement('form');
         form.id = `product-form-${fullProductData.id}`;
 
-        // Product ID input
+        // Product ID input following Zid's convention
         const productIdInput = document.createElement('input');
         productIdInput.type = 'hidden';
-        productIdInput.id = 'product-id';
+        productIdInput.id = 'product-id';  // Required by Zid
         productIdInput.name = 'product_id';
         productIdInput.value = fullProductData.selected_product?.id || fullProductData.id;
         form.appendChild(productIdInput);
 
-        // Quantity input
+        // Quantity input following Zid's convention
         const quantityInput = document.createElement('input');
         quantityInput.type = 'hidden';
-        quantityInput.id = 'product-quantity';
+        quantityInput.id = 'product-quantity';  // Required by Zid
         quantityInput.name = 'quantity';
         quantityInput.value = '1';
         form.appendChild(quantityInput);
@@ -178,7 +165,7 @@
         priceContainer.appendChild(oldPrice);
         card.appendChild(priceContainer);
 
-        // Add to cart button
+        // Add to cart button with spinner
         const addButton = document.createElement('button');
         addButton.className = 'btn btn-primary add-to-cart-btn';
         addButton.type = 'button';
@@ -210,9 +197,11 @@
         `;
         addButton.appendChild(spinner);
 
-        // Add to cart handler
-        addButton.addEventListener('click', () => {
+        // Add to cart handler using Zid's convention
+        addButton.addEventListener('click', function() {
+          // Check if product has variants
           if (fullProductData.has_options && fullProductData.variants?.length > 0) {
+            // Get all variant selections
             const selectedVariants = {};
             const missingSelections = [];
             
@@ -224,6 +213,7 @@
               selectedVariants[labelText] = select.value;
             });
         
+            // Check if all variants are selected
             if (missingSelections.length > 0) {
               const message = currentLang === 'ar' 
                 ? `الرجاء اختيار ${missingSelections.join(', ')}`
@@ -289,7 +279,7 @@
           }
         });
 
-        variantAttributes.forEach(attr => {
+        variantAttributes.forEach((attr) => {
           const select = document.createElement('select');
           select.className = 'variant-select';
           select.style.cssText = `
@@ -412,12 +402,14 @@
       const isRTL = currentLang === 'ar';
     
       try {
-        // Clear existing modal if any
+        // Fetch store settings to get custom titles
+        const response = await fetch(`https://europe-west3-hmstudio-85f42.cloudfunctions.net/getUpsellSettings?storeId=${storeId}`);
+        const settings = await response.json();
+    
         if (this.currentModal) {
           this.currentModal.remove();
         }
-    
-        // Create modal container
+
         const modal = document.createElement('div');
         modal.className = 'hmstudio-upsell-modal';
         modal.style.cssText = `
@@ -434,8 +426,7 @@
           opacity: 0;
           transition: opacity 0.3s ease;
         `;
-    
-        // Create content container
+
         const content = document.createElement('div');
         content.className = 'hmstudio-upsell-content';
         content.style.cssText = `
@@ -450,11 +441,9 @@
           transform: translateY(20px);
           transition: transform 0.3s ease;
           direction: ${isRTL ? 'rtl' : 'ltr'};
-          text-align: ${isRTL ? 'right' : 'left'};
-          font-family: ${isRTL ? '-apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif' : 'inherit'};
         `;
-    
-        // Create close button
+
+        // Close button
         const closeButton = document.createElement('button');
         closeButton.innerHTML = '✕';
         closeButton.style.cssText = `
@@ -470,43 +459,33 @@
           line-height: 1;
         `;
         closeButton.addEventListener('click', () => this.closeModal());
-    
-        // Create main title
-        const mainTitle = document.createElement('h3');
-        mainTitle.style.cssText = `
-          font-size: 1.5em;
-          margin: 0 0 20px;
-          padding-${isRTL ? 'left' : 'right'}: 30px;
-          color: #333;
-          font-family: ${isRTL ? '-apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif' : 'inherit'};
-          font-weight: bold;
-        `;
-    
-        // Set title text
-        const mainTitleText = isRTL ? 
-  campaign.titleSettings?.mainTitleAr || 'عروض خاصة لك!' : 
-  campaign.titleSettings?.mainTitleEn || 'Special Offers for You!';
 
-console.log('Main title text:', mainTitleText); // Add this for debugging
-mainTitle.textContent = mainTitleText;
+        // Title with custom text
+    const title = document.createElement('h3');
+    title.style.cssText = `
+      font-size: 1.5em;
+      margin: 0 0 20px;
+      padding-${isRTL ? 'left' : 'right'}: 30px;
+    `;
+    title.textContent = currentLang === 'ar' 
+      ? (settings.modalTitleAr || 'عروض خاصة لك!')  // Default if not set
+      : (settings.modalTitleEn || 'Special Offers for You!');
 
-// Secondary title handling
-const secondaryTitleText = isRTL ?
-  campaign.titleSettings?.secondTitleAr :
-  campaign.titleSettings?.secondTitleEn;
-
-if (secondaryTitleText) {
-  subtitle = document.createElement('p');
-  subtitle.style.cssText = `
-    color: #666;
-    margin-bottom: 20px;
-    font-size: 1.1em;
-    font-family: ${isRTL ? '-apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif' : 'inherit'};
-  `;
-  subtitle.textContent = secondaryTitleText;
-}
+        // Subtitle with custom text
+    const subtitle = document.createElement('p');
+    subtitle.style.cssText = `
+      color: #666;
+      margin-bottom: 20px;
+      font-size: 1.1em;
+    `;
+    const defaultSubtitleAr = `أضف هذه المنتجات المكملة لـ ${productCart.name}!`;
+    const defaultSubtitleEn = `Add these complementary products for ${productCart.name}!`;
     
-        // Create products grid
+    subtitle.textContent = currentLang === 'ar'
+      ? (settings.modalSubtitleAr || defaultSubtitleAr)
+      : (settings.modalSubtitleEn || defaultSubtitleEn);
+
+        // Products grid
         const productsGrid = document.createElement('div');
         productsGrid.style.cssText = `
           display: grid;
@@ -514,47 +493,46 @@ if (secondaryTitleText) {
           gap: 20px;
           margin-top: 20px;
         `;
-    
+
         // Create and add product cards
         const productCards = await Promise.all(
           campaign.upsellProducts.map(product => this.createProductCard(product))
         );
-    
+
         productCards.filter(card => card !== null).forEach(card => {
           productsGrid.appendChild(card);
         });
-    
-        // Assemble modal
-        content.appendChild(closeButton);
-        content.appendChild(mainTitle);
-        if (subtitle) {
-          content.appendChild(subtitle);
-        }
-        content.appendChild(productsGrid);
-        modal.appendChild(content);
-    
-        // Add to document and animate
-        document.body.appendChild(modal);
+
+        // Assemble modal with custom titles
+    content.appendChild(closeButton);
+    content.appendChild(title);
+    content.appendChild(subtitle);
+    content.appendChild(productsGrid);
+    modal.appendChild(content);
+    document.body.appendChild(modal);
+
+        // Show modal with animation
         requestAnimationFrame(() => {
           modal.style.opacity = '1';
           content.style.transform = 'translateY(0)';
         });
-    
+
         this.currentModal = modal;
-    
-        // Event listeners
+
+        // Close modal when clicking outside
         modal.addEventListener('click', (e) => {
           if (e.target === modal) {
             this.closeModal();
           }
         });
-    
+
+        // Handle escape key
         document.addEventListener('keydown', (e) => {
           if (e.key === 'Escape') {
             this.closeModal();
           }
         });
-    
+
         console.log('Modal created successfully');
       } catch (error) {
         console.error('Error creating upsell modal:', error);
