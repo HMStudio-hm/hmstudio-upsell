@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v1.5.6
+// src/scripts/upsell.js v1.5.7
 // HMStudio Upsell Feature
 
 (function() {
@@ -11,18 +11,13 @@
     return storeId ? storeId.split('?')[0] : null;
   }
 
-  // Add this helper function to your upsell.js
-function decodeUnicodeText(text) {
+ // Add this helper function at the top of your script
+function decodeBase64Text(encodedText) {
   try {
-    return decodeURIComponent(escape(text));
+    return decodeURIComponent(atob(encodedText));
   } catch (e) {
-    try {
-      return text.replace(/\\u[\dA-F]{4}/gi, match => 
-        String.fromCharCode(parseInt(match.replace(/\\u/g, ''), 16))
-      );
-    } catch (err) {
-      return text;
-    }
+    console.error('Error decoding text:', e);
+    return encodedText;
   }
 }
 
@@ -476,47 +471,47 @@ function decodeUnicodeText(text) {
         `;
         closeButton.addEventListener('click', () => this.closeModal());
     
-        // Main Title with proper text
-        const mainTitle = document.createElement('h3');
-        mainTitle.style.cssText = `
-          font-size: 1.5em;
-          margin: 0 0 20px;
-          padding-${isRTL ? 'left' : 'right'}: 30px;
-          color: #333;
-          font-family: ${isRTL ? '-apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif' : 'inherit'};
-          white-space: pre-wrap;
-          word-wrap: break-word;
-        `;
-    
-        // Get the appropriate title text
-        // Update the title handling in showUpsellModal
-let mainTitleText = '';
-if (isRTL && campaign.titleSettings?.mainTitleAr) {
-  mainTitleText = decodeUnicodeText(campaign.titleSettings.mainTitleAr);
-} else if (!isRTL && campaign.titleSettings?.mainTitleEn) {
-  mainTitleText = campaign.titleSettings.mainTitleEn;
-}
+        // Main Title
+    const mainTitle = document.createElement('h3');
+    mainTitle.style.cssText = `
+      font-size: 1.5em;
+      margin: 0 0 20px;
+      padding-${isRTL ? 'left' : 'right'}: 30px;
+      color: #333;
+      font-family: ${isRTL ? '-apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif' : 'inherit'};
+    `;
 
-let secondaryTitleText = '';
-if (isRTL && campaign.titleSettings?.secondTitleAr) {
-  secondaryTitleText = decodeUnicodeText(campaign.titleSettings.secondTitleAr);
-} else if (!isRTL && campaign.titleSettings?.secondTitleEn) {
-  secondaryTitleText = campaign.titleSettings.secondTitleEn;
-}
-    
-        let subtitle = null;
-        if (secondaryTitleText) {
-          subtitle = document.createElement('p');
-          subtitle.style.cssText = `
-            color: #666;
-            margin-bottom: 20px;
-            font-size: 1.1em;
-            font-family: ${isRTL ? '-apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif' : 'inherit'};
-            white-space: pre-wrap;
-            word-wrap: break-word;
-          `;
-          subtitle.textContent = secondaryTitleText;
-        }
+    // Get and decode the appropriate title
+    let mainTitleText = '';
+    if (isRTL && campaign.titleSettings?.mainTitleAr) {
+      mainTitleText = decodeBase64Text(campaign.titleSettings.mainTitleAr);
+    } else if (!isRTL && campaign.titleSettings?.mainTitleEn) {
+      mainTitleText = campaign.titleSettings.mainTitleEn;
+    } else {
+      mainTitleText = isRTL ? 'عروض خاصة لك!' : 'Special Offers for You!';
+    }
+
+    mainTitle.textContent = mainTitleText;
+
+    // Secondary Title
+    let secondaryTitleText = '';
+    if (isRTL && campaign.titleSettings?.secondTitleAr) {
+      secondaryTitleText = decodeBase64Text(campaign.titleSettings.secondTitleAr);
+    } else if (!isRTL && campaign.titleSettings?.secondTitleEn) {
+      secondaryTitleText = campaign.titleSettings.secondTitleEn;
+    }
+
+    let subtitle = null;
+    if (secondaryTitleText) {
+      subtitle = document.createElement('p');
+      subtitle.style.cssText = `
+        color: #666;
+        margin-bottom: 20px;
+        font-size: 1.1em;
+        font-family: ${isRTL ? '-apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif' : 'inherit'};
+      `;
+      subtitle.textContent = secondaryTitleText;
+    }
     
         // Products grid
         const productsGrid = document.createElement('div');
