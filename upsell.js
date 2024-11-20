@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v1.5.9
+// src/scripts/upsell.js v1.6.0
 // HMStudio Upsell Feature
 
 (function() {
@@ -404,15 +404,17 @@
         console.warn('Invalid campaign data:', campaign);
         return;
       }
-
+    
       const currentLang = getCurrentLanguage();
       const isRTL = currentLang === 'ar';
-
+    
       try {
+        // Clear existing modal if any
         if (this.currentModal) {
           this.currentModal.remove();
         }
-
+    
+        // Create modal container
         const modal = document.createElement('div');
         modal.className = 'hmstudio-upsell-modal';
         modal.style.cssText = `
@@ -429,7 +431,8 @@
           opacity: 0;
           transition: opacity 0.3s ease;
         `;
-
+    
+        // Create content container
         const content = document.createElement('div');
         content.className = 'hmstudio-upsell-content';
         content.style.cssText = `
@@ -447,8 +450,8 @@
           text-align: ${isRTL ? 'right' : 'left'};
           font-family: ${isRTL ? '-apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif' : 'inherit'};
         `;
-
-        // Close button
+    
+        // Create close button
         const closeButton = document.createElement('button');
         closeButton.innerHTML = '✕';
         closeButton.style.cssText = `
@@ -464,17 +467,42 @@
           line-height: 1;
         `;
         closeButton.addEventListener('click', () => this.closeModal());
-
-        // Main Title
-        const mainTitleText = isRTL ? campaign.titleSettings.mainTitleAr : campaign.titleSettings.mainTitleEn;
-        const secondaryTitleText = isRTL ? campaign.titleSettings.secondTitleAr : campaign.titleSettings.secondTitleEn;
-        
+    
+        // Create main title
+        const mainTitle = document.createElement('h3');
+        mainTitle.style.cssText = `
+          font-size: 1.5em;
+          margin: 0 0 20px;
+          padding-${isRTL ? 'left' : 'right'}: 30px;
+          color: #333;
+          font-family: ${isRTL ? '-apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif' : 'inherit'};
+          font-weight: bold;
+        `;
+    
+        // Set title text
+        const mainTitleText = isRTL ? 
+          (campaign.titleSettings?.mainTitleAr || 'عروض خاصة لك!') : 
+          (campaign.titleSettings?.mainTitleEn || 'Special Offers for You!');
         mainTitle.textContent = mainTitleText;
+    
+        // Create subtitle if exists
+        let subtitle = null;
+        const secondaryTitleText = isRTL ?
+          campaign.titleSettings?.secondTitleAr :
+          campaign.titleSettings?.secondTitleEn;
+    
         if (secondaryTitleText) {
+          subtitle = document.createElement('p');
+          subtitle.style.cssText = `
+            color: #666;
+            margin-bottom: 20px;
+            font-size: 1.1em;
+            font-family: ${isRTL ? '-apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif' : 'inherit'};
+          `;
           subtitle.textContent = secondaryTitleText;
         }
-
-        // Products grid
+    
+        // Create products grid
         const productsGrid = document.createElement('div');
         productsGrid.style.cssText = `
           display: grid;
@@ -482,16 +510,16 @@
           gap: 20px;
           margin-top: 20px;
         `;
-
+    
         // Create and add product cards
         const productCards = await Promise.all(
           campaign.upsellProducts.map(product => this.createProductCard(product))
         );
-
+    
         productCards.filter(card => card !== null).forEach(card => {
           productsGrid.appendChild(card);
         });
-
+    
         // Assemble modal
         content.appendChild(closeButton);
         content.appendChild(mainTitle);
@@ -500,29 +528,29 @@
         }
         content.appendChild(productsGrid);
         modal.appendChild(content);
-
+    
         // Add to document and animate
         document.body.appendChild(modal);
         requestAnimationFrame(() => {
           modal.style.opacity = '1';
           content.style.transform = 'translateY(0)';
         });
-
+    
         this.currentModal = modal;
-
+    
         // Event listeners
         modal.addEventListener('click', (e) => {
           if (e.target === modal) {
             this.closeModal();
           }
         });
-
+    
         document.addEventListener('keydown', (e) => {
           if (e.key === 'Escape') {
             this.closeModal();
           }
         });
-
+    
         console.log('Modal created successfully');
       } catch (error) {
         console.error('Error creating upsell modal:', error);
