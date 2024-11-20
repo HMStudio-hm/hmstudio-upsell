@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v1.6.7
+// src/scripts/upsell.js v1.6.8
 // HMStudio Upsell Feature
 
 (function() {
@@ -20,24 +20,11 @@
       console.log('No campaigns data found in URL');
       return [];
     }
-  
+
     try {
       const decodedData = atob(campaignsData);
       const parsedData = JSON.parse(decodedData);
-      
-      return parsedData.map(campaign => {
-        // Decode UTF-8 characters properly
-        const decoder = new TextDecoder('utf-8');
-        return {
-          ...campaign,
-          titles: {
-            titleAr: decoder.decode(new TextEncoder().encode(campaign.titles?.titleAr || '')),
-            titleEn: campaign.titles?.titleEn || '',
-            subtitleAr: decoder.decode(new TextEncoder().encode(campaign.titles?.subtitleAr || '')),
-            subtitleEn: campaign.titles?.subtitleEn || ''
-          }
-        };
-      });
+      return parsedData;
     } catch (error) {
       console.error('Error parsing campaigns data:', error);
       return [];
@@ -104,27 +91,23 @@
           transition: transform 0.2s ease, box-shadow 0.2s ease;
         `;
 
-        // Create form with proper structure for Zid API
         const form = document.createElement('form');
         form.id = `product-form-${fullProductData.id}`;
 
-        // Product ID input following Zid's convention
         const productIdInput = document.createElement('input');
         productIdInput.type = 'hidden';
-        productIdInput.id = 'product-id';  // Required by Zid
+        productIdInput.id = 'product-id';
         productIdInput.name = 'product_id';
         productIdInput.value = fullProductData.selected_product?.id || fullProductData.id;
         form.appendChild(productIdInput);
 
-        // Quantity input following Zid's convention
         const quantityInput = document.createElement('input');
         quantityInput.type = 'hidden';
-        quantityInput.id = 'product-quantity';  // Required by Zid
+        quantityInput.id = 'product-quantity';
         quantityInput.name = 'quantity';
         quantityInput.value = '1';
         form.appendChild(quantityInput);
 
-        // Product content
         const productContent = document.createElement('div');
         productContent.innerHTML = `
           <img 
@@ -138,18 +121,15 @@
         `;
         card.appendChild(productContent);
 
-        // Add variants section if product has options
         if (fullProductData.has_options && fullProductData.variants?.length > 0) {
           const variantsSection = this.createVariantsSection(fullProductData, currentLang);
           form.appendChild(variantsSection);
 
-          // Initialize with default variant
           if (fullProductData.selected_product) {
             this.updateSelectedVariant(fullProductData, form);
           }
         }
 
-        // Price display
         const priceContainer = document.createElement('div');
         priceContainer.style.cssText = `margin: 15px 0; font-weight: bold;`;
         
@@ -178,7 +158,6 @@
         priceContainer.appendChild(oldPrice);
         card.appendChild(priceContainer);
 
-        // Add to cart button with spinner
         const addButton = document.createElement('button');
         addButton.className = 'btn btn-primary add-to-cart-btn';
         addButton.type = 'button';
@@ -210,11 +189,8 @@
         `;
         addButton.appendChild(spinner);
 
-        // Add to cart handler using Zid's convention
         addButton.addEventListener('click', function() {
-          // Check if product has variants
           if (fullProductData.has_options && fullProductData.variants?.length > 0) {
-            // Get all variant selections
             const selectedVariants = {};
             const missingSelections = [];
             
@@ -226,7 +202,6 @@
               selectedVariants[labelText] = select.value;
             });
         
-            // Check if all variants are selected
             if (missingSelections.length > 0) {
               const message = currentLang === 'ar' 
                 ? `الرجاء اختيار ${missingSelections.join(', ')}`
@@ -264,76 +239,6 @@
         console.error('Error creating product card:', error);
         return null;
       }
-    },
-
-    createVariantsSection(product, currentLang) {
-      const variantsContainer = document.createElement('div');
-      variantsContainer.className = 'hmstudio-upsell-variants';
-      variantsContainer.style.cssText = `
-        margin-top: 15px;
-        padding: 10px 0;
-      `;
-
-      if (product.variants && product.variants.length > 0) {
-        const variantAttributes = new Map();
-        
-        product.variants.forEach(variant => {
-          if (variant.attributes && variant.attributes.length > 0) {
-            variant.attributes.forEach(attr => {
-              if (!variantAttributes.has(attr.name)) {
-                variantAttributes.set(attr.name, {
-                  name: attr.name,
-                  slug: attr.slug,
-                  values: new Set()
-                });
-              }
-              variantAttributes.get(attr.name).values.add(attr.value[currentLang]);
-            });
-          }
-        });
-
-        variantAttributes.forEach((attr) => {
-          const select = document.createElement('select');
-          select.className = 'variant-select';
-          select.style.cssText = `
-            margin: 5px 0;
-            padding: 8px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            width: 100%;
-          `;
-
-          const labelText = currentLang === 'ar' ? attr.slug : attr.name;
-          
-          const label = document.createElement('label');
-          label.textContent = labelText;
-          label.style.cssText = `
-            display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
-          `;
-
-          const placeholderText = currentLang === 'ar' ? `اختر ${labelText}` : `Select ${labelText}`;
-          
-          let optionsHTML = `<option value="">${placeholderText}</option>`;
-          
-          Array.from(attr.values).forEach(value => {
-            optionsHTML += `<option value="${value}">${value}</option>`;
-          });
-          
-          select.innerHTML = optionsHTML;
-
-          select.addEventListener('change', () => {
-            console.log('Selected:', attr.name, select.value);
-            this.updateSelectedVariant(product, select.closest('form'));
-          });
-
-          variantsContainer.appendChild(label);
-          variantsContainer.appendChild(select);
-        });
-      }
-
-      return variantsContainer;
     },
 
     updateSelectedVariant(product, form) {
@@ -403,17 +308,88 @@
       }
     },
 
+    createVariantsSection(product, currentLang) {
+      const variantsContainer = document.createElement('div');
+      variantsContainer.className = 'hmstudio-upsell-variants';
+      variantsContainer.style.cssText = `
+        margin-top: 15px;
+        padding: 10px 0;
+      `;
+
+      if (product.variants && product.variants.length > 0) {
+        const variantAttributes = new Map();
+        
+        product.variants.forEach(variant => {
+          if (variant.attributes && variant.attributes.length > 0) {
+            variant.attributes.forEach(attr => {
+              if (!variantAttributes.has(attr.name)) {
+                variantAttributes.set(attr.name, {
+                  name: attr.name,
+                  slug: attr.slug,
+                  values: new Set()
+                });
+              }
+              variantAttributes.get(attr.name).values.add(attr.value[currentLang]);
+            });
+          }
+        });
+
+        variantAttributes.forEach(attr => {
+          const select = document.createElement('select');
+          select.className = 'variant-select';
+          select.style.cssText = `
+            margin: 5px 0;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            width: 100%;
+          `;
+
+          const labelText = currentLang === 'ar' ? attr.slug : attr.name;
+          
+          const label = document.createElement('label');
+          label.textContent = labelText;
+          label.style.cssText = `
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+          `;
+
+          const placeholderText = currentLang === 'ar' 
+            ? `اختر ${labelText}` 
+            : `Select ${labelText}`;
+          
+          let optionsHTML = `<option value="">${placeholderText}</option>`;
+          
+          Array.from(attr.values).forEach(value => {
+            optionsHTML += `<option value="${value}">${value}</option>`;
+          });
+          
+          select.innerHTML = optionsHTML;
+
+          select.addEventListener('change', () => {
+            console.log('Selected:', attr.name, select.value);
+            this.updateSelectedVariant(product, select.closest('form'));
+          });
+
+          variantsContainer.appendChild(label);
+          variantsContainer.appendChild(select);
+        });
+      }
+
+      return variantsContainer;
+    },
+
     async showUpsellModal(campaign, productCart) {
-      console.log('Showing upsell modal for campaign:', campaign); // Debug log
-    
+      console.log('Showing upsell modal for campaign:', campaign);
       const currentLang = getCurrentLanguage();
       const isRTL = currentLang === 'ar';
-    
+
       try {
         if (this.currentModal) {
           this.currentModal.remove();
         }
-    
+
         const modal = document.createElement('div');
         modal.className = 'hmstudio-upsell-modal';
         modal.style.cssText = `
@@ -447,7 +423,6 @@
           direction: ${isRTL ? 'rtl' : 'ltr'};
         `;
 
-        // Close button
         const closeButton = document.createElement('button');
         closeButton.innerHTML = '✕';
         closeButton.style.cssText = `
@@ -464,36 +439,36 @@
         `;
         closeButton.addEventListener('click', () => this.closeModal());
 
-        // Title container with proper direction
-    const title = document.createElement('h3');
-    title.style.cssText = `
-      font-size: 1.5em;
-      margin: 0 0 20px;
-      padding-${isRTL ? 'left' : 'right'}: 30px;
-      direction: ${isRTL ? 'rtl' : 'ltr'};
-      text-align: ${isRTL ? 'right' : 'left'};
-      font-family: system-ui, -apple-system, sans-serif;
-    `;
-    // Simply use the stored text based on language
-    title.textContent = isRTL ? campaign.titles.titleAr : campaign.titles.titleEn;
+        // Title
+        const title = document.createElement('h3');
+        title.style.cssText = `
+          font-size: 1.5em;
+          margin: 0 0 20px;
+          padding-${isRTL ? 'left' : 'right'}: 30px;
+          direction: ${isRTL ? 'rtl' : 'ltr'};
+          text-align: ${isRTL ? 'right' : 'left'};
+          font-family: system-ui, -apple-system, sans-serif;
+        `;
+        // Use the titles directly from campaign data
+        title.textContent = isRTL ? campaign.titles.titleAr : campaign.titles.titleEn;
 
-    // Subtitle with proper direction
-    const subtitle = document.createElement('p');
-    subtitle.style.cssText = `
-      color: #666;
-      margin-bottom: 20px;
-      font-size: 1.1em;
-      direction: ${isRTL ? 'rtl' : 'ltr'};
-      text-align: ${isRTL ? 'right' : 'left'};
-      font-family: system-ui, -apple-system, sans-serif;
-    `;
-    // Simply use the stored text based on language
-    subtitle.textContent = isRTL ? campaign.titles.subtitleAr : campaign.titles.subtitleEn;
+        // Subtitle
+        const subtitle = document.createElement('p');
+        subtitle.style.cssText = `
+          color: #666;
+          margin-bottom: 20px;
+          font-size: 1.1em;
+          direction: ${isRTL ? 'rtl' : 'ltr'};
+          text-align: ${isRTL ? 'right' : 'left'};
+          font-family: system-ui, -apple-system, sans-serif;
+        `;
+        // Use the subtitles directly from campaign data
+        subtitle.textContent = isRTL ? campaign.titles.subtitleAr : campaign.titles.subtitleEn;
 
-    // Debug logs
-    console.log('Current language:', currentLang);
-    console.log('Title being displayed:', title.textContent);
-    console.log('Subtitle being displayed:', subtitle.textContent);
+        // Debug logs
+        console.log('Current language:', currentLang);
+        console.log('Title being displayed:', title.textContent);
+        console.log('Subtitle being displayed:', subtitle.textContent);
 
         // Products grid
         const productsGrid = document.createElement('div');
