@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v1.6.3
+// src/scripts/upsell.js v1.6.4
 // HMStudio Upsell Feature
 
 (function() {
@@ -22,7 +22,8 @@
     }
   
     try {
-      const decodedData = atob(campaignsData);
+      // Decode with UTF-8 support
+      const decodedData = decodeURIComponent(escape(atob(campaignsData)));
       const parsedData = JSON.parse(decodedData);
       
       return parsedData.map(campaign => ({
@@ -472,9 +473,10 @@
           margin: 0 0 20px;
           padding-${isRTL ? 'left' : 'right'}: 30px;
         `;
-        title.textContent = currentLang === 'ar' 
-  ? (campaign.titles?.titleAr || 'عروض خاصة لك!') 
-  : (campaign.titles?.titleEn || 'Special Offers for You!');
+        
+title.textContent = currentLang === 'ar' 
+? decodeURIComponent(campaign.titles?.titleAr || 'عروض خاصة لك!')
+: decodeURIComponent(campaign.titles?.titleEn || 'Special Offers for You!');
 
         // Subtitle with trigger product name
         const subtitle = document.createElement('p');
@@ -484,8 +486,8 @@
           font-size: 1.1em;
         `;
         subtitle.textContent = currentLang === 'ar' 
-  ? (campaign.titles?.subtitleAr || `أضف هذه المنتجات المكملة لـ ${productCart.name}!`)
-  : (campaign.titles?.subtitleEn || `Add these complementary products for ${productCart.name}!`);
+        ? decodeURIComponent(campaign.titles?.subtitleAr || `أضف هذه المنتجات المكملة لـ ${productCart.name}!`)
+        : decodeURIComponent(campaign.titles?.subtitleEn || `Add these complementary products for ${productCart.name}!`);
 
         // Products grid
         const productsGrid = document.createElement('div');
