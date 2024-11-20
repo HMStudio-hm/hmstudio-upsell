@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v1.6.0
+// src/scripts/upsell.js v1.6.1
 // HMStudio Upsell Feature
 
 (function() {
@@ -22,10 +22,13 @@
     }
   
     try {
-      const decodedData = atob(campaignsData);
-      const campaigns = JSON.parse(decodedData);
+      // First decode base64
+      const decodedBase64 = atob(campaignsData);
+      // Then parse JSON
+      const parsedData = JSON.parse(decodedBase64);
       
-      return campaigns.map(campaign => ({
+      // Finally decode the URL encoded Arabic text
+      return parsedData.map(campaign => ({
         ...campaign,
         titleSettings: {
           ...campaign.titleSettings,
@@ -481,26 +484,27 @@
     
         // Set title text
         const mainTitleText = isRTL ? 
-          (campaign.titleSettings?.mainTitleAr || 'عروض خاصة لك!') : 
-          (campaign.titleSettings?.mainTitleEn || 'Special Offers for You!');
-        mainTitle.textContent = mainTitleText;
-    
-        // Create subtitle if exists
-        let subtitle = null;
-        const secondaryTitleText = isRTL ?
-          campaign.titleSettings?.secondTitleAr :
-          campaign.titleSettings?.secondTitleEn;
-    
-        if (secondaryTitleText) {
-          subtitle = document.createElement('p');
-          subtitle.style.cssText = `
-            color: #666;
-            margin-bottom: 20px;
-            font-size: 1.1em;
-            font-family: ${isRTL ? '-apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif' : 'inherit'};
-          `;
-          subtitle.textContent = secondaryTitleText;
-        }
+  campaign.titleSettings?.mainTitleAr || 'عروض خاصة لك!' : 
+  campaign.titleSettings?.mainTitleEn || 'Special Offers for You!';
+
+console.log('Main title text:', mainTitleText); // Add this for debugging
+mainTitle.textContent = mainTitleText;
+
+// Secondary title handling
+const secondaryTitleText = isRTL ?
+  campaign.titleSettings?.secondTitleAr :
+  campaign.titleSettings?.secondTitleEn;
+
+if (secondaryTitleText) {
+  subtitle = document.createElement('p');
+  subtitle.style.cssText = `
+    color: #666;
+    margin-bottom: 20px;
+    font-size: 1.1em;
+    font-family: ${isRTL ? '-apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif' : 'inherit'};
+  `;
+  subtitle.textContent = secondaryTitleText;
+}
     
         // Create products grid
         const productsGrid = document.createElement('div');
