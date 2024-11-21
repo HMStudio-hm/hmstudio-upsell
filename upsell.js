@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v1.7.0
+// src/scripts/upsell.js v1.7.1
 // HMStudio Upsell Feature
 
 (function() {
@@ -20,18 +20,18 @@
       console.log('No campaigns data found in URL');
       return [];
     }
-
+  
     try {
-      const decodedData = decodeURIComponent(atob(campaignsData));
+      const decodedData = atob(campaignsData);
       const parsedData = JSON.parse(decodedData);
       
-      // Ensure proper decoding of Arabic text
+      // Decode the encoded Arabic text
       return parsedData.map(campaign => ({
         ...campaign,
         textSettings: {
-          titleAr: decodeURIComponent(escape(campaign.textSettings?.titleAr || '')),
+          titleAr: decodeURIComponent(campaign.textSettings?.titleAr || ''),
           titleEn: campaign.textSettings?.titleEn || '',
-          subtitleAr: decodeURIComponent(escape(campaign.textSettings?.subtitleAr || '')),
+          subtitleAr: decodeURIComponent(campaign.textSettings?.subtitleAr || ''),
           subtitleEn: campaign.textSettings?.subtitleEn || ''
         }
       }));
