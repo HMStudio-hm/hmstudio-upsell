@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v1.8.8
+// src/scripts/upsell.js v1.8.9
 // HMStudio Upsell Feature
 
 (function() {
@@ -549,6 +549,9 @@
           flex: 1;
         `;
     
+// Store product data separately for calculations
+const productDataArray = [];
+
         // Create product cards
         const productCards = await Promise.all(
           campaign.upsellProducts.map(async (product, index) => {
@@ -563,6 +566,10 @@
             `;
         
             const productData = await this.fetchProductData(product.id);
+            productDataArray.push({
+              productData,
+              quantityInput: null // Will be set after creation
+            });
             
             // Product image
             const img = document.createElement('img');
@@ -631,6 +638,9 @@
               border-radius: 4px;
               -moz-appearance: textfield;
             `;
+        
+            // Store reference to quantityInput
+            productDataArray[index].quantityInput = quantityInput;
         
             const increaseBtn = document.createElement('button');
             increaseBtn.textContent = '+';
@@ -712,14 +722,6 @@
               transition: opacity 0.3s;
             `;
         
-            addButton.addEventListener('mouseover', () => {
-              addButton.style.opacity = '0.9';
-            });
-        
-            addButton.addEventListener('mouseout', () => {
-              addButton.style.opacity = '1';
-            });
-        
             // Add to cart functionality
             addButton.addEventListener('click', async () => {
               if (productData.variants?.length > 0 && !variantSelect.value) {
@@ -777,51 +779,42 @@
             card.appendChild(quantityContainer);
             card.appendChild(actionWrapper);
         
-            return { card, productData, quantityInput };
+            return card;  // Return just the card element
           })
         );
     
         productCards.forEach(card => productsGrid.appendChild(card));
-    
-        // Update total section
-const totalSection = document.createElement('div');
-totalSection.style.cssText = `
-  width: 250px;
-  flex-shrink: 0;
-  background: #f8f9fa;
-  padding: 20px;
-  border-radius: 8px;
-  position: sticky;
-  top: 20px;
-`;
 
-const totalPrice = document.createElement('div');
-totalPrice.style.cssText = `margin-bottom: 20px;`;
-const calculateTotal = () => {
-  return productCards.reduce((sum, { productData }) => 
-    sum + parseFloat(productData.price), 0
-  );
-};
+// Add all products functionality
+addAllButton.addEventListener('click', async () => {
+  addAllButton.disabled = true;
+  addAllButton.textContent = currentLang === 'ar' ? 'جاري الإضافة...' : 'Adding...';
 
-totalPrice.innerHTML = `
-  <div style="font-size: 24px; font-weight: bold;">
-    ${this.formatPrice(calculateTotal(), currentLang)}
-  </div>
-`;
+  try {
+    for (const { productData, quantityInput } of productDataArray) {
+      const quantity = parseInt(quantityInput.value);
+      const productId = productData.id;
 
-const addAllButton = document.createElement('button');
-addAllButton.textContent = currentLang === 'ar' ? 'أضف جميع المنتجات' : 'Add all products';
-addAllButton.style.cssText = `
-  background: #000;
-  color: white;
-  border: none;
-  border-radius: 25px;
-  padding: 12px 20px;
-  font-size: 16px;
-  cursor: pointer;
-  width: 100%;
-  transition: background-color 0.3s;
-`;
+      await zid.store.cart.addProduct({
+        data: {
+          product_id: productId,
+          quantity: quantity
+        }
+      });
+    }
+
+    this.closeModal();
+  } catch (error) {
+    console.error('Error adding all products:', error);
+    alert(currentLang === 'ar'
+      ? 'حدث خطأ أثناء إضافة المنتجات'
+      : 'Error adding products'
+    );
+  } finally {
+    addAllButton.disabled = false;
+    addAllButton.textContent = currentLang === 'ar' ? 'أضف جميع المنتجات' : 'Add all products';
+  }
+});
 
 // Add all products functionality
 addAllButton.addEventListener('click', async () => {
