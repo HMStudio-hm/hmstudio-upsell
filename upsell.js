@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v1.8.5
+// src/scripts/upsell.js v1.8.6
 // HMStudio Upsell Feature
 
 (function() {
@@ -99,11 +99,6 @@
           padding: 15px;
           text-align: center;
           transition: transform 0.2s ease, box-shadow 0.2s ease;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          background-color: #fff;
-          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         `;
 
         // Create form with proper structure for Zid API
@@ -120,33 +115,19 @@
 
         // Quantity input following Zid's convention
         const quantityInput = document.createElement('input');
-        quantityInput.type = 'number';
+        quantityInput.type = 'hidden';
         quantityInput.id = 'product-quantity';  // Required by Zid
         quantityInput.name = 'quantity';
         quantityInput.value = '1';
-        quantityInput.min = '1';
-        quantityInput.style.cssText = `
-          width: 60px;
-          margin: 10px 0;
-          padding: 5px;
-          border: 1px solid #ddd;
-          border-radius: 4px;
-          text-align: center;
-        `;
         form.appendChild(quantityInput);
 
         // Product content
         const productContent = document.createElement('div');
-        productContent.style.cssText = `
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-        `;
         productContent.innerHTML = `
           <img 
             src="${fullProductData.images?.[0]?.url || product.thumbnail}" 
             alt="${productName}" 
-            style="width: 100px; height: 100px; object-fit: contain; margin-bottom: 10px;"
+            style="width: 100%; height: 150px; object-fit: contain; margin-bottom: 10px;"
           >
           <h4 style="font-size: 1em; margin: 10px 0; min-height: 40px;">
             ${productName}
@@ -167,7 +148,7 @@
 
         // Price display
         const priceContainer = document.createElement('div');
-        priceContainer.style.cssText = `margin: 15px 0; font-weight: bold; display: flex; align-items: center;`;
+        priceContainer.style.cssText = `margin: 15px 0; font-weight: bold;`;
         
         const currentPrice = document.createElement('span');
         currentPrice.className = 'product-price';
@@ -288,9 +269,6 @@
       variantsContainer.style.cssText = `
         margin-top: 15px;
         padding: 10px 0;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
       `;
 
       if (product.variants && product.variants.length > 0) {
@@ -423,8 +401,8 @@
     },
 
     async showUpsellModal(campaign, productCart) {
-      console.log('Received campaign data:', campaign);
-    
+      console.log('Showing bundle-style upsell modal:', { campaign, productCart });
+      
       if (!campaign || !campaign.upsellProducts || campaign.upsellProducts.length === 0) {
         console.warn('Invalid campaign data:', campaign);
         return;
@@ -437,7 +415,7 @@
         if (this.currentModal) {
           this.currentModal.remove();
         }
-
+    
         const modal = document.createElement('div');
         modal.className = 'hmstudio-upsell-modal';
         modal.style.cssText = `
@@ -454,115 +432,291 @@
           opacity: 0;
           transition: opacity 0.3s ease;
         `;
-
+    
         const content = document.createElement('div');
         content.className = 'hmstudio-upsell-content';
         content.style.cssText = `
           background: white;
-          padding: 25px;
-          border-radius: 8px;
-          max-width: 800px;
-          width: 90%;
+          padding: 40px;
+          border-radius: 12px;
+          width: 1000px;
+          max-width: 90%;
           max-height: 90vh;
           overflow-y: auto;
           position: relative;
           transform: translateY(20px);
           transition: transform 0.3s ease;
           direction: ${isRTL ? 'rtl' : 'ltr'};
+          display: flex;
+          flex-direction: column;
         `;
-
+    
         // Close button
         const closeButton = document.createElement('button');
         closeButton.innerHTML = '✕';
         closeButton.style.cssText = `
           position: absolute;
-          top: 15px;
-          ${isRTL ? 'left' : 'right'}: 15px;
+          top: 20px;
+          ${isRTL ? 'left' : 'right'}: 20px;
           background: none;
           border: none;
-          font-size: 20px;
+          font-size: 24px;
           cursor: pointer;
           color: #666;
           padding: 5px;
           line-height: 1;
+          z-index: 1;
         `;
         closeButton.addEventListener('click', () => this.closeModal());
-
-        // Title with decoded text
-        const title = document.createElement('h3');
+    
+        // Header section
+        const header = document.createElement('div');
+        header.style.cssText = `
+          text-align: center;
+          margin-bottom: 30px;
+        `;
+    
+        const title = document.createElement('h2');
+        title.textContent = currentLang === 'ar' ? 'اشترِ المجموعة لتوفر أكثر' : 'Buy a pack to save';
         title.style.cssText = `
-          font-size: 1.5em;
-          margin: 0 0 20px;
-          padding-${isRTL ? 'left' : 'right'}: 30px;
+          font-size: 28px;
+          margin-bottom: 10px;
           color: #333;
-          font-weight: bold;
         `;
-        title.textContent = currentLang === 'ar' 
-          ? decodeURIComponent(campaign.textSettings.titleAr) 
-          : campaign.textSettings.titleEn;
-
-        // Subtitle with decoded text
+    
         const subtitle = document.createElement('p');
+        subtitle.textContent = currentLang === 'ar' 
+          ? 'أضف المجموعة للحصول على خصم 15%' 
+          : 'Add bundle to get 15% off';
         subtitle.style.cssText = `
+          font-size: 18px;
           color: #666;
-          margin-bottom: 20px;
-          font-size: 1.1em;
+          margin: 0;
         `;
-        subtitle.textContent = currentLang === 'ar'
-          ? decodeURIComponent(campaign.textSettings.subtitleAr)
-          : campaign.textSettings.subtitleEn;
-
-        // Products grid
+    
+        header.appendChild(title);
+        header.appendChild(subtitle);
+    
+        // Main content wrapper for products and total
+        const mainWrapper = document.createElement('div');
+        mainWrapper.style.cssText = `
+          display: flex;
+          gap: 30px;
+          align-items: flex-start;
+        `;
+    
+        // Products grid with smaller cards
         const productsGrid = document.createElement('div');
         productsGrid.style.cssText = `
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+          grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
           gap: 20px;
-          margin-top: 20px;
+          flex: 1;
         `;
-
-        // Create and add product cards
+    
+        // Create product cards
         const productCards = await Promise.all(
-          campaign.upsellProducts.map(product => this.createProductCard(product))
+          campaign.upsellProducts.map(async (product, index) => {
+            const card = document.createElement('div');
+            card.style.cssText = `
+              position: relative;
+              text-align: center;
+              padding: 15px;
+              border: 1px solid #eee;
+              border-radius: 8px;
+              max-width: 180px;
+            `;
+    
+            const productData = await this.fetchProductData(product.id);
+            
+            // Product image
+            const img = document.createElement('img');
+            img.src = productData.images[0]?.url || '';
+            img.alt = productData.name[currentLang];
+            img.style.cssText = `
+              width: 100%;
+              height: 150px;
+              object-fit: contain;
+              margin-bottom: 12px;
+            `;
+    
+            // Product name
+            const name = document.createElement('h3');
+            name.textContent = productData.name[currentLang];
+            name.style.cssText = `
+              font-size: 14px;
+              margin: 8px 0;
+              color: #333;
+              min-height: 40px;
+            `;
+    
+            // Variants selector
+            const variantSelect = document.createElement('select');
+            variantSelect.style.cssText = `
+              width: 100%;
+              padding: 8px;
+              border: 1px solid #ddd;
+              border-radius: 4px;
+              margin-bottom: 10px;
+              font-size: 13px;
+            `;
+    
+            // Add variants if available
+            if (productData.variants && productData.variants.length > 0) {
+              const defaultOption = document.createElement('option');
+              defaultOption.value = '';
+              defaultOption.textContent = currentLang === 'ar' ? 'اختر النوع' : 'Select variant';
+              variantSelect.appendChild(defaultOption);
+    
+              productData.variants.forEach(variant => {
+                const option = document.createElement('option');
+                option.value = variant.id;
+                // Combine all variant attributes into one string
+                const variantText = variant.attributes
+                  .map(attr => attr.value[currentLang])
+                  .join(' - ');
+                option.textContent = variantText;
+                variantSelect.appendChild(option);
+              });
+            }
+    
+            // Price and Add to Cart button wrapper
+            const actionWrapper = document.createElement('div');
+            actionWrapper.style.cssText = `
+              margin-top: 10px;
+              text-align: center;
+            `;
+    
+            // Price
+            const price = document.createElement('div');
+            price.textContent = this.formatPrice(productData.price, currentLang);
+            price.style.cssText = `
+              font-weight: bold;
+              font-size: 14px;
+              margin-bottom: 8px;
+            `;
+    
+            // Add to Cart button
+            const addButton = document.createElement('button');
+            addButton.textContent = currentLang === 'ar' ? 'أضف إلى السلة' : 'Add to Cart';
+            addButton.style.cssText = `
+              background: #007bff;
+              color: white;
+              border: none;
+              border-radius: 20px;
+              padding: 8px 15px;
+              font-size: 13px;
+              cursor: pointer;
+              width: 100%;
+              transition: background-color 0.3s;
+            `;
+    
+            addButton.addEventListener('mouseover', () => {
+              addButton.style.backgroundColor = '#0056b3';
+            });
+    
+            addButton.addEventListener('mouseout', () => {
+              addButton.style.backgroundColor = '#007bff';
+            });
+    
+            // Assemble product card
+            actionWrapper.appendChild(price);
+            actionWrapper.appendChild(addButton);
+    
+            card.appendChild(img);
+            card.appendChild(name);
+            if (productData.variants && productData.variants.length > 0) {
+              card.appendChild(variantSelect);
+            }
+            card.appendChild(actionWrapper);
+    
+            return card;
+          })
         );
-
-        productCards.filter(card => card !== null).forEach(card => {
-          productsGrid.appendChild(card);
+    
+        productCards.forEach(card => productsGrid.appendChild(card));
+    
+        // Total and Add to Cart section (positioned on the right)
+        const totalSection = document.createElement('div');
+        totalSection.style.cssText = `
+          width: 250px;
+          flex-shrink: 0;
+          background: #f8f9fa;
+          padding: 20px;
+          border-radius: 8px;
+          position: sticky;
+          top: 20px;
+        `;
+    
+        const totalPrice = document.createElement('div');
+        totalPrice.style.cssText = `
+          margin-bottom: 20px;
+        `;
+        totalPrice.innerHTML = `
+          <div style="color: #666; margin-bottom: 5px;">${currentLang === 'ar' ? 'المجموع:' : 'Total:'}</div>
+          <div style="font-size: 24px; font-weight: bold;">A$15.29</div>
+          <div style="text-decoration: line-through; color: #666;">A$17.99</div>
+        `;
+    
+        const addAllButton = document.createElement('button');
+        addAllButton.textContent = currentLang === 'ar' ? 'أضف المحدد إلى السلة' : 'Add selected to cart';
+        addAllButton.style.cssText = `
+          background: #000;
+          color: white;
+          border: none;
+          border-radius: 25px;
+          padding: 12px 20px;
+          font-size: 16px;
+          cursor: pointer;
+          width: 100%;
+          transition: background-color 0.3s;
+        `;
+    
+        addAllButton.addEventListener('mouseover', () => {
+          addAllButton.style.backgroundColor = '#333';
         });
-
+    
+        addAllButton.addEventListener('mouseout', () => {
+          addAllButton.style.backgroundColor = '#000';
+        });
+    
+        totalSection.appendChild(totalPrice);
+        totalSection.appendChild(addAllButton);
+    
+        // Assemble the layout
+        mainWrapper.appendChild(productsGrid);
+        mainWrapper.appendChild(totalSection);
+    
         // Assemble modal
         content.appendChild(closeButton);
-        content.appendChild(title);
-        content.appendChild(subtitle);
-        content.appendChild(productsGrid);
+        content.appendChild(header);
+        content.appendChild(mainWrapper);
         modal.appendChild(content);
         document.body.appendChild(modal);
-
+    
         // Show modal with animation
         requestAnimationFrame(() => {
           modal.style.opacity = '1';
           content.style.transform = 'translateY(0)';
         });
-
+    
         this.currentModal = modal;
-
+    
         // Close modal when clicking outside
         modal.addEventListener('click', (e) => {
           if (e.target === modal) {
             this.closeModal();
           }
         });
-
+    
         // Handle escape key
         document.addEventListener('keydown', (e) => {
           if (e.key === 'Escape') {
             this.closeModal();
           }
         });
-
-        console.log('Modal created successfully');
       } catch (error) {
-        console.error('Error creating upsell modal:', error);
+        console.error('Error creating bundle-style upsell modal:', error);
       }
     },
 
