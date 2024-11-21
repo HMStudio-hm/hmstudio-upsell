@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v1.7.1
+// src/scripts/upsell.js v1.7.2
 // HMStudio Upsell Feature
 
 (function() {
@@ -23,18 +23,7 @@
   
     try {
       const decodedData = atob(campaignsData);
-      const parsedData = JSON.parse(decodedData);
-      
-      // Decode the encoded Arabic text
-      return parsedData.map(campaign => ({
-        ...campaign,
-        textSettings: {
-          titleAr: decodeURIComponent(campaign.textSettings?.titleAr || ''),
-          titleEn: campaign.textSettings?.titleEn || '',
-          subtitleAr: decodeURIComponent(campaign.textSettings?.subtitleAr || ''),
-          subtitleEn: campaign.textSettings?.subtitleEn || ''
-        }
-      }));
+      return JSON.parse(decodedData);
     } catch (error) {
       console.error('Error parsing campaigns data:', error);
       return [];
