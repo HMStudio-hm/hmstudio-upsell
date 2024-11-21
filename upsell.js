@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v1.8.3
+// src/scripts/upsell.js v1.8.4
 // HMStudio Upsell Feature
 
 (function() {
@@ -99,6 +99,9 @@
           padding: 15px;
           text-align: center;
           transition: transform 0.2s ease, box-shadow 0.2s ease;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
         `;
 
         // Create form with proper structure for Zid API
@@ -132,11 +135,16 @@
 
         // Product content
         const productContent = document.createElement('div');
+        productContent.style.cssText = `
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+        `;
         productContent.innerHTML = `
           <img 
             src="${fullProductData.images?.[0]?.url || product.thumbnail}" 
             alt="${productName}" 
-            style="width: 100%; height: 150px; object-fit: contain; margin-bottom: 10px;"
+            style="width: 100px; height: 100px; object-fit: contain; margin-bottom: 10px;"
           >
           <h4 style="font-size: 1em; margin: 10px 0; min-height: 40px;">
             ${productName}
