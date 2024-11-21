@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v1.7.5
+// src/scripts/upsell.js v1.7.6
 // HMStudio Upsell Feature
 
 (function() {
@@ -203,61 +203,40 @@
         const fullProductData = await this.fetchProductData(product.id);
         const currentLang = getCurrentLanguage();
         const isRTL = currentLang === 'ar';
-
+        const currencyText = currentLang === 'ar' ? 'ر.س' : 'SAR';
+    
         let productName = fullProductData.name;
         if (typeof productName === 'object') {
           productName = currentLang === 'ar' ? productName.ar : productName.en;
         }
-
+    
         const card = document.createElement('div');
         card.className = 'hmstudio-upsell-product-card';
         card.style.cssText = `
           background: white;
           border-radius: 12px;
           padding: 20px;
-          transition: all 0.3s ease;
-          display: flex;
-          flex-direction: column;
-          gap: 15px;
           width: 280px;
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-          position: relative;
-        `;
-
-        // Product content
-        const content = document.createElement('div');
-        content.className = 'product-content';
-        content.style.cssText = `
+          border: 1px solid #eee;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.1);
           display: flex;
           flex-direction: column;
-          gap: 15px;
+          gap: 12px;
         `;
-
-        // Checkbox for product selection
-        const checkbox = document.createElement('input');
-        checkbox.type = 'checkbox';
-        checkbox.style.cssText = `
-          position: absolute;
-          top: 10px;
-          ${isRTL ? 'left' : 'right'}: 10px;
-          width: 20px;
-          height: 20px;
-          cursor: pointer;
-          z-index: 1;
-        `;
-
+    
         // Product image
         const imageContainer = document.createElement('div');
         imageContainer.style.cssText = `
-          aspect-ratio: 1;
-          overflow: hidden;
-          border-radius: 8px;
-          background: #f8f8f8;
+          width: 100%;
+          height: 200px;
           display: flex;
           align-items: center;
           justify-content: center;
+          background: #fff;
+          border-radius: 8px;
+          overflow: hidden;
         `;
-
+    
         const image = document.createElement('img');
         image.src = fullProductData.images?.[0]?.url || product.thumbnail;
         image.alt = productName;
@@ -267,7 +246,7 @@
           object-fit: contain;
         `;
         imageContainer.appendChild(image);
-
+    
         // Product name
         const name = document.createElement('h3');
         name.textContent = productName;
@@ -275,100 +254,97 @@
           font-size: 16px;
           font-weight: 500;
           color: #333;
-          margin: 0;
-          ${isRTL ? 'text-align: right;' : ''}
+          margin: 8px 0;
+          ${isRTL ? 'text-align: right;' : 'text-align: left'}
         `;
-
-        // Variants section
+    
+        // Variants
         const variantsContainer = document.createElement('div');
         const selectedVariants = {};
-
+    
         if (fullProductData.has_options && fullProductData.variants?.length > 0) {
           fullProductData.variants[0].attributes.forEach(attr => {
             const label = document.createElement('label');
-            label.textContent = currentLang === 'ar' ? attr.name.ar : attr.name.en;
+            label.textContent = isRTL ? attr.name.ar : attr.name.en;
             label.style.cssText = `
+              display: block;
               font-size: 14px;
               color: #666;
-              display: block;
-              margin-bottom: 6px;
-              ${isRTL ? 'text-align: right;' : ''}
+              margin: 8px 0 4px;
+              ${isRTL ? 'text-align: right;' : 'text-align: left'}
             `;
-
+    
             const select = document.createElement('select');
             select.style.cssText = `
               width: 100%;
               padding: 8px 12px;
               border: 1px solid #ddd;
-              border-radius: 6px;
-              margin-bottom: 10px;
+              border-radius: 8px;
               background: white;
-              ${isRTL ? 'text-align: right;' : ''}
+              ${isRTL ? 'text-align: right;' : 'text-align: left'}
             `;
-
-            // Add placeholder option
+    
             const placeholder = document.createElement('option');
             placeholder.value = '';
-            placeholder.textContent = currentLang === 'ar' ? 'اختر خيارًا' : 'Select an option';
+            placeholder.textContent = isRTL ? 'اختر خيارًا' : 'Select an option';
             select.appendChild(placeholder);
-
-            // Get unique variant options
+    
             const options = [...new Set(
               fullProductData.variants
                 .map(v => v.attributes
                   .find(a => a.name === attr.name)?.value[currentLang])
                 .filter(Boolean)
             )];
-
+    
             options.forEach(option => {
               const opt = document.createElement('option');
               opt.value = option;
               opt.textContent = option;
               select.appendChild(opt);
             });
-
+    
             select.addEventListener('change', () => {
               selectedVariants[attr.name] = select.value;
             });
-
+    
             variantsContainer.appendChild(label);
             variantsContainer.appendChild(select);
           });
         }
-
-        // Quantity selector
+    
+        // Quantity control
         const quantityContainer = document.createElement('div');
-        let currentQuantity = 1;
-        
+        let quantity = 1;
+    
         quantityContainer.style.cssText = `
           display: flex;
           align-items: center;
+          justify-content: ${isRTL ? 'flex-end' : 'flex-start'};
           gap: 10px;
-          margin-top: 10px;
-          ${isRTL ? 'flex-direction: row-reverse;' : ''}
+          margin: 12px 0;
         `;
-
+    
         const quantityLabel = document.createElement('span');
-        quantityLabel.textContent = currentLang === 'ar' ? 'الكمية:' : 'Quantity:';
+        quantityLabel.textContent = isRTL ? 'الكمية:' : 'Quantity:';
         quantityLabel.style.cssText = `
           font-size: 14px;
           color: #666;
         `;
-
-        const quantityControls = document.createElement('div');
-        quantityControls.style.cssText = `
+    
+        const quantityWrapper = document.createElement('div');
+        quantityWrapper.style.cssText = `
           display: flex;
           align-items: center;
           border: 1px solid #ddd;
-          border-radius: 6px;
+          border-radius: 8px;
           overflow: hidden;
         `;
-
+    
         const decreaseBtn = document.createElement('button');
         decreaseBtn.textContent = '-';
         const increaseBtn = document.createElement('button');
         increaseBtn.textContent = '+';
-
+    
         const quantityBtnStyle = `
           width: 32px;
           height: 32px;
@@ -379,12 +355,11 @@
           align-items: center;
           justify-content: center;
           font-size: 16px;
-          color: #666;
         `;
-
+    
         decreaseBtn.style.cssText = quantityBtnStyle;
         increaseBtn.style.cssText = quantityBtnStyle;
-
+    
         const quantityInput = document.createElement('input');
         quantityInput.type = 'number';
         quantityInput.min = '1';
@@ -397,96 +372,136 @@
           font-size: 14px;
           -moz-appearance: textfield;
         `;
-
+    
         // Price display
         const priceContainer = document.createElement('div');
         priceContainer.style.cssText = `
           display: flex;
           align-items: center;
           gap: 8px;
-          margin-top: 10px;
+          margin: 8px 0;
           ${isRTL ? 'flex-direction: row-reverse;' : ''}
         `;
-
+    
+        const formattedPrice = isRTL
+          ? `${(fullProductData.price || 0).toFixed(2)} ${currencyText}`
+          : `${currencyText} ${(fullProductData.price || 0).toFixed(2)}`;
+    
+        const formattedSalePrice = fullProductData.sale_price
+          ? (isRTL
+              ? `${fullProductData.sale_price.toFixed(2)} ${currencyText}`
+              : `${currencyText} ${fullProductData.sale_price.toFixed(2)}`)
+          : null;
+    
         const price = document.createElement('span');
-        price.textContent = fullProductData.formatted_price;
         price.style.cssText = `
           font-size: 18px;
           font-weight: 600;
-          color: #000;
+          color: ${formattedSalePrice ? '#e53e3e' : '#000'};
         `;
-
-        if (fullProductData.formatted_sale_price) {
+        price.textContent = formattedSalePrice || formattedPrice;
+    
+        if (formattedSalePrice) {
           const oldPrice = document.createElement('span');
-          oldPrice.textContent = fullProductData.formatted_price;
+          oldPrice.textContent = formattedPrice;
           oldPrice.style.cssText = `
             font-size: 14px;
             color: #999;
             text-decoration: line-through;
           `;
           priceContainer.appendChild(oldPrice);
-          price.textContent = fullProductData.formatted_sale_price;
-          price.style.color = '#e53e3e';
         }
-
+    
         priceContainer.appendChild(price);
-
-        // Add event listeners
+    
+        // Add to cart button
+        const addToCartBtn = document.createElement('button');
+        addToCartBtn.style.cssText = `
+          width: 100%;
+          padding: 12px;
+          background: #000;
+          color: white;
+          border: none;
+          border-radius: 8px;
+          font-size: 14px;
+          font-weight: 500;
+          cursor: pointer;
+          transition: background-color 0.3s;
+          margin-top: 8px;
+        `;
+        addToCartBtn.textContent = isRTL ? 'أضف إلى السلة' : 'Add to Cart';
+    
+        addToCartBtn.addEventListener('mouseover', () => {
+          addToCartBtn.style.backgroundColor = '#333';
+        });
+    
+        addToCartBtn.addEventListener('mouseout', () => {
+          addToCartBtn.style.backgroundColor = '#000';
+        });
+    
+        addToCartBtn.addEventListener('click', async () => {
+          if (fullProductData.has_options && Object.keys(selectedVariants).length === 0) {
+            alert(isRTL ? 'الرجاء اختيار الخيارات المطلوبة' : 'Please select required options');
+            return;
+          }
+    
+          try {
+            await zid.store.cart.addProduct({
+              data: {
+                product_id: fullProductData.id,
+                quantity: quantity,
+                options: selectedVariants
+              }
+            });
+            
+            this.closeModal();
+          } catch (error) {
+            console.error('Error adding to cart:', error);
+            alert(isRTL 
+              ? 'حدث خطأ أثناء الإضافة إلى السلة'
+              : 'Error adding to cart'
+            );
+          }
+        });
+    
+        // Event listeners for quantity
         decreaseBtn.addEventListener('click', () => {
-          if (currentQuantity > 1) {
-            currentQuantity--;
-            quantityInput.value = currentQuantity;
-            this.updateTotalPrice();
+          if (quantity > 1) {
+            quantity--;
+            quantityInput.value = quantity;
           }
         });
-
+    
         increaseBtn.addEventListener('click', () => {
-          if (currentQuantity < 10) {
-            currentQuantity++;
-            quantityInput.value = currentQuantity;
-            this.updateTotalPrice();
+          if (quantity < 10) {
+            quantity++;
+            quantityInput.value = quantity;
           }
         });
-
+    
         quantityInput.addEventListener('change', (e) => {
           let value = parseInt(e.target.value);
           if (isNaN(value) || value < 1) value = 1;
           if (value > 10) value = 10;
-          currentQuantity = value;
-          quantityInput.value = currentQuantity;
-          this.updateTotalPrice();
+          quantity = value;
+          quantityInput.value = quantity;
         });
-
-        checkbox.addEventListener('change', () => {
-          this.updateAddToCartButton();
-          this.updateTotalPrice();
-        });
-
-        // Attach product data and selection state to card
-        card.productData = {
-          ...fullProductData,
-          getSelectedOptions: () => selectedVariants,
-          getQuantity: () => currentQuantity,
-          isSelected: () => checkbox.checked,
-          price: fullProductData.sale_price || fullProductData.price
-        };
-
+    
         // Assemble quantity controls
-        quantityControls.appendChild(decreaseBtn);
-        quantityControls.appendChild(quantityInput);
-        quantityControls.appendChild(increaseBtn);
+        quantityWrapper.appendChild(decreaseBtn);
+        quantityWrapper.appendChild(quantityInput);
+        quantityWrapper.appendChild(increaseBtn);
         quantityContainer.appendChild(quantityLabel);
-        quantityContainer.appendChild(quantityControls);
-
-        // Assemble all elements
-        content.appendChild(checkbox);
-        content.appendChild(imageContainer);
-        content.appendChild(name);
-        content.appendChild(variantsContainer);
-        content.appendChild(quantityContainer);
-        content.appendChild(priceContainer);
-        card.appendChild(content);
-
+        quantityContainer.appendChild(quantityWrapper);
+    
+        // Assemble card
+        card.appendChild(imageContainer);
+        card.appendChild(name);
+        card.appendChild(variantsContainer);
+        card.appendChild(quantityContainer);
+        card.appendChild(priceContainer);
+        card.appendChild(addToCartBtn);
+    
         return card;
       } catch (error) {
         console.error('Error creating product card:', error);
