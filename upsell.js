@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v1.8.4
+// src/scripts/upsell.js v1.7.7
 // HMStudio Upsell Feature
 
 (function() {
@@ -102,6 +102,8 @@
           display: flex;
           flex-direction: column;
           align-items: center;
+          background-color: #fff;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         `;
 
         // Create form with proper structure for Zid API
@@ -165,7 +167,7 @@
 
         // Price display
         const priceContainer = document.createElement('div');
-        priceContainer.style.cssText = `margin: 15px 0; font-weight: bold;`;
+        priceContainer.style.cssText = `margin: 15px 0; font-weight: bold; display: flex; align-items: center;`;
         
         const currentPrice = document.createElement('span');
         currentPrice.className = 'product-price';
@@ -286,6 +288,9 @@
       variantsContainer.style.cssText = `
         margin-top: 15px;
         padding: 10px 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
       `;
 
       if (product.variants && product.variants.length > 0) {
