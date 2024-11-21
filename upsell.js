@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v1.7.3
+// src/scripts/upsell.js v1.7.4
 // HMStudio Upsell Feature
 
 (function() {
@@ -401,16 +401,16 @@
     },
 
     async showUpsellModal(campaign, productCart) {
-      console.log('showUpsellModal called with:', { campaign, productCart });
-      
+      console.log('Received campaign data:', campaign);
+    
       if (!campaign || !campaign.upsellProducts || campaign.upsellProducts.length === 0) {
         console.warn('Invalid campaign data:', campaign);
         return;
       }
-
+    
       const currentLang = getCurrentLanguage();
       const isRTL = currentLang === 'ar';
-
+    
       try {
         if (this.currentModal) {
           this.currentModal.remove();
@@ -466,23 +466,29 @@
         `;
         closeButton.addEventListener('click', () => this.closeModal());
 
-        // Title and subtitle based on language
+        // Title with decoded text
     const title = document.createElement('h3');
     title.style.cssText = `
       font-size: 1.5em;
       margin: 0 0 20px;
       padding-${isRTL ? 'left' : 'right'}: 30px;
+      color: #333;
+      font-weight: bold;
     `;
-    title.textContent = currentLang === 'ar' ? campaign.textSettings.titleAr : campaign.textSettings.titleEn;
+    title.textContent = currentLang === 'ar' 
+      ? decodeURIComponent(campaign.textSettings.titleAr) 
+      : campaign.textSettings.titleEn;
 
-    // Subtitle with trigger product name
+    // Subtitle with decoded text
     const subtitle = document.createElement('p');
     subtitle.style.cssText = `
       color: #666;
       margin-bottom: 20px;
       font-size: 1.1em;
     `;
-    subtitle.textContent = currentLang === 'ar' ? campaign.textSettings.subtitleAr : campaign.textSettings.subtitleEn;
+    subtitle.textContent = currentLang === 'ar'
+      ? decodeURIComponent(campaign.textSettings.subtitleAr)
+      : campaign.textSettings.subtitleEn;
 
         // Products grid
         const productsGrid = document.createElement('div');
