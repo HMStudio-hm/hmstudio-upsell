@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v1.8.9
+// src/scripts/upsell.js v1.9.0
 // HMStudio Upsell Feature
 
 (function() {
@@ -549,119 +549,128 @@
           flex: 1;
         `;
     
-// Store product data separately for calculations
-const productDataArray = [];
 
-        // Create product cards
-        const productCards = await Promise.all(
-          campaign.upsellProducts.map(async (product, index) => {
-            const card = document.createElement('div');
-            card.style.cssText = `
-              position: relative;
-              text-align: center;
-              padding: 15px;
-              border: 1px solid #eee;
-              border-radius: 8px;
-              max-width: 180px;
-            `;
-        
-            const productData = await this.fetchProductData(product.id);
-            productDataArray.push({
-              productData,
-              quantityInput: null // Will be set after creation
-            });
-            
-            // Product image
-            const img = document.createElement('img');
-            img.src = productData.images[0]?.url || '';
-            img.alt = productData.name[currentLang];
-            img.style.cssText = `
-              width: 100%;
-              height: 150px;
-              object-fit: contain;
-              margin-bottom: 12px;
-            `;
-        
-            // Product name
-            const name = document.createElement('h3');
-            name.textContent = productData.name[currentLang];
-            name.style.cssText = `
-              font-size: 14px;
-              margin: 8px 0;
-              color: #333;
-              min-height: 40px;
-            `;
-        
-            // Add quantity selector
-            const quantityContainer = document.createElement('div');
-            quantityContainer.style.cssText = `
-              margin: 10px 0;
-            `;
-        
-            const quantityLabel = document.createElement('div');
-            quantityLabel.textContent = currentLang === 'ar' ? 'الكمية' : 'Quantity';
-            quantityLabel.style.cssText = `
-              font-size: 13px;
-              color: #666;
-              margin-bottom: 5px;
-            `;
-        
-            const quantityWrapper = document.createElement('div');
-            quantityWrapper.style.cssText = `
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              gap: 5px;
-            `;
-        
-            const decreaseBtn = document.createElement('button');
-            decreaseBtn.textContent = '-';
-            decreaseBtn.style.cssText = `
-              width: 24px;
-              height: 24px;
-              border: 1px solid #ddd;
-              background: #f5f5f5;
-              border-radius: 4px;
-              cursor: pointer;
-            `;
-        
-            const quantityInput = document.createElement('input');
-            quantityInput.type = 'number';
-            quantityInput.min = '1';
-            quantityInput.max = '10';
-            quantityInput.value = '1';
-            quantityInput.style.cssText = `
-              width: 40px;
-              height: 24px;
-              text-align: center;
-              border: 1px solid #ddd;
-              border-radius: 4px;
-              -moz-appearance: textfield;
-            `;
-        
-            // Store reference to quantityInput
-            productDataArray[index].quantityInput = quantityInput;
-        
-            const increaseBtn = document.createElement('button');
-            increaseBtn.textContent = '+';
-            increaseBtn.style.cssText = decreaseBtn.style.cssText;
-        
-            // Quantity controls functionality
-            decreaseBtn.addEventListener('click', () => {
-              let value = parseInt(quantityInput.value);
-              if (value > 1) quantityInput.value = value - 1;
-            });
-        
-            increaseBtn.addEventListener('click', () => {
-              let value = parseInt(quantityInput.value);
-              if (value < 10) quantityInput.value = value + 1;
-            });
-        
-            quantityInput.addEventListener('change', () => {
-              let value = parseInt(quantityInput.value);
-              if (isNaN(value) || value < 1) quantityInput.value = 1;
-              if (value > 10) quantityInput.value = 10;
-            });
+// Initialize productDataArray with placeholder objects first
+const productDataArray = campaign.upsellProducts.map(() => ({
+  productData: null,
+  quantityInput: null
+}));
+
+// Create product cards
+const productCards = await Promise.all(
+  campaign.upsellProducts.map(async (product, index) => {
+    const card = document.createElement('div');
+    card.style.cssText = `
+      position: relative;
+      text-align: center;
+      padding: 15px;
+      border: 1px solid #eee;
+      border-radius: 8px;
+      max-width: 180px;
+    `;
+
+    const productData = await this.fetchProductData(product.id);
+    // Store product data
+    productDataArray[index].productData = productData;
+    
+    // Product image
+    const img = document.createElement('img');
+    img.src = productData.images[0]?.url || '';
+    img.alt = productData.name[currentLang];
+    img.style.cssText = `
+      width: 100%;
+      height: 150px;
+      object-fit: contain;
+      margin-bottom: 12px;
+    `;
+
+    // Product name
+    const name = document.createElement('h3');
+    name.textContent = productData.name[currentLang];
+    name.style.cssText = `
+      font-size: 14px;
+      margin: 8px 0;
+      color: #333;
+      min-height: 40px;
+    `;
+
+    // Add quantity selector
+    const quantityContainer = document.createElement('div');
+    quantityContainer.style.cssText = `
+      margin: 10px 0;
+    `;
+
+    const quantityLabel = document.createElement('div');
+    quantityLabel.textContent = currentLang === 'ar' ? 'الكمية' : 'Quantity';
+    quantityLabel.style.cssText = `
+      font-size: 13px;
+      color: #666;
+      margin-bottom: 5px;
+    `;
+
+    const quantityWrapper = document.createElement('div');
+    quantityWrapper.style.cssText = `
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+    `;
+
+    const decreaseBtn = document.createElement('button');
+    decreaseBtn.textContent = '-';
+    decreaseBtn.style.cssText = `
+      width: 24px;
+      height: 24px;
+      border: 1px solid #ddd;
+      background: #f5f5f5;
+      border-radius: 4px;
+      cursor: pointer;
+    `;
+
+    const quantityInput = document.createElement('input');
+    quantityInput.type = 'number';
+    quantityInput.min = '1';
+    quantityInput.max = '10';
+    quantityInput.value = '1';
+    quantityInput.style.cssText = `
+      width: 40px;
+      height: 24px;
+      text-align: center;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      -moz-appearance: textfield;
+    `;
+
+    // Store reference to quantityInput
+    productDataArray[index].quantityInput = quantityInput;
+
+    const increaseBtn = document.createElement('button');
+    increaseBtn.textContent = '+';
+    increaseBtn.style.cssText = decreaseBtn.style.cssText;
+
+    // Quantity controls functionality
+    decreaseBtn.addEventListener('click', () => {
+      let value = parseInt(quantityInput.value);
+      if (value > 1) {
+        quantityInput.value = value - 1;
+        updateTotalPrice(); // Add this function to update total price
+      }
+    });
+
+    increaseBtn.addEventListener('click', () => {
+      let value = parseInt(quantityInput.value);
+      if (value < 10) {
+        quantityInput.value = value + 1;
+        updateTotalPrice(); // Add this function to update total price
+      }
+    });
+
+    quantityInput.addEventListener('change', () => {
+      let value = parseInt(quantityInput.value);
+      if (isNaN(value) || value < 1) quantityInput.value = 1;
+      if (value > 10) quantityInput.value = 10;
+      updateTotalPrice(); // Add this function to update total price
+    });
         
             // Variants selector
             const variantSelect = document.createElement('select');
@@ -783,7 +792,23 @@ const productDataArray = [];
           })
         );
     
-        productCards.forEach(card => productsGrid.appendChild(card));
+        // Add function to update total price
+const updateTotalPrice = () => {
+  const total = productDataArray.reduce((sum, { productData, quantityInput }) => {
+    const quantity = parseInt(quantityInput.value) || 1;
+    const price = parseFloat(productData.price) || 0;
+    return sum + (price * quantity);
+  }, 0);
+
+  // Update total price display
+  if (totalPrice) {
+    totalPrice.innerHTML = `
+      <div style="font-size: 24px; font-weight: bold;">
+        ${this.formatPrice(total, currentLang)}
+      </div>
+    `;
+  }
+};
 
 // Add all products functionality
 addAllButton.addEventListener('click', async () => {
@@ -792,7 +817,9 @@ addAllButton.addEventListener('click', async () => {
 
   try {
     for (const { productData, quantityInput } of productDataArray) {
-      const quantity = parseInt(quantityInput.value);
+      if (!productData || !quantityInput) continue;
+      
+      const quantity = parseInt(quantityInput.value) || 1;
       const productId = productData.id;
 
       await zid.store.cart.addProduct({
@@ -815,6 +842,9 @@ addAllButton.addEventListener('click', async () => {
     addAllButton.textContent = currentLang === 'ar' ? 'أضف جميع المنتجات' : 'Add all products';
   }
 });
+
+// Initial total price calculation
+updateTotalPrice();
 
 // Add all products functionality
 addAllButton.addEventListener('click', async () => {
