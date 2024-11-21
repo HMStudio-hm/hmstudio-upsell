@@ -1,5 +1,5 @@
-// src/scripts/upsell.js v1.8.1
-// HMStudio Upsell Feature - Horizontal Layout and Button Update
+// src/scripts/upsell.js v1.8.2
+// HMStudio Upsell Feature - Modern Styling
 
 (function() {
   console.log('Upsell script initialized');
@@ -97,7 +97,10 @@
           display: flex;
           align-items: center;
           padding: 20px;
-          border-bottom: 1px solid #eee;
+          border-radius: 8px;
+          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+          background-color: #fff;
+          margin-bottom: 20px;
         `;
 
         // Create form with proper structure for Zid API
@@ -132,6 +135,7 @@
           width: 100%;
           height: 100%;
           object-fit: contain;
+          border-radius: 8px;
         `;
         imageContainer.appendChild(productImage);
         form.appendChild(imageContainer);
