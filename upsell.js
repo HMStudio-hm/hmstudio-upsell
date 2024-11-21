@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v1.8.7
+// src/scripts/upsell.js v1.8.8
 // HMStudio Upsell Feature
 
 (function() {
@@ -561,7 +561,7 @@
               border-radius: 8px;
               max-width: 180px;
             `;
-    
+        
             const productData = await this.fetchProductData(product.id);
             
             // Product image
@@ -574,7 +574,7 @@
               object-fit: contain;
               margin-bottom: 12px;
             `;
-    
+        
             // Product name
             const name = document.createElement('h3');
             name.textContent = productData.name[currentLang];
@@ -584,7 +584,75 @@
               color: #333;
               min-height: 40px;
             `;
-    
+        
+            // Add quantity selector
+            const quantityContainer = document.createElement('div');
+            quantityContainer.style.cssText = `
+              margin: 10px 0;
+            `;
+        
+            const quantityLabel = document.createElement('div');
+            quantityLabel.textContent = currentLang === 'ar' ? 'الكمية' : 'Quantity';
+            quantityLabel.style.cssText = `
+              font-size: 13px;
+              color: #666;
+              margin-bottom: 5px;
+            `;
+        
+            const quantityWrapper = document.createElement('div');
+            quantityWrapper.style.cssText = `
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              gap: 5px;
+            `;
+        
+            const decreaseBtn = document.createElement('button');
+            decreaseBtn.textContent = '-';
+            decreaseBtn.style.cssText = `
+              width: 24px;
+              height: 24px;
+              border: 1px solid #ddd;
+              background: #f5f5f5;
+              border-radius: 4px;
+              cursor: pointer;
+            `;
+        
+            const quantityInput = document.createElement('input');
+            quantityInput.type = 'number';
+            quantityInput.min = '1';
+            quantityInput.max = '10';
+            quantityInput.value = '1';
+            quantityInput.style.cssText = `
+              width: 40px;
+              height: 24px;
+              text-align: center;
+              border: 1px solid #ddd;
+              border-radius: 4px;
+              -moz-appearance: textfield;
+            `;
+        
+            const increaseBtn = document.createElement('button');
+            increaseBtn.textContent = '+';
+            increaseBtn.style.cssText = decreaseBtn.style.cssText;
+        
+            // Quantity controls functionality
+            decreaseBtn.addEventListener('click', () => {
+              let value = parseInt(quantityInput.value);
+              if (value > 1) quantityInput.value = value - 1;
+            });
+        
+            increaseBtn.addEventListener('click', () => {
+              let value = parseInt(quantityInput.value);
+              if (value < 10) quantityInput.value = value + 1;
+            });
+        
+            quantityInput.addEventListener('change', () => {
+              let value = parseInt(quantityInput.value);
+              if (isNaN(value) || value < 1) quantityInput.value = 1;
+              if (value > 10) quantityInput.value = 10;
+            });
+        
             // Variants selector
             const variantSelect = document.createElement('select');
             variantSelect.style.cssText = `
@@ -595,18 +663,16 @@
               margin-bottom: 10px;
               font-size: 13px;
             `;
-    
-            // Add variants if available
+        
             if (productData.variants && productData.variants.length > 0) {
               const defaultOption = document.createElement('option');
               defaultOption.value = '';
               defaultOption.textContent = currentLang === 'ar' ? 'اختر النوع' : 'Select variant';
               variantSelect.appendChild(defaultOption);
-    
+        
               productData.variants.forEach(variant => {
                 const option = document.createElement('option');
                 option.value = variant.id;
-                // Combine all variant attributes into one string
                 const variantText = variant.attributes
                   .map(attr => attr.value[currentLang])
                   .join(' - ');
@@ -614,14 +680,14 @@
                 variantSelect.appendChild(option);
               });
             }
-    
+        
             // Price and Add to Cart button wrapper
             const actionWrapper = document.createElement('div');
             actionWrapper.style.cssText = `
               margin-top: 10px;
               text-align: center;
             `;
-    
+        
             // Price
             const price = document.createElement('div');
             price.textContent = this.formatPrice(productData.price, currentLang);
@@ -630,12 +696,12 @@
               font-size: 14px;
               margin-bottom: 8px;
             `;
-    
-            // Add to Cart button
+        
+            // Add to Cart button using store's primary color
             const addButton = document.createElement('button');
             addButton.textContent = currentLang === 'ar' ? 'أضف إلى السلة' : 'Add to Cart';
             addButton.style.cssText = `
-              background: #007bff;
+              background: var(--theme-primary, #00b286);
               color: white;
               border: none;
               border-radius: 20px;
@@ -643,69 +709,150 @@
               font-size: 13px;
               cursor: pointer;
               width: 100%;
-              transition: background-color 0.3s;
+              transition: opacity 0.3s;
             `;
-    
+        
             addButton.addEventListener('mouseover', () => {
-              addButton.style.backgroundColor = '#0056b3';
+              addButton.style.opacity = '0.9';
             });
-    
+        
             addButton.addEventListener('mouseout', () => {
-              addButton.style.backgroundColor = '#007bff';
+              addButton.style.opacity = '1';
             });
-    
+        
+            // Add to cart functionality
+            addButton.addEventListener('click', async () => {
+              if (productData.variants?.length > 0 && !variantSelect.value) {
+                alert(currentLang === 'ar' ? 'الرجاء اختيار النوع' : 'Please select a variant');
+                return;
+              }
+        
+              const quantity = parseInt(quantityInput.value);
+              const productId = variantSelect.value || productData.id;
+        
+              try {
+                addButton.disabled = true;
+                addButton.style.opacity = '0.7';
+                
+                const result = await zid.store.cart.addProduct({
+                  data: {
+                    product_id: productId,
+                    quantity: quantity
+                  }
+                });
+        
+                if (result.status === 'success') {
+                  if (typeof setCartBadge === 'function') {
+                    setCartBadge(result.data.cart.products_count);
+                  }
+                }
+              } catch (error) {
+                console.error('Error adding product to cart:', error);
+                alert(currentLang === 'ar' 
+                  ? 'حدث خطأ أثناء الإضافة إلى السلة'
+                  : 'Error adding to cart'
+                );
+              } finally {
+                addButton.disabled = false;
+                addButton.style.opacity = '1';
+              }
+            });
+        
+            // Assemble quantity controls
+            quantityWrapper.appendChild(decreaseBtn);
+            quantityWrapper.appendChild(quantityInput);
+            quantityWrapper.appendChild(increaseBtn);
+            quantityContainer.appendChild(quantityLabel);
+            quantityContainer.appendChild(quantityWrapper);
+        
             // Assemble product card
             actionWrapper.appendChild(price);
             actionWrapper.appendChild(addButton);
-    
+        
             card.appendChild(img);
             card.appendChild(name);
-            if (productData.variants && productData.variants.length > 0) {
+            if (productData.variants?.length > 0) {
               card.appendChild(variantSelect);
             }
+            card.appendChild(quantityContainer);
             card.appendChild(actionWrapper);
-    
-            return card;
+        
+            return { card, productData, quantityInput };
           })
         );
     
         productCards.forEach(card => productsGrid.appendChild(card));
     
-        // Total and Add to Cart section (positioned on the right)
-        const totalSection = document.createElement('div');
-        totalSection.style.cssText = `
-          width: 250px;
-          flex-shrink: 0;
-          background: #f8f9fa;
-          padding: 20px;
-          border-radius: 8px;
-          position: sticky;
-          top: 20px;
-        `;
-    
-        const totalPrice = document.createElement('div');
-        totalPrice.style.cssText = `
-          margin-bottom: 20px;
-        `;
-        totalPrice.innerHTML = `
-          <div style="color: #666; margin-bottom: 5px;">${currentLang === 'ar' ? 'المجموع:' : 'Total:'}</div>
-          <div style="font-size: 24px; font-weight: bold;">A$15.29</div>
-          <div style="text-decoration: line-through; color: #666;">A$17.99</div>
-        `;
-    
-        const addAllButton = document.createElement('button');
-        addAllButton.textContent = currentLang === 'ar' ? 'أضف المحدد إلى السلة' : 'Add selected to cart';
-        addAllButton.style.cssText = `
-          background: #000;
-          color: white;
-          border: none;
-          border-radius: 25px;
-          padding: 12px 20px;
-          font-size: 16px;
-          cursor: pointer;
-          width: 100%;
-          transition: background-color 0.3s;
-        `;
+        // Update total section
+const totalSection = document.createElement('div');
+totalSection.style.cssText = `
+  width: 250px;
+  flex-shrink: 0;
+  background: #f8f9fa;
+  padding: 20px;
+  border-radius: 8px;
+  position: sticky;
+  top: 20px;
+`;
+
+const totalPrice = document.createElement('div');
+totalPrice.style.cssText = `margin-bottom: 20px;`;
+const calculateTotal = () => {
+  return productCards.reduce((sum, { productData }) => 
+    sum + parseFloat(productData.price), 0
+  );
+};
+
+totalPrice.innerHTML = `
+  <div style="font-size: 24px; font-weight: bold;">
+    ${this.formatPrice(calculateTotal(), currentLang)}
+  </div>
+`;
+
+const addAllButton = document.createElement('button');
+addAllButton.textContent = currentLang === 'ar' ? 'أضف جميع المنتجات' : 'Add all products';
+addAllButton.style.cssText = `
+  background: #000;
+  color: white;
+  border: none;
+  border-radius: 25px;
+  padding: 12px 20px;
+  font-size: 16px;
+  cursor: pointer;
+  width: 100%;
+  transition: background-color 0.3s;
+`;
+
+// Add all products functionality
+addAllButton.addEventListener('click', async () => {
+  addAllButton.disabled = true;
+  addAllButton.textContent = currentLang === 'ar' ? 'جاري الإضافة...' : 'Adding...';
+
+  try {
+    for (const { productData, quantityInput } of productCards) {
+      const quantity = parseInt(quantityInput.value);
+      const productId = productData.id;
+
+      await zid.store.cart.addProduct({
+        data: {
+          product_id: productId,
+          quantity: quantity
+        }
+      });
+    }
+
+    this.closeModal();
+  } catch (error) {
+    console.error('Error adding all products:', error);
+    alert(currentLang === 'ar'
+      ? 'حدث خطأ أثناء إضافة المنتجات'
+      : 'Error adding products'
+    );
+  } finally {
+    addAllButton.disabled = false;
+    addAllButton.textContent = currentLang === 'ar' ? 'أضف جميع المنتجات' : 'Add all products';
+  }
+});
     
         addAllButton.addEventListener('mouseover', () => {
           addAllButton.style.backgroundColor = '#333';
