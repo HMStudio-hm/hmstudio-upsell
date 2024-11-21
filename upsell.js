@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v1.6.9
+// src/scripts/upsell.js v1.7.0
 // HMStudio Upsell Feature
 
 (function() {
@@ -22,9 +22,19 @@
     }
 
     try {
-      const decodedData = atob(campaignsData);
+      const decodedData = decodeURIComponent(atob(campaignsData));
       const parsedData = JSON.parse(decodedData);
-      return parsedData;
+      
+      // Ensure proper decoding of Arabic text
+      return parsedData.map(campaign => ({
+        ...campaign,
+        textSettings: {
+          titleAr: decodeURIComponent(escape(campaign.textSettings?.titleAr || '')),
+          titleEn: campaign.textSettings?.titleEn || '',
+          subtitleAr: decodeURIComponent(escape(campaign.textSettings?.subtitleAr || '')),
+          subtitleEn: campaign.textSettings?.subtitleEn || ''
+        }
+      }));
     } catch (error) {
       console.error('Error parsing campaigns data:', error);
       return [];
@@ -95,20 +105,23 @@
         const form = document.createElement('form');
         form.id = `product-form-${fullProductData.id}`;
 
+        // Product ID input following Zid's convention
         const productIdInput = document.createElement('input');
         productIdInput.type = 'hidden';
-        productIdInput.id = 'product-id';
+        productIdInput.id = 'product-id';  // Required by Zid
         productIdInput.name = 'product_id';
         productIdInput.value = fullProductData.selected_product?.id || fullProductData.id;
         form.appendChild(productIdInput);
 
+        // Quantity input following Zid's convention
         const quantityInput = document.createElement('input');
         quantityInput.type = 'hidden';
-        quantityInput.id = 'product-quantity';
+        quantityInput.id = 'product-quantity';  // Required by Zid
         quantityInput.name = 'quantity';
         quantityInput.value = '1';
         form.appendChild(quantityInput);
 
+        // Product content
         const productContent = document.createElement('div');
         productContent.innerHTML = `
           <img 
@@ -122,11 +135,12 @@
         `;
         card.appendChild(productContent);
 
-        // Add variants section if product has variants
+        // Add variants section if product has options
         if (fullProductData.has_options && fullProductData.variants?.length > 0) {
           const variantsSection = this.createVariantsSection(fullProductData, currentLang);
           form.appendChild(variantsSection);
 
+          // Initialize with default variant
           if (fullProductData.selected_product) {
             this.updateSelectedVariant(fullProductData, form);
           }
@@ -193,8 +207,11 @@
         `;
         addButton.appendChild(spinner);
 
+        // Add to cart handler using Zid's convention
         addButton.addEventListener('click', function() {
+          // Check if product has variants
           if (fullProductData.has_options && fullProductData.variants?.length > 0) {
+            // Get all variant selections
             const selectedVariants = {};
             const missingSelections = [];
             
@@ -206,6 +223,7 @@
               selectedVariants[labelText] = select.value;
             });
         
+            // Check if all variants are selected
             if (missingSelections.length > 0) {
               const message = currentLang === 'ar' 
                 ? `الرجاء اختيار ${missingSelections.join(', ')}`
@@ -245,7 +263,146 @@
       }
     },
 
+    createVariantsSection(product, currentLang) {
+      const variantsContainer = document.createElement('div');
+      variantsContainer.className = 'hmstudio-upsell-variants';
+      variantsContainer.style.cssText = `
+        margin-top: 15px;
+        padding: 10px 0;
+      `;
+
+      if (product.variants && product.variants.length > 0) {
+        const variantAttributes = new Map();
+        
+        product.variants.forEach(variant => {
+          if (variant.attributes && variant.attributes.length > 0) {
+            variant.attributes.forEach(attr => {
+              if (!variantAttributes.has(attr.name)) {
+                variantAttributes.set(attr.name, {
+                  name: attr.name,
+                  slug: attr.slug,
+                  values: new Set()
+                });
+              }
+              variantAttributes.get(attr.name).values.add(attr.value[currentLang]);
+            });
+          }
+        });
+
+        variantAttributes.forEach((attr) => {
+          const select = document.createElement('select');
+          select.className = 'variant-select';
+          select.style.cssText = `
+            margin: 5px 0;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            width: 100%;
+          `;
+
+          const labelText = currentLang === 'ar' ? attr.slug : attr.name;
+          
+          const label = document.createElement('label');
+          label.textContent = labelText;
+          label.style.cssText = `
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+          `;
+
+          const placeholderText = currentLang === 'ar' ? `اختر ${labelText}` : `Select ${labelText}`;
+          
+          let optionsHTML = `<option value="">${placeholderText}</option>`;
+          
+          Array.from(attr.values).forEach(value => {
+            optionsHTML += `<option value="${value}">${value}</option>`;
+          });
+          
+          select.innerHTML = optionsHTML;
+
+          select.addEventListener('change', () => {
+            console.log('Selected:', attr.name, select.value);
+            this.updateSelectedVariant(product, select.closest('form'));
+          });
+
+          variantsContainer.appendChild(label);
+          variantsContainer.appendChild(select);
+        });
+      }
+
+      return variantsContainer;
+    },
+
+    updateSelectedVariant(product, form) {
+      if (!form) {
+        console.error('Product form not found');
+        return;
+      }
+
+      const currentLang = getCurrentLanguage();
+      const selectedValues = {};
+
+      form.querySelectorAll('.variant-select').forEach(select => {
+        if (select.value) {
+          const labelText = select.previousElementSibling.textContent;
+          selectedValues[labelText] = select.value;
+        }
+      });
+
+      console.log('Selected values:', selectedValues);
+
+      const selectedVariant = product.variants.find(variant => {
+        return variant.attributes.every(attr => {
+          const attrLabel = currentLang === 'ar' ? attr.slug : attr.name;
+          return selectedValues[attrLabel] === attr.value[currentLang];
+        });
+      });
+
+      console.log('Found variant:', selectedVariant);
+
+      if (selectedVariant) {
+        const productIdInput = form.querySelector('#product-id');
+        if (productIdInput) {
+          productIdInput.value = selectedVariant.id;
+          console.log('Updated product ID to:', selectedVariant.id);
+        }
+
+        const priceElement = form.querySelector('.product-price');
+        const oldPriceElement = form.querySelector('.product-old-price');
+        
+        if (priceElement) {
+          if (selectedVariant.formatted_sale_price) {
+            priceElement.textContent = selectedVariant.formatted_sale_price;
+            if (oldPriceElement) {
+              oldPriceElement.textContent = selectedVariant.formatted_price;
+              oldPriceElement.style.display = 'inline';
+            }
+          } else {
+            priceElement.textContent = selectedVariant.formatted_price;
+            if (oldPriceElement) {
+              oldPriceElement.style.display = 'none';
+            }
+          }
+        }
+
+        const addToCartBtn = form.parentElement.querySelector('.add-to-cart-btn');
+        if (addToCartBtn) {
+          if (!selectedVariant.unavailable) {
+            addToCartBtn.disabled = false;
+            addToCartBtn.style.opacity = '1';
+            addToCartBtn.style.cursor = 'pointer';
+          } else {
+            addToCartBtn.disabled = true;
+            addToCartBtn.style.opacity = '0.5';
+            addToCartBtn.style.cursor = 'not-allowed';
+          }
+        }
+      }
+    },
+
     async showUpsellModal(campaign, productCart) {
+      console.log('showUpsellModal called with:', { campaign, productCart });
+      
       if (!campaign || !campaign.upsellProducts || campaign.upsellProducts.length === 0) {
         console.warn('Invalid campaign data:', campaign);
         return;
@@ -309,29 +466,23 @@
         `;
         closeButton.addEventListener('click', () => this.closeModal());
 
-        // Title using language-specific text
-        const title = document.createElement('h3');
-        title.style.cssText = `
-          font-size: 1.5em;
-          margin: 0 0 20px;
-          padding-${isRTL ? 'left' : 'right'}: 30px;
-          color: #333;
-          font-weight: bold;
-        `;
-        title.textContent = currentLang === 'ar' ? 
-          campaign.textSettings.titleAr : 
-          campaign.textSettings.titleEn;
+        // Title and subtitle based on language
+    const title = document.createElement('h3');
+    title.style.cssText = `
+      font-size: 1.5em;
+      margin: 0 0 20px;
+      padding-${isRTL ? 'left' : 'right'}: 30px;
+    `;
+    title.textContent = currentLang === 'ar' ? campaign.textSettings.titleAr : campaign.textSettings.titleEn;
 
-        // Subtitle with language-specific text
-        const subtitle = document.createElement('p');
-        subtitle.style.cssText = `
-          color: #666;
-          margin-bottom: 20px;
-          font-size: 1.1em;
-        `;
-        subtitle.textContent = currentLang === 'ar' ? 
-          campaign.textSettings.subtitleAr : 
-          campaign.textSettings.subtitleEn;
+    // Subtitle with trigger product name
+    const subtitle = document.createElement('p');
+    subtitle.style.cssText = `
+      color: #666;
+      margin-bottom: 20px;
+      font-size: 1.1em;
+    `;
+    subtitle.textContent = currentLang === 'ar' ? campaign.textSettings.subtitleAr : campaign.textSettings.subtitleEn;
 
         // Products grid
         const productsGrid = document.createElement('div');
@@ -375,13 +526,11 @@
         });
 
         // Handle escape key
-        const handleEscape = (e) => {
+        document.addEventListener('keydown', (e) => {
           if (e.key === 'Escape') {
             this.closeModal();
-            document.removeEventListener('keydown', handleEscape);
           }
-        };
-        document.addEventListener('keydown', handleEscape);
+        });
 
         console.log('Modal created successfully');
       } catch (error) {
@@ -391,17 +540,13 @@
 
     closeModal() {
       if (this.currentModal) {
-        const content = this.currentModal.querySelector('.hmstudio-upsell-content');
-        
-        // Animate out
         this.currentModal.style.opacity = '0';
+        const content = this.currentModal.querySelector('.hmstudio-upsell-content');
         if (content) {
           content.style.transform = 'translateY(20px)';
         }
-
-        // Remove after animation
         setTimeout(() => {
-          if (this.currentModal && this.currentModal.parentElement) {
+          if (this.currentModal) {
             this.currentModal.remove();
             this.currentModal = null;
           }
@@ -415,7 +560,10 @@
       // Make sure the global object is available
       if (!window.HMStudioUpsell) {
         window.HMStudioUpsell = {
-          showUpsellModal: (...args) => this.showUpsellModal.apply(this, args),
+          showUpsellModal: (...args) => {
+            console.log('showUpsellModal called with args:', args);
+            return this.showUpsellModal.apply(this, args);
+          },
           closeModal: () => this.closeModal()
         };
         console.log('Global HMStudioUpsell object created');
@@ -444,19 +592,6 @@
           this.closeModal();
         }
       });
-
-      // Add keyframe animation for spinner if needed
-      if (!document.getElementById('upsell-animations')) {
-        const style = document.createElement('style');
-        style.id = 'upsell-animations';
-        style.textContent = `
-          @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-          }
-        `;
-        document.head.appendChild(style);
-      }
     }
   };
 
