@@ -1,5 +1,5 @@
-// src/scripts/upsell.js v1.7.9
-// HMStudio Upsell Feature - Updated Styling and Quantity Selection
+// src/scripts/upsell.js v1.8.0
+// HMStudio Upsell Feature - Vertical Layout and Button Update
 
 (function() {
   console.log('Upsell script initialized');
@@ -94,20 +94,18 @@
         const card = document.createElement('div');
         card.className = 'hmstudio-upsell-product-card';
         card.style.cssText = `
-          display: flex;
-          align-items: center;
+          border: 1px solid #ddd;
+          border-radius: 10px;
           padding: 20px;
-          border-bottom: 1px solid #eee;
+          text-align: center;
+          transition: transform 0.3s ease, box-shadow 0.3s ease;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+          margin-bottom: 20px;
         `;
 
         // Create form with proper structure for Zid API
         const form = document.createElement('form');
         form.id = `product-form-${fullProductData.id}`;
-        form.style.cssText = `
-          display: flex;
-          align-items: center;
-          width: 100%;
-        `;
 
         // Product ID input following Zid's convention
         const productIdInput = document.createElement('input');
@@ -118,55 +116,35 @@
         form.appendChild(productIdInput);
 
         // Product image
-        const imageContainer = document.createElement('div');
-        imageContainer.style.cssText = `
-          width: 100px;
-          height: 100px;
-          margin-${isRTL ? 'left' : 'right'}: 20px;
-          flex-shrink: 0;
-        `;
         const productImage = document.createElement('img');
         productImage.src = fullProductData.images?.[0]?.url || product.thumbnail;
         productImage.alt = productName;
         productImage.style.cssText = `
           width: 100%;
-          height: 100%;
+          height: 150px;
           object-fit: contain;
+          margin-bottom: 15px;
         `;
-        imageContainer.appendChild(productImage);
-        form.appendChild(imageContainer);
-
-        // Product details
-        const detailsContainer = document.createElement('div');
-        detailsContainer.style.cssText = `
-          flex-grow: 1;
-        `;
+        form.appendChild(productImage);
 
         // Product name
         const nameElement = document.createElement('h4');
         nameElement.textContent = productName;
         nameElement.style.cssText = `
           font-size: 1.1em;
-          margin: 0 0 10px;
+          margin: 10px 0;
+          min-height: 40px;
           font-weight: bold;
         `;
-        detailsContainer.appendChild(nameElement);
+        form.appendChild(nameElement);
 
         // Price display
         const priceContainer = document.createElement('div');
-        priceContainer.style.cssText = `
-          display: flex;
-          align-items: center;
-          margin-bottom: 10px;
-        `;
+        priceContainer.style.cssText = `margin: 15px 0; font-weight: bold; font-size: 1.2em;`;
         
         const currentPrice = document.createElement('span');
         currentPrice.className = 'product-price';
-        currentPrice.style.cssText = `
-          font-weight: bold;
-          font-size: 1.2em;
-          color: var(--theme-primary, #00b286);
-        `;
+        currentPrice.style.color = 'var(--theme-primary, #00b286)';
         
         const oldPrice = document.createElement('span');
         oldPrice.className = 'product-old-price';
@@ -174,7 +152,6 @@
           text-decoration: line-through;
           color: #999;
           margin-${isRTL ? 'right' : 'left'}: 10px;
-          font-size: 0.9em;
           display: none;
         `;
 
@@ -188,12 +165,12 @@
 
         priceContainer.appendChild(currentPrice);
         priceContainer.appendChild(oldPrice);
-        detailsContainer.appendChild(priceContainer);
+        form.appendChild(priceContainer);
 
         // Add variants section if product has options
         if (fullProductData.has_options && fullProductData.variants?.length > 0) {
           const variantsSection = this.createVariantsSection(fullProductData, currentLang);
-          detailsContainer.appendChild(variantsSection);
+          form.appendChild(variantsSection);
 
           // Initialize with default variant
           if (fullProductData.selected_product) {
@@ -201,14 +178,13 @@
           }
         }
 
-        form.appendChild(detailsContainer);
-
         // Quantity input
         const quantityContainer = document.createElement('div');
         quantityContainer.style.cssText = `
           display: flex;
           align-items: center;
-          margin-${isRTL ? 'left' : 'right'}: 20px;
+          justify-content: center;
+          margin-bottom: 15px;
         `;
 
         const decreaseBtn = document.createElement('button');
@@ -271,14 +247,17 @@
         addButton.style.cssText = `
           background: var(--theme-primary, #00b286);
           color: white;
-          padding: 10px 20px;
+          width: 100%;
+          padding: 12px;
           border: none;
           border-radius: 5px;
           cursor: pointer;
-          font-size: 1em;
+          margin-top: 15px;
           display: flex;
           align-items: center;
           justify-content: center;
+          gap: 8px;
+          font-size: 1em;
         `;
 
         const spinner = document.createElement('div');
@@ -290,9 +269,8 @@
           border-top: 2px solid transparent;
           border-radius: 50%;
           animation: spin 1s linear infinite;
-          margin-${isRTL ? 'left' : 'right'}: 10px;
         `;
-        addButton.insertBefore(spinner, addButton.firstChild);
+        addButton.appendChild(spinner);
 
         // Add to cart handler using Zid's convention
         addButton.addEventListener('click', function() {
@@ -598,15 +576,16 @@
         addAllButton.type = 'button';
         addAllButton.textContent = currentLang === 'ar' ? 'أضف الكل إلى السلة' : 'Add all to Cart';
         addAllButton.style.cssText = `
-          background: black;
+          background: var(--theme-primary, #00b286);
           color: white;
-          width: 100%;
           padding: 15px;
           border: none;
           border-radius: 5px;
           cursor: pointer;
-          margin-top: 20px;
           font-size: 1.1em;
+          position: absolute;
+          top: 15px;
+          ${isRTL ? 'right' : 'left'}: 15px;
         `;
         addAllButton.addEventListener('click', () => {
           console.log('Add all to cart clicked');
