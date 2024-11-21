@@ -1,5 +1,5 @@
-// src/scripts/upsell.js v1.8.0
-// HMStudio Upsell Feature - Vertical Layout and Button Update
+// src/scripts/upsell.js v1.8.1
+// HMStudio Upsell Feature - Horizontal Layout and Button Update
 
 (function() {
   console.log('Upsell script initialized');
@@ -94,18 +94,20 @@
         const card = document.createElement('div');
         card.className = 'hmstudio-upsell-product-card';
         card.style.cssText = `
-          border: 1px solid #ddd;
-          border-radius: 10px;
+          display: flex;
+          align-items: center;
           padding: 20px;
-          text-align: center;
-          transition: transform 0.3s ease, box-shadow 0.3s ease;
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-          margin-bottom: 20px;
+          border-bottom: 1px solid #eee;
         `;
 
         // Create form with proper structure for Zid API
         const form = document.createElement('form');
         form.id = `product-form-${fullProductData.id}`;
+        form.style.cssText = `
+          display: flex;
+          align-items: center;
+          width: 100%;
+        `;
 
         // Product ID input following Zid's convention
         const productIdInput = document.createElement('input');
@@ -116,35 +118,55 @@
         form.appendChild(productIdInput);
 
         // Product image
+        const imageContainer = document.createElement('div');
+        imageContainer.style.cssText = `
+          width: 100px;
+          height: 100px;
+          margin-${isRTL ? 'left' : 'right'}: 20px;
+          flex-shrink: 0;
+        `;
         const productImage = document.createElement('img');
         productImage.src = fullProductData.images?.[0]?.url || product.thumbnail;
         productImage.alt = productName;
         productImage.style.cssText = `
           width: 100%;
-          height: 150px;
+          height: 100%;
           object-fit: contain;
-          margin-bottom: 15px;
         `;
-        form.appendChild(productImage);
+        imageContainer.appendChild(productImage);
+        form.appendChild(imageContainer);
+
+        // Product details
+        const detailsContainer = document.createElement('div');
+        detailsContainer.style.cssText = `
+          flex-grow: 1;
+        `;
 
         // Product name
         const nameElement = document.createElement('h4');
         nameElement.textContent = productName;
         nameElement.style.cssText = `
           font-size: 1.1em;
-          margin: 10px 0;
-          min-height: 40px;
+          margin: 0 0 10px;
           font-weight: bold;
         `;
-        form.appendChild(nameElement);
+        detailsContainer.appendChild(nameElement);
 
         // Price display
         const priceContainer = document.createElement('div');
-        priceContainer.style.cssText = `margin: 15px 0; font-weight: bold; font-size: 1.2em;`;
+        priceContainer.style.cssText = `
+          display: flex;
+          align-items: center;
+          margin-bottom: 10px;
+        `;
         
         const currentPrice = document.createElement('span');
         currentPrice.className = 'product-price';
-        currentPrice.style.color = 'var(--theme-primary, #00b286)';
+        currentPrice.style.cssText = `
+          font-weight: bold;
+          font-size: 1.2em;
+          color: var(--theme-primary, #00b286);
+        `;
         
         const oldPrice = document.createElement('span');
         oldPrice.className = 'product-old-price';
@@ -152,6 +174,7 @@
           text-decoration: line-through;
           color: #999;
           margin-${isRTL ? 'right' : 'left'}: 10px;
+          font-size: 0.9em;
           display: none;
         `;
 
@@ -165,12 +188,12 @@
 
         priceContainer.appendChild(currentPrice);
         priceContainer.appendChild(oldPrice);
-        form.appendChild(priceContainer);
+        detailsContainer.appendChild(priceContainer);
 
         // Add variants section if product has options
         if (fullProductData.has_options && fullProductData.variants?.length > 0) {
           const variantsSection = this.createVariantsSection(fullProductData, currentLang);
-          form.appendChild(variantsSection);
+          detailsContainer.appendChild(variantsSection);
 
           // Initialize with default variant
           if (fullProductData.selected_product) {
@@ -178,13 +201,14 @@
           }
         }
 
+        form.appendChild(detailsContainer);
+
         // Quantity input
         const quantityContainer = document.createElement('div');
         quantityContainer.style.cssText = `
           display: flex;
           align-items: center;
-          justify-content: center;
-          margin-bottom: 15px;
+          margin-${isRTL ? 'left' : 'right'}: 20px;
         `;
 
         const decreaseBtn = document.createElement('button');
@@ -247,17 +271,14 @@
         addButton.style.cssText = `
           background: var(--theme-primary, #00b286);
           color: white;
-          width: 100%;
-          padding: 12px;
+          padding: 10px 20px;
           border: none;
           border-radius: 5px;
           cursor: pointer;
-          margin-top: 15px;
+          font-size: 1em;
           display: flex;
           align-items: center;
           justify-content: center;
-          gap: 8px;
-          font-size: 1em;
         `;
 
         const spinner = document.createElement('div');
@@ -269,8 +290,9 @@
           border-top: 2px solid transparent;
           border-radius: 50%;
           animation: spin 1s linear infinite;
+          margin-${isRTL ? 'left' : 'right'}: 10px;
         `;
-        addButton.appendChild(spinner);
+        addButton.insertBefore(spinner, addButton.firstChild);
 
         // Add to cart handler using Zid's convention
         addButton.addEventListener('click', function() {
@@ -504,7 +526,7 @@
           background: white;
           padding: 30px;
           border-radius: 10px;
-          max-width: 600px;
+          max-width: 800px;
           width: 90%;
           max-height: 90vh;
           overflow-y: auto;
@@ -558,6 +580,10 @@
         // Products container
         const productsContainer = document.createElement('div');
         productsContainer.style.cssText = `
+          display: flex;
+          flex-direction: row;
+          overflow-x: auto;
+          gap: 20px;
           margin-top: 20px;
         `;
 
@@ -574,7 +600,7 @@
         const addAllButton = document.createElement('button');
         addAllButton.className = 'btn btn-primary add-all-to-cart-btn';
         addAllButton.type = 'button';
-        addAllButton.textContent = currentLang === 'ar' ? 'أضف الكل إلى السلة' : 'Add all to Cart';
+        addAllButton.textContent = currentLang === 'ar' ? 'أضف الكل إلى السلة' : 'Add selected to cart';
         addAllButton.style.cssText = `
           background: var(--theme-primary, #00b286);
           color: white;
@@ -584,7 +610,7 @@
           cursor: pointer;
           font-size: 1.1em;
           position: absolute;
-          top: 15px;
+          bottom: 15px;
           ${isRTL ? 'right' : 'left'}: 15px;
         `;
         addAllButton.addEventListener('click', () => {
