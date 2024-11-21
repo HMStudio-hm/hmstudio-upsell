@@ -1,5 +1,5 @@
-// src/scripts/upsell.js v1.7.7
-// HMStudio Upsell Feature
+// src/scripts/upsell.js v1.7.8
+// HMStudio Upsell Feature - Updated Styling
 
 (function() {
   console.log('Upsell script initialized');
@@ -94,11 +94,12 @@
         const card = document.createElement('div');
         card.className = 'hmstudio-upsell-product-card';
         card.style.cssText = `
-          border: 1px solid #eee;
-          border-radius: 8px;
-          padding: 15px;
+          border: 1px solid #ddd;
+          border-radius: 10px;
+          padding: 20px;
           text-align: center;
-          transition: transform 0.2s ease, box-shadow 0.2s ease;
+          transition: transform 0.3s ease, box-shadow 0.3s ease;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         `;
 
         // Create form with proper structure for Zid API
@@ -127,9 +128,9 @@
           <img 
             src="${fullProductData.images?.[0]?.url || product.thumbnail}" 
             alt="${productName}" 
-            style="width: 100%; height: 150px; object-fit: contain; margin-bottom: 10px;"
+            style="width: 100%; height: 150px; object-fit: contain; margin-bottom: 15px;"
           >
-          <h4 style="font-size: 1em; margin: 10px 0; min-height: 40px;">
+          <h4 style="font-size: 1.1em; margin: 10px 0; min-height: 40px; font-weight: bold;">
             ${productName}
           </h4>
         `;
@@ -148,7 +149,7 @@
 
         // Price display
         const priceContainer = document.createElement('div');
-        priceContainer.style.cssText = `margin: 15px 0; font-weight: bold;`;
+        priceContainer.style.cssText = `margin: 15px 0; font-weight: bold; font-size: 1.2em;`;
         
         const currentPrice = document.createElement('span');
         currentPrice.className = 'product-price';
@@ -184,15 +185,16 @@
           background: var(--theme-primary, #00b286);
           color: white;
           width: 100%;
-          padding: 10px;
+          padding: 12px;
           border: none;
-          border-radius: 4px;
+          border-radius: 5px;
           cursor: pointer;
-          margin-top: 10px;
+          margin-top: 15px;
           display: flex;
           align-items: center;
           justify-content: center;
           gap: 8px;
+          font-size: 1em;
         `;
 
         const spinner = document.createElement('div');
@@ -401,263 +403,171 @@
     },
 
     async showUpsellModal(campaign, productCart) {
-      if (this.currentModal) {
-        this.currentModal.remove();
+      console.log('Received campaign data:', campaign);
+    
+      if (!campaign || !campaign.upsellProducts || campaign.upsellProducts.length === 0) {
+        console.warn('Invalid campaign data:', campaign);
+        return;
       }
     
       const currentLang = getCurrentLanguage();
       const isRTL = currentLang === 'ar';
-      const themeColor = getComputedStyle(document.documentElement).getPropertyValue('--theme-primary') || '#00b286';
     
-      const modal = document.createElement('div');
-      modal.className = 'hmstudio-upsell-modal';
-      modal.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.5);
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        z-index: 999999;
-        padding: 1rem;
-      `;
-    
-      const content = document.createElement('div');
-      content.className = 'hmstudio-upsell-content';
-      content.style.cssText = `
-        background: white;
-        border-radius: 0.75rem;
-        width: 100%;
-        max-width: 42rem;
-        direction: ${isRTL ? 'rtl' : 'ltr'};
-      `;
-    
-      // Header section
-      const header = document.createElement('div');
-      header.style.cssText = `
-        position: relative;
-        border-bottom: 1px solid #e5e7eb;
-        padding: 1.5rem;
-      `;
-    
-      const closeBtn = document.createElement('button');
-      closeBtn.innerHTML = '✕';
-      closeBtn.style.cssText = `
-        position: absolute;
-        top: 1rem;
-        ${isRTL ? 'left' : 'right'}: 1rem;
-        background: none;
-        border: none;
-        font-size: 1.25rem;
-        cursor: pointer;
-        padding: 0.5rem;
-        border-radius: 9999px;
-        color: #666;
-        transition: background-color 0.2s;
-      `;
-      closeBtn.addEventListener('mouseover', () => closeBtn.style.backgroundColor = '#f3f4f6');
-      closeBtn.addEventListener('mouseout', () => closeBtn.style.backgroundColor = 'transparent');
-      closeBtn.addEventListener('click', () => this.closeModal());
-    
-      const titleWrapper = document.createElement('div');
-      titleWrapper.style.cssText = `
-        text-align: center;
-        padding: 0 2rem;
-      `;
-    
-      const title = document.createElement('h2');
-      title.textContent = currentLang === 'ar' ? 'عروض خاصة لك!' : 'Special Offers for You!';
-      title.style.cssText = `
-        font-size: 1.5rem;
-        font-weight: 600;
-        margin-bottom: 0.5rem;
-      `;
-    
-      const subtitle = document.createElement('p');
-      subtitle.textContent = currentLang === 'ar' 
-        ? `أضف هذه المنتجات المكملة لـ ${productCart.name}!`
-        : `Add these complementary products for ${productCart.name}!`;
-      subtitle.style.cssText = `
-        color: #666;
-        font-size: 1.1rem;
-      `;
-    
-      // Products grid
-      const productsContainer = document.createElement('div');
-      productsContainer.style.cssText = `
-        padding: 1.5rem;
-      `;
-    
-      const productsGrid = document.createElement('div');
-      productsGrid.style.cssText = `
-        display: grid;
-        grid-template-columns: repeat(${campaign.upsellProducts.length === 1 ? '1' : '2'}, 1fr);
-        gap: 1.5rem;
-        ${campaign.upsellProducts.length === 1 ? 'max-width: 24rem; margin: 0 auto;' : ''}
-      `;
-    
-      // Create product cards
-      for (const product of campaign.upsellProducts) {
-        const productData = await this.fetchProductData(product.id);
-        if (!productData) continue;
-    
-        const card = document.createElement('div');
-        card.style.cssText = `
-          display: flex;
-          flex-direction: column;
-          border: 1px solid #e5e7eb;
-          border-radius: 0.5rem;
-          padding: 1rem;
-          height: 100%;
-        `;
-    
-        const imageContainer = document.createElement('div');
-        imageContainer.style.cssText = `
-          position: relative;
-          padding-bottom: 100%;
-          margin-bottom: 1rem;
-        `;
-    
-        const image = document.createElement('img');
-        image.src = productData.images?.[0]?.url || product.thumbnail;
-        image.alt = productData.name[currentLang] || product.name;
-        image.style.cssText = `
-          position: absolute;
+      try {
+        if (this.currentModal) {
+          this.currentModal.remove();
+        }
+
+        const modal = document.createElement('div');
+        modal.className = 'hmstudio-upsell-modal';
+        modal.style.cssText = `
+          position: fixed;
           top: 0;
           left: 0;
           width: 100%;
           height: 100%;
-          object-fit: contain;
+          background-color: rgba(0, 0, 0, 0.5);
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          z-index: 999999;
+          opacity: 0;
+          transition: opacity 0.3s ease;
         `;
-    
-        const name = document.createElement('h3');
-        name.textContent = productData.name[currentLang] || product.name;
-        name.style.cssText = `
-          text-align: center;
-          font-weight: 500;
-          margin-bottom: 0.5rem;
-          flex-grow: 1;
+
+        const content = document.createElement('div');
+        content.className = 'hmstudio-upsell-content';
+        content.style.cssText = `
+          background: white;
+          padding: 30px;
+          border-radius: 10px;
+          max-width: 850px;
+          width: 90%;
+          max-height: 90vh;
+          overflow-y: auto;
+          position: relative;
+          transform: translateY(20px);
+          transition: transform 0.3s ease;
+          direction: ${isRTL ? 'rtl' : 'ltr'};
         `;
-    
-        const priceContainer = document.createElement('div');
-        priceContainer.style.cssText = `
-          text-align: center;
-          margin-bottom: 1rem;
-        `;
-    
-        if (productData.formatted_sale_price) {
-          const salePrice = document.createElement('span');
-          salePrice.textContent = productData.formatted_sale_price;
-          salePrice.style.cssText = `
-            font-size: 1.125rem;
-            font-weight: bold;
-            color: ${themeColor};
-            margin-right: 0.5rem;
-          `;
-    
-          const regularPrice = document.createElement('span');
-          regularPrice.textContent = productData.formatted_price;
-          regularPrice.style.cssText = `
-            text-decoration: line-through;
-            color: #9ca3af;
-            font-size: 0.875rem;
-          `;
-    
-          priceContainer.appendChild(salePrice);
-          priceContainer.appendChild(regularPrice);
-        } else {
-          const price = document.createElement('span');
-          price.textContent = productData.formatted_price;
-          price.style.cssText = `
-            font-size: 1.125rem;
-            font-weight: bold;
-            color: ${themeColor};
-          `;
-          priceContainer.appendChild(price);
-        }
-    
-        const addToCartBtn = document.createElement('button');
-        addToCartBtn.textContent = currentLang === 'ar' ? 'أضف إلى السلة' : 'Add to Cart';
-        addToCartBtn.style.cssText = `
-          width: 100%;
-          padding: 0.5rem 1rem;
-          background-color: ${themeColor};
-          color: white;
+
+        // Close button
+        const closeButton = document.createElement('button');
+        closeButton.innerHTML = '✕';
+        closeButton.style.cssText = `
+          position: absolute;
+          top: 15px;
+          ${isRTL ? 'left' : 'right'}: 15px;
+          background: none;
           border: none;
-          border-radius: 0.5rem;
-          font-weight: 500;
+          font-size: 20px;
           cursor: pointer;
-          transition: opacity 0.2s;
+          color: #666;
+          padding: 5px;
+          line-height: 1;
         `;
-    
-        const spinner = document.createElement('div');
-        spinner.style.cssText = `
-          display: none;
-          width: 1.25rem;
-          height: 1.25rem;
-          border: 2px solid white;
-          border-top-color: transparent;
-          border-radius: 50%;
-          animation: spin 1s linear infinite;
-          margin: 0 auto;
+        closeButton.addEventListener('click', () => this.closeModal());
+
+        // Title with decoded text
+        const title = document.createElement('h3');
+        title.style.cssText = `
+          font-size: 1.6em;
+          margin: 0 0 20px;
+          padding-${isRTL ? 'left' : 'right'}: 30px;
+          color: #333;
+          font-weight: bold;
         `;
-        addToCartBtn.appendChild(spinner);
-    
-        addToCartBtn.addEventListener('click', async () => {
-          try {
-            addToCartBtn.disabled = true;
-            spinner.style.display = 'block';
-            addToCartBtn.textContent = '';
-    
-            await zid.store.cart.addProduct({
-              formId: `product-form-${productData.id}`,
-              data: {
-                product_id: productData.id,
-                quantity: 1
-              }
-            });
-    
+        title.textContent = currentLang === 'ar' 
+          ? decodeURIComponent(campaign.textSettings.titleAr) 
+          : campaign.textSettings.titleEn;
+
+        // Subtitle with decoded text
+        const subtitle = document.createElement('p');
+        subtitle.style.cssText = `
+          color: #666;
+          margin-bottom: 20px;
+          font-size: 1.1em;
+        `;
+        subtitle.textContent = currentLang === 'ar'
+          ? decodeURIComponent(campaign.textSettings.subtitleAr)
+          : campaign.textSettings.subtitleEn;
+
+        // Products grid
+        const productsGrid = document.createElement('div');
+        productsGrid.style.cssText = `
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+          gap: 20px;
+          margin-top: 20px;
+        `;
+
+        // Create and add product cards
+        const productCards = await Promise.all(
+          campaign.upsellProducts.map(product => this.createProductCard(product))
+        );
+
+        productCards.filter(card => card !== null).forEach(card => {
+          productsGrid.appendChild(card);
+        });
+
+        // Add all to cart button
+        const addAllButton = document.createElement('button');
+        addAllButton.className = 'btn btn-primary add-all-to-cart-btn';
+        addAllButton.type = 'button';
+        addAllButton.textContent = currentLang === 'ar' ? 'أضف الكل إلى السلة' : 'Add all to Cart';
+        addAllButton.style.cssText = `
+          background: black;
+          color: white;
+          width: 100%;
+          padding: 15px;
+          border: none;
+          border-radius: 5px;
+          cursor: pointer;
+          margin-top: 20px;
+          font-size: 1.1em;
+        `;
+        addAllButton.addEventListener('click', () => {
+          console.log('Add all to cart clicked');
+          // Implement add all to cart functionality
+        });
+
+        // Assemble modal
+        content.appendChild(closeButton);
+        content.appendChild(title);
+        content.appendChild(subtitle);
+        content.appendChild(productsGrid);
+        content.appendChild(addAllButton);
+        modal.appendChild(content);
+        document.body.appendChild(modal);
+
+        // Show modal with animation
+        requestAnimationFrame(() => {
+          modal.style.opacity = '1';
+          content.style.transform = 'translateY(0)';
+        });
+
+        this.currentModal = modal;
+
+        // Close modal when clicking outside
+        modal.addEventListener('click', (e) => {
+          if (e.target === modal) {
             this.closeModal();
-          } catch (error) {
-            console.error('Error adding product to cart:', error);
-            addToCartBtn.disabled = false;
-            spinner.style.display = 'none';
-            addToCartBtn.textContent = currentLang === 'ar' ? 'أضف إلى السلة' : 'Add to Cart';
           }
         });
-    
-        imageContainer.appendChild(image);
-        card.appendChild(imageContainer);
-        card.appendChild(name);
-        card.appendChild(priceContainer);
-        card.appendChild(addToCartBtn);
-        productsGrid.appendChild(card);
+
+        // Handle escape key
+        document.addEventListener('keydown', (e) => {
+          if (e.key === 'Escape') {
+            this.closeModal();
+          }
+        });
+
+        console.log('Modal created successfully');
+      } catch (error) {
+        console.error('Error creating upsell modal:', error);
       }
-    
-      // Assemble the modal
-      titleWrapper.appendChild(title);
-      titleWrapper.appendChild(subtitle);
-      header.appendChild(closeBtn);
-      header.appendChild(titleWrapper);
-      productsContainer.appendChild(productsGrid);
-      content.appendChild(header);
-      content.appendChild(productsContainer);
-      modal.appendChild(content);
-    
-      // Add to DOM and store reference
-      document.body.appendChild(modal);
-      this.currentModal = modal;
-    
-      // Show with animation
-      requestAnimationFrame(() => {
-        modal.style.opacity = '1';
-        content.style.transform = 'translateY(0)';
-      });
     },
-    
+
     closeModal() {
       if (this.currentModal) {
         this.currentModal.style.opacity = '0';
