@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v1.8.6
+// src/scripts/upsell.js v1.8.7
 // HMStudio Upsell Feature
 
 (function() {
@@ -55,6 +55,39 @@
     campaigns: getCampaignsFromUrl(),
     currentModal: null,
     activeTimeout: null,
+
+    formatPrice(price, currentLang) {
+      if (!price) return currentLang === 'ar' ? '0 ر.س' : 'A$0.00';
+      
+      try {
+        // Convert price to number if it's a string
+        const numPrice = typeof price === 'string' ? parseFloat(price) : price;
+        
+        // Format price to 2 decimal places
+        const formattedPrice = numPrice.toFixed(2);
+        
+        // Return formatted price based on language
+        if (currentLang === 'ar') {
+          return `${formattedPrice} ر.س`;
+        } else {
+          return `A$${formattedPrice}`;
+        }
+      } catch (error) {
+        console.error('Error formatting price:', error);
+        return currentLang === 'ar' ? '0 ر.س' : 'A$0.00';
+      }
+    },
+  
+    // Original formatTotalPrice method for bundle total
+    formatTotalPrice(prices, currentLang) {
+      try {
+        const total = prices.reduce((sum, price) => sum + (typeof price === 'string' ? parseFloat(price) : price), 0);
+        return this.formatPrice(total, currentLang);
+      } catch (error) {
+        console.error('Error formatting total price:', error);
+        return this.formatPrice(0, currentLang);
+      }
+    },
 
     async fetchProductData(productId) {
       console.log('Fetching product data for ID:', productId);
@@ -255,6 +288,8 @@
 
         card.appendChild(form);
         card.appendChild(addButton);
+
+        
 
         return card;
       } catch (error) {
