@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v1.7.4
+// src/scripts/upsell.js v1.7.5
 // HMStudio Upsell Feature
 
 (function() {
@@ -20,21 +20,11 @@
       console.log('No campaigns data found in URL');
       return [];
     }
-  
+
     try {
       const decodedData = atob(campaignsData);
       const parsedData = JSON.parse(decodedData);
-      
-      // Decode the URL-encoded Arabic text
-      return parsedData.map(campaign => ({
-        ...campaign,
-        textSettings: {
-          titleAr: decodeURIComponent(campaign.textSettings?.titleAr || ''),
-          titleEn: campaign.textSettings?.titleEn || '',
-          subtitleAr: decodeURIComponent(campaign.textSettings?.subtitleAr || ''),
-          subtitleEn: campaign.textSettings?.subtitleEn || ''
-        }
-      }));
+      return parsedData;
     } catch (error) {
       console.error('Error parsing campaigns data:', error);
       return [];
@@ -43,6 +33,17 @@
 
   function getCurrentLanguage() {
     return document.documentElement.lang || 'ar';
+  }
+
+  function formatPrice(amount, currencySymbol = 'SR') {
+    const formatter = new Intl.NumberFormat('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
+    const currentLang = getCurrentLanguage();
+    return currentLang === 'ar' 
+      ? `${formatter.format(amount)} ${currencySymbol}`
+      : `${currencySymbol} ${formatter.format(amount)}`;
   }
 
   const storeId = getStoreIdFromUrl();
@@ -55,6 +56,8 @@
     campaigns: getCampaignsFromUrl(),
     currentModal: null,
     activeTimeout: null,
+    selectedProducts: new Set(),
+    totalPrice: 0,
 
     async fetchProductData(productId) {
       console.log('Fetching product data for ID:', productId);
@@ -74,15 +77,130 @@
       }
     },
 
+    updateTotalPrice() {
+      if (!this.currentModal) return;
+      
+      let total = 0;
+      const cards = this.currentModal.querySelectorAll('.hmstudio-upsell-product-card');
+      
+      cards.forEach(card => {
+        if (card.productData && card.productData.isSelected()) {
+          const price = parseFloat(card.productData.price) || 0;
+          const quantity = card.productData.getQuantity();
+          total += price * quantity;
+        }
+      });
+
+      this.totalPrice = total;
+
+      const totalPriceElement = this.currentModal.querySelector('.total-price');
+      if (totalPriceElement) {
+        totalPriceElement.textContent = formatPrice(total);
+      }
+
+      return total;
+    },
+
+    updateAddToCartButton() {
+      if (!this.currentModal) return;
+
+      const cards = this.currentModal.querySelectorAll('.hmstudio-upsell-product-card');
+      const addToCartBtn = this.currentModal.querySelector('.add-to-cart-btn');
+      let selectedCount = 0;
+
+      cards.forEach(card => {
+        if (card.productData && card.productData.isSelected()) {
+          selectedCount++;
+        }
+      });
+
+      if (addToCartBtn) {
+        const currentLang = getCurrentLanguage();
+        addToCartBtn.style.display = (selectedCount > 0 && selectedCount <= 3) ? 'block' : 'none';
+        
+        // Update button text with selection count
+        addToCartBtn.textContent = currentLang === 'ar'
+          ? `إضافة المنتجات المحددة (${selectedCount})`
+          : `Add selected items (${selectedCount})`;
+      }
+
+      // Update total section visibility
+      const totalSection = this.currentModal.querySelector('.total-section');
+      if (totalSection) {
+        totalSection.style.display = selectedCount > 0 ? 'flex' : 'none';
+      }
+    },
+
+    handleAddToCart() {
+      if (!this.currentModal) return;
+
+      const currentLang = getCurrentLanguage();
+      const cards = this.currentModal.querySelectorAll('.hmstudio-upsell-product-card');
+      const selectedProducts = [];
+      let hasErrors = false;
+
+      cards.forEach(card => {
+        if (card.productData && card.productData.isSelected()) {
+          const productData = card.productData;
+          const selectedOptions = productData.getSelectedOptions();
+
+          // Validate variants if product has options
+          if (productData.has_options && productData.variants?.length > 0) {
+            const requiredVariants = productData.variants[0].attributes.map(attr => 
+              currentLang === 'ar' ? attr.name.ar : attr.name.en
+            );
+
+            const missingVariants = requiredVariants.filter(variant => !selectedOptions[variant]);
+
+            if (missingVariants.length > 0) {
+              const message = currentLang === 'ar'
+                ? `الرجاء اختيار ${missingVariants.join(', ')} للمنتج ${productData.name}`
+                : `Please select ${missingVariants.join(', ')} for ${productData.name}`;
+              alert(message);
+              hasErrors = true;
+              return;
+            }
+          }
+
+          selectedProducts.push({
+            product_id: productData.id,
+            quantity: productData.getQuantity(),
+            options: selectedOptions
+          });
+        }
+      });
+
+      if (hasErrors) return;
+
+      Promise.all(
+        selectedProducts.map(product =>
+          zid.store.cart.addProduct({
+            data: {
+              product_id: product.product_id,
+              quantity: product.quantity,
+              options: product.options
+            }
+          })
+        )
+      )
+      .then(() => {
+        const message = currentLang === 'ar'
+          ? 'تمت إضافة المنتجات إلى السلة بنجاح'
+          : 'Products added to cart successfully';
+        alert(message);
+        this.closeModal();
+      })
+      .catch(error => {
+        console.error('Error adding products to cart:', error);
+        const message = currentLang === 'ar'
+          ? 'حدث خطأ أثناء إضافة المنتجات إلى السلة'
+          : 'Error occurred while adding products to cart';
+        alert(message);
+      });
+    },
     async createProductCard(product) {
       try {
         const fullProductData = await this.fetchProductData(product.id);
-        console.log('Full product data:', fullProductData);
-
-        if (!fullProductData) {
-          throw new Error('Failed to fetch full product data');
-        }
-
         const currentLang = getCurrentLanguage();
         const isRTL = currentLang === 'ar';
 
@@ -94,167 +212,280 @@
         const card = document.createElement('div');
         card.className = 'hmstudio-upsell-product-card';
         card.style.cssText = `
-          border: 1px solid #eee;
-          border-radius: 8px;
-          padding: 15px;
-          text-align: center;
-          transition: transform 0.2s ease, box-shadow 0.2s ease;
+          background: white;
+          border-radius: 12px;
+          padding: 20px;
+          transition: all 0.3s ease;
+          display: flex;
+          flex-direction: column;
+          gap: 15px;
+          width: 280px;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+          position: relative;
         `;
-
-        // Create form with proper structure for Zid API
-        const form = document.createElement('form');
-        form.id = `product-form-${fullProductData.id}`;
-
-        // Product ID input following Zid's convention
-        const productIdInput = document.createElement('input');
-        productIdInput.type = 'hidden';
-        productIdInput.id = 'product-id';  // Required by Zid
-        productIdInput.name = 'product_id';
-        productIdInput.value = fullProductData.selected_product?.id || fullProductData.id;
-        form.appendChild(productIdInput);
-
-        // Quantity input following Zid's convention
-        const quantityInput = document.createElement('input');
-        quantityInput.type = 'hidden';
-        quantityInput.id = 'product-quantity';  // Required by Zid
-        quantityInput.name = 'quantity';
-        quantityInput.value = '1';
-        form.appendChild(quantityInput);
 
         // Product content
-        const productContent = document.createElement('div');
-        productContent.innerHTML = `
-          <img 
-            src="${fullProductData.images?.[0]?.url || product.thumbnail}" 
-            alt="${productName}" 
-            style="width: 100%; height: 150px; object-fit: contain; margin-bottom: 10px;"
-          >
-          <h4 style="font-size: 1em; margin: 10px 0; min-height: 40px;">
-            ${productName}
-          </h4>
-        `;
-        card.appendChild(productContent);
-
-        // Add variants section if product has options
-        if (fullProductData.has_options && fullProductData.variants?.length > 0) {
-          const variantsSection = this.createVariantsSection(fullProductData, currentLang);
-          form.appendChild(variantsSection);
-
-          // Initialize with default variant
-          if (fullProductData.selected_product) {
-            this.updateSelectedVariant(fullProductData, form);
-          }
-        }
-
-        // Price display
-        const priceContainer = document.createElement('div');
-        priceContainer.style.cssText = `margin: 15px 0; font-weight: bold;`;
-        
-        const currentPrice = document.createElement('span');
-        currentPrice.className = 'product-price';
-        currentPrice.style.color = 'var(--theme-primary, #00b286)';
-        
-        const oldPrice = document.createElement('span');
-        oldPrice.className = 'product-old-price';
-        oldPrice.style.cssText = `
-          text-decoration: line-through;
-          color: #999;
-          margin-${isRTL ? 'right' : 'left'}: 10px;
-          display: none;
+        const content = document.createElement('div');
+        content.className = 'product-content';
+        content.style.cssText = `
+          display: flex;
+          flex-direction: column;
+          gap: 15px;
         `;
 
-        if (fullProductData.formatted_sale_price) {
-          currentPrice.textContent = fullProductData.formatted_sale_price;
-          oldPrice.textContent = fullProductData.formatted_price;
-          oldPrice.style.display = 'inline';
-        } else {
-          currentPrice.textContent = fullProductData.formatted_price;
-        }
-
-        priceContainer.appendChild(currentPrice);
-        priceContainer.appendChild(oldPrice);
-        card.appendChild(priceContainer);
-
-        // Add to cart button with spinner
-        const addButton = document.createElement('button');
-        addButton.className = 'btn btn-primary add-to-cart-btn';
-        addButton.type = 'button';
-        addButton.textContent = currentLang === 'ar' ? 'أضف إلى السلة' : 'Add to Cart';
-        addButton.style.cssText = `
-          background: var(--theme-primary, #00b286);
-          color: white;
-          width: 100%;
-          padding: 10px;
-          border: none;
-          border-radius: 4px;
+        // Checkbox for product selection
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.style.cssText = `
+          position: absolute;
+          top: 10px;
+          ${isRTL ? 'left' : 'right'}: 10px;
+          width: 20px;
+          height: 20px;
           cursor: pointer;
-          margin-top: 10px;
+          z-index: 1;
+        `;
+
+        // Product image
+        const imageContainer = document.createElement('div');
+        imageContainer.style.cssText = `
+          aspect-ratio: 1;
+          overflow: hidden;
+          border-radius: 8px;
+          background: #f8f8f8;
           display: flex;
           align-items: center;
           justify-content: center;
-          gap: 8px;
         `;
 
-        const spinner = document.createElement('div');
-        spinner.className = 'add-to-cart-progress d-none';
-        spinner.style.cssText = `
-          width: 20px;
-          height: 20px;
-          border: 2px solid #ffffff;
-          border-top: 2px solid transparent;
-          border-radius: 50%;
-          animation: spin 1s linear infinite;
+        const image = document.createElement('img');
+        image.src = fullProductData.images?.[0]?.url || product.thumbnail;
+        image.alt = productName;
+        image.style.cssText = `
+          width: 100%;
+          height: 100%;
+          object-fit: contain;
         `;
-        addButton.appendChild(spinner);
+        imageContainer.appendChild(image);
 
-        // Add to cart handler using Zid's convention
-        addButton.addEventListener('click', function() {
-          // Check if product has variants
-          if (fullProductData.has_options && fullProductData.variants?.length > 0) {
-            // Get all variant selections
-            const selectedVariants = {};
-            const missingSelections = [];
-            
-            form.querySelectorAll('.variant-select').forEach(select => {
-              const labelText = select.previousElementSibling.textContent;
-              if (!select.value) {
-                missingSelections.push(labelText);
-              }
-              selectedVariants[labelText] = select.value;
+        // Product name
+        const name = document.createElement('h3');
+        name.textContent = productName;
+        name.style.cssText = `
+          font-size: 16px;
+          font-weight: 500;
+          color: #333;
+          margin: 0;
+          ${isRTL ? 'text-align: right;' : ''}
+        `;
+
+        // Variants section
+        const variantsContainer = document.createElement('div');
+        const selectedVariants = {};
+
+        if (fullProductData.has_options && fullProductData.variants?.length > 0) {
+          fullProductData.variants[0].attributes.forEach(attr => {
+            const label = document.createElement('label');
+            label.textContent = currentLang === 'ar' ? attr.name.ar : attr.name.en;
+            label.style.cssText = `
+              font-size: 14px;
+              color: #666;
+              display: block;
+              margin-bottom: 6px;
+              ${isRTL ? 'text-align: right;' : ''}
+            `;
+
+            const select = document.createElement('select');
+            select.style.cssText = `
+              width: 100%;
+              padding: 8px 12px;
+              border: 1px solid #ddd;
+              border-radius: 6px;
+              margin-bottom: 10px;
+              background: white;
+              ${isRTL ? 'text-align: right;' : ''}
+            `;
+
+            // Add placeholder option
+            const placeholder = document.createElement('option');
+            placeholder.value = '';
+            placeholder.textContent = currentLang === 'ar' ? 'اختر خيارًا' : 'Select an option';
+            select.appendChild(placeholder);
+
+            // Get unique variant options
+            const options = [...new Set(
+              fullProductData.variants
+                .map(v => v.attributes
+                  .find(a => a.name === attr.name)?.value[currentLang])
+                .filter(Boolean)
+            )];
+
+            options.forEach(option => {
+              const opt = document.createElement('option');
+              opt.value = option;
+              opt.textContent = option;
+              select.appendChild(opt);
             });
-        
-            // Check if all variants are selected
-            if (missingSelections.length > 0) {
-              const message = currentLang === 'ar' 
-                ? `الرجاء اختيار ${missingSelections.join(', ')}`
-                : `Please select ${missingSelections.join(', ')}`;
-              alert(message);
-              return;
-            }
-          }
-        
-          const spinners = form.querySelectorAll('.add-to-cart-progress');
-          spinners.forEach(s => s.classList.remove('d-none'));
-        
-          zid.store.cart.addProduct({ 
-            formId: form.id
-          }).then(function(response) {
-            console.log('Add to cart response:', response);
-            if(response.status === 'success') {
-              if (typeof setCartBadge === 'function') {
-                setCartBadge(response.data.cart.products_count);
-              }
-              window.HMStudioUpsell.closeModal();
-            }
-            spinners.forEach(s => s.classList.add('d-none'));
-          }).catch(function(error) {
-            console.error('Add to cart error:', error);
-            spinners.forEach(s => s.classList.add('d-none'));
+
+            select.addEventListener('change', () => {
+              selectedVariants[attr.name] = select.value;
+            });
+
+            variantsContainer.appendChild(label);
+            variantsContainer.appendChild(select);
           });
+        }
+
+        // Quantity selector
+        const quantityContainer = document.createElement('div');
+        let currentQuantity = 1;
+        
+        quantityContainer.style.cssText = `
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          margin-top: 10px;
+          ${isRTL ? 'flex-direction: row-reverse;' : ''}
+        `;
+
+        const quantityLabel = document.createElement('span');
+        quantityLabel.textContent = currentLang === 'ar' ? 'الكمية:' : 'Quantity:';
+        quantityLabel.style.cssText = `
+          font-size: 14px;
+          color: #666;
+        `;
+
+        const quantityControls = document.createElement('div');
+        quantityControls.style.cssText = `
+          display: flex;
+          align-items: center;
+          border: 1px solid #ddd;
+          border-radius: 6px;
+          overflow: hidden;
+        `;
+
+        const decreaseBtn = document.createElement('button');
+        decreaseBtn.textContent = '-';
+        const increaseBtn = document.createElement('button');
+        increaseBtn.textContent = '+';
+
+        const quantityBtnStyle = `
+          width: 32px;
+          height: 32px;
+          border: none;
+          background: #f8f8f8;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 16px;
+          color: #666;
+        `;
+
+        decreaseBtn.style.cssText = quantityBtnStyle;
+        increaseBtn.style.cssText = quantityBtnStyle;
+
+        const quantityInput = document.createElement('input');
+        quantityInput.type = 'number';
+        quantityInput.min = '1';
+        quantityInput.max = '10';
+        quantityInput.value = '1';
+        quantityInput.style.cssText = `
+          width: 40px;
+          border: none;
+          text-align: center;
+          font-size: 14px;
+          -moz-appearance: textfield;
+        `;
+
+        // Price display
+        const priceContainer = document.createElement('div');
+        priceContainer.style.cssText = `
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-top: 10px;
+          ${isRTL ? 'flex-direction: row-reverse;' : ''}
+        `;
+
+        const price = document.createElement('span');
+        price.textContent = fullProductData.formatted_price;
+        price.style.cssText = `
+          font-size: 18px;
+          font-weight: 600;
+          color: #000;
+        `;
+
+        if (fullProductData.formatted_sale_price) {
+          const oldPrice = document.createElement('span');
+          oldPrice.textContent = fullProductData.formatted_price;
+          oldPrice.style.cssText = `
+            font-size: 14px;
+            color: #999;
+            text-decoration: line-through;
+          `;
+          priceContainer.appendChild(oldPrice);
+          price.textContent = fullProductData.formatted_sale_price;
+          price.style.color = '#e53e3e';
+        }
+
+        priceContainer.appendChild(price);
+
+        // Add event listeners
+        decreaseBtn.addEventListener('click', () => {
+          if (currentQuantity > 1) {
+            currentQuantity--;
+            quantityInput.value = currentQuantity;
+            this.updateTotalPrice();
+          }
         });
 
-        card.appendChild(form);
-        card.appendChild(addButton);
+        increaseBtn.addEventListener('click', () => {
+          if (currentQuantity < 10) {
+            currentQuantity++;
+            quantityInput.value = currentQuantity;
+            this.updateTotalPrice();
+          }
+        });
+
+        quantityInput.addEventListener('change', (e) => {
+          let value = parseInt(e.target.value);
+          if (isNaN(value) || value < 1) value = 1;
+          if (value > 10) value = 10;
+          currentQuantity = value;
+          quantityInput.value = currentQuantity;
+          this.updateTotalPrice();
+        });
+
+        checkbox.addEventListener('change', () => {
+          this.updateAddToCartButton();
+          this.updateTotalPrice();
+        });
+
+        // Attach product data and selection state to card
+        card.productData = {
+          ...fullProductData,
+          getSelectedOptions: () => selectedVariants,
+          getQuantity: () => currentQuantity,
+          isSelected: () => checkbox.checked,
+          price: fullProductData.sale_price || fullProductData.price
+        };
+
+        // Assemble quantity controls
+        quantityControls.appendChild(decreaseBtn);
+        quantityControls.appendChild(quantityInput);
+        quantityControls.appendChild(increaseBtn);
+        quantityContainer.appendChild(quantityLabel);
+        quantityContainer.appendChild(quantityControls);
+
+        // Assemble all elements
+        content.appendChild(checkbox);
+        content.appendChild(imageContainer);
+        content.appendChild(name);
+        content.appendChild(variantsContainer);
+        content.appendChild(quantityContainer);
+        content.appendChild(priceContainer);
+        card.appendChild(content);
 
         return card;
       } catch (error) {
@@ -263,154 +494,17 @@
       }
     },
 
-    createVariantsSection(product, currentLang) {
-      const variantsContainer = document.createElement('div');
-      variantsContainer.className = 'hmstudio-upsell-variants';
-      variantsContainer.style.cssText = `
-        margin-top: 15px;
-        padding: 10px 0;
-      `;
-
-      if (product.variants && product.variants.length > 0) {
-        const variantAttributes = new Map();
-        
-        product.variants.forEach(variant => {
-          if (variant.attributes && variant.attributes.length > 0) {
-            variant.attributes.forEach(attr => {
-              if (!variantAttributes.has(attr.name)) {
-                variantAttributes.set(attr.name, {
-                  name: attr.name,
-                  slug: attr.slug,
-                  values: new Set()
-                });
-              }
-              variantAttributes.get(attr.name).values.add(attr.value[currentLang]);
-            });
-          }
-        });
-
-        variantAttributes.forEach((attr) => {
-          const select = document.createElement('select');
-          select.className = 'variant-select';
-          select.style.cssText = `
-            margin: 5px 0;
-            padding: 8px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            width: 100%;
-          `;
-
-          const labelText = currentLang === 'ar' ? attr.slug : attr.name;
-          
-          const label = document.createElement('label');
-          label.textContent = labelText;
-          label.style.cssText = `
-            display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
-          `;
-
-          const placeholderText = currentLang === 'ar' ? `اختر ${labelText}` : `Select ${labelText}`;
-          
-          let optionsHTML = `<option value="">${placeholderText}</option>`;
-          
-          Array.from(attr.values).forEach(value => {
-            optionsHTML += `<option value="${value}">${value}</option>`;
-          });
-          
-          select.innerHTML = optionsHTML;
-
-          select.addEventListener('change', () => {
-            console.log('Selected:', attr.name, select.value);
-            this.updateSelectedVariant(product, select.closest('form'));
-          });
-
-          variantsContainer.appendChild(label);
-          variantsContainer.appendChild(select);
-        });
-      }
-
-      return variantsContainer;
-    },
-
-    updateSelectedVariant(product, form) {
-      if (!form) {
-        console.error('Product form not found');
-        return;
-      }
-
-      const currentLang = getCurrentLanguage();
-      const selectedValues = {};
-
-      form.querySelectorAll('.variant-select').forEach(select => {
-        if (select.value) {
-          const labelText = select.previousElementSibling.textContent;
-          selectedValues[labelText] = select.value;
-        }
-      });
-
-      console.log('Selected values:', selectedValues);
-
-      const selectedVariant = product.variants.find(variant => {
-        return variant.attributes.every(attr => {
-          const attrLabel = currentLang === 'ar' ? attr.slug : attr.name;
-          return selectedValues[attrLabel] === attr.value[currentLang];
-        });
-      });
-
-      console.log('Found variant:', selectedVariant);
-
-      if (selectedVariant) {
-        const productIdInput = form.querySelector('#product-id');
-        if (productIdInput) {
-          productIdInput.value = selectedVariant.id;
-          console.log('Updated product ID to:', selectedVariant.id);
-        }
-
-        const priceElement = form.querySelector('.product-price');
-        const oldPriceElement = form.querySelector('.product-old-price');
-        
-        if (priceElement) {
-          if (selectedVariant.formatted_sale_price) {
-            priceElement.textContent = selectedVariant.formatted_sale_price;
-            if (oldPriceElement) {
-              oldPriceElement.textContent = selectedVariant.formatted_price;
-              oldPriceElement.style.display = 'inline';
-            }
-          } else {
-            priceElement.textContent = selectedVariant.formatted_price;
-            if (oldPriceElement) {
-              oldPriceElement.style.display = 'none';
-            }
-          }
-        }
-
-        const addToCartBtn = form.parentElement.querySelector('.add-to-cart-btn');
-        if (addToCartBtn) {
-          if (!selectedVariant.unavailable) {
-            addToCartBtn.disabled = false;
-            addToCartBtn.style.opacity = '1';
-            addToCartBtn.style.cursor = 'pointer';
-          } else {
-            addToCartBtn.disabled = true;
-            addToCartBtn.style.opacity = '0.5';
-            addToCartBtn.style.cursor = 'not-allowed';
-          }
-        }
-      }
-    },
-
     async showUpsellModal(campaign, productCart) {
-      console.log('Received campaign data:', campaign);
-    
+      console.log('Showing upsell modal for campaign:', campaign);
+      
       if (!campaign || !campaign.upsellProducts || campaign.upsellProducts.length === 0) {
         console.warn('Invalid campaign data:', campaign);
         return;
       }
-    
+
       const currentLang = getCurrentLanguage();
       const isRTL = currentLang === 'ar';
-    
+
       try {
         if (this.currentModal) {
           this.currentModal.remove();
@@ -429,74 +523,85 @@
           justify-content: center;
           align-items: center;
           z-index: 999999;
-          opacity: 0;
-          transition: opacity 0.3s ease;
         `;
 
         const content = document.createElement('div');
         content.className = 'hmstudio-upsell-content';
         content.style.cssText = `
           background: white;
-          padding: 25px;
-          border-radius: 8px;
-          max-width: 800px;
+          padding: 30px;
+          border-radius: 16px;
+          max-width: 900px;
           width: 90%;
           max-height: 90vh;
           overflow-y: auto;
           position: relative;
-          transform: translateY(20px);
-          transition: transform 0.3s ease;
           direction: ${isRTL ? 'rtl' : 'ltr'};
         `;
 
         // Close button
         const closeButton = document.createElement('button');
-        closeButton.innerHTML = '✕';
+        closeButton.innerHTML = '×';
         closeButton.style.cssText = `
           position: absolute;
-          top: 15px;
-          ${isRTL ? 'left' : 'right'}: 15px;
-          background: none;
+          top: 16px;
+          ${isRTL ? 'left' : 'right'}: 16px;
+          background: transparent;
           border: none;
-          font-size: 20px;
+          font-size: 24px;
           cursor: pointer;
           color: #666;
-          padding: 5px;
+          padding: 4px;
           line-height: 1;
+          z-index: 2;
         `;
         closeButton.addEventListener('click', () => this.closeModal());
 
-        // Title with decoded text
-    const title = document.createElement('h3');
-    title.style.cssText = `
-      font-size: 1.5em;
-      margin: 0 0 20px;
-      padding-${isRTL ? 'left' : 'right'}: 30px;
-      color: #333;
-      font-weight: bold;
-    `;
-    title.textContent = currentLang === 'ar' 
-      ? decodeURIComponent(campaign.textSettings.titleAr) 
-      : campaign.textSettings.titleEn;
+        // Title and subtitle
+        const titleText = currentLang === 'ar' ? 
+          campaign.textSettings.titleAr : 
+          campaign.textSettings.titleEn;
 
-    // Subtitle with decoded text
-    const subtitle = document.createElement('p');
-    subtitle.style.cssText = `
-      color: #666;
-      margin-bottom: 20px;
-      font-size: 1.1em;
-    `;
-    subtitle.textContent = currentLang === 'ar'
-      ? decodeURIComponent(campaign.textSettings.subtitleAr)
-      : campaign.textSettings.subtitleEn;
+        const subtitleText = currentLang === 'ar' ? 
+          campaign.textSettings.subtitleAr : 
+          campaign.textSettings.subtitleEn;
 
-        // Products grid
-        const productsGrid = document.createElement('div');
-        productsGrid.style.cssText = `
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-          gap: 20px;
-          margin-top: 20px;
+        const header = document.createElement('div');
+        header.style.cssText = `
+          text-align: ${isRTL ? 'right' : 'left'};
+          margin-bottom: 24px;
+        `;
+
+        const title = document.createElement('h2');
+        title.textContent = titleText;
+        title.style.cssText = `
+          font-size: 24px;
+          font-weight: 600;
+          color: #333;
+          margin-bottom: 8px;
+        `;
+
+        const subtitle = document.createElement('p');
+        subtitle.textContent = subtitleText;
+        subtitle.style.cssText = `
+          font-size: 16px;
+          color: #666;
+          margin: 0;
+        `;
+
+        header.appendChild(title);
+        header.appendChild(subtitle);
+
+        // Products container with horizontal scroll
+        const productsContainer = document.createElement('div');
+        productsContainer.style.cssText = `
+          display: flex;
+          gap: 24px;
+          margin: 24px 0;
+          overflow-x: auto;
+          padding: 10px 0;
+          scroll-behavior: smooth;
+          -webkit-overflow-scrolling: touch;
         `;
 
         // Create and add product cards
@@ -505,108 +610,186 @@
         );
 
         productCards.filter(card => card !== null).forEach(card => {
-          productsGrid.appendChild(card);
+          productsContainer.appendChild(card);
         });
 
-        // Assemble modal
-        content.appendChild(closeButton);
-        content.appendChild(title);
-        content.appendChild(subtitle);
-        content.appendChild(productsGrid);
-        modal.appendChild(content);
-        document.body.appendChild(modal);
+        // Total section
+        const totalSection = document.createElement('div');
+        totalSection.className = 'total-section';
+        totalSection.style.cssText = `
+          display: none;
+          justify-content: space-between;
+          align-items: center;
+          margin-top: 20px;
+          padding-top: 20px;
+          border-top: 1px solid #eee;
+        `;
 
-        // Show modal with animation
-        requestAnimationFrame(() => {
-          modal.style.opacity = '1';
-          content.style.transform = 'translateY(0)';
-        });
+        const totalLabel = document.createElement('span');
+        totalLabel.textContent = currentLang === 'ar' ? 'المجموع:' : 'Total:';
+        totalLabel.style.cssText = `
+          font-size: 18px;
+          font-weight: 500;
+          color: #333;
+        `;
 
-        this.currentModal = modal;
+        const totalPrice = document.createElement('span');
+        totalPrice.className = 'total-price';
+        totalPrice.style.cssText = `
+          font-size: 20px;
+          font-weight: 600;
+          color: #000;
+        `;
 
-        // Close modal when clicking outside
-        modal.addEventListener('click', (e) => {
-          if (e.target === modal) {
-            this.closeModal();
-          }
-        });
+        totalSection.appendChild(totalLabel);
+        totalSection.appendChild(totalPrice);
 
-        // Handle escape key
-        document.addEventListener('keydown', (e) => {
-          if (e.key === 'Escape') {
-            this.closeModal();
-          }
-        });
+       // Add to cart button
+       const addToCartBtn = document.createElement('button');
+       addToCartBtn.className = 'add-to-cart-btn';
+       addToCartBtn.style.cssText = `
+         width: 100%;
+         padding: 16px;
+         background: #000;
+         color: white;
+         border: none;
+         border-radius: 8px;
+         font-size: 16px;
+         font-weight: 500;
+         cursor: pointer;
+         transition: background-color 0.3s ease;
+         margin-top: 16px;
+         display: none;
+       `;
+       addToCartBtn.textContent = currentLang === 'ar' ? 'إضافة المحدد إلى السلة' : 'Add selected to cart';
+       
+       addToCartBtn.addEventListener('mouseover', () => {
+         addToCartBtn.style.backgroundColor = '#333';
+       });
+       
+       addToCartBtn.addEventListener('mouseout', () => {
+         addToCartBtn.style.backgroundColor = '#000';
+       });
 
-        console.log('Modal created successfully');
-      } catch (error) {
-        console.error('Error creating upsell modal:', error);
-      }
-    },
+       addToCartBtn.addEventListener('click', () => this.handleAddToCart());
 
-    closeModal() {
-      if (this.currentModal) {
-        this.currentModal.style.opacity = '0';
-        const content = this.currentModal.querySelector('.hmstudio-upsell-content');
-        if (content) {
-          content.style.transform = 'translateY(20px)';
-        }
-        setTimeout(() => {
-          if (this.currentModal) {
-            this.currentModal.remove();
-            this.currentModal = null;
-          }
-        }, 300);
-      }
-    },
+       // Assemble modal
+       content.appendChild(closeButton);
+       content.appendChild(header);
+       content.appendChild(productsContainer);
+       content.appendChild(totalSection);
+       content.appendChild(addToCartBtn);
+       modal.appendChild(content);
 
-    initialize() {
-      console.log('Initializing Upsell');
-      
-      // Make sure the global object is available
-      if (!window.HMStudioUpsell) {
-        window.HMStudioUpsell = {
-          showUpsellModal: (...args) => {
-            console.log('showUpsellModal called with args:', args);
-            return this.showUpsellModal.apply(this, args);
-          },
-          closeModal: () => this.closeModal()
-        };
-        console.log('Global HMStudioUpsell object created');
-      }
+       // Add to DOM
+       document.body.appendChild(modal);
 
-      // Handle page visibility changes
-      document.addEventListener('visibilitychange', () => {
-        if (document.hidden && this.currentModal) {
-          this.closeModal();
-        }
-      });
+       // Show modal with animation
+       requestAnimationFrame(() => {
+         modal.style.opacity = '1';
+         content.style.transform = 'translateY(0)';
+       });
 
-      // Handle window resize
-      window.addEventListener('resize', () => {
-        if (this.currentModal) {
-          const content = this.currentModal.querySelector('.hmstudio-upsell-content');
-          if (content) {
-            content.style.maxHeight = `${window.innerHeight * 0.9}px`;
-          }
-        }
-      });
+       this.currentModal = modal;
 
-      // Clean up on page unload
-      window.addEventListener('beforeunload', () => {
-        if (this.currentModal) {
-          this.closeModal();
-        }
-      });
-    }
-  };
+       // Handle escape key
+       const handleEscape = (e) => {
+         if (e.key === 'Escape') {
+           this.closeModal();
+           document.removeEventListener('keydown', handleEscape);
+         }
+       };
+       document.addEventListener('keydown', handleEscape);
 
-  // Initialize when DOM is ready
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-      UpsellManager.initialize();
-    });
-  } else {
-    UpsellManager.initialize();
-  }
+       // Handle click outside
+       modal.addEventListener('click', (e) => {
+         if (e.target === modal) {
+           this.closeModal();
+         }
+       });
+
+     } catch (error) {
+       console.error('Error creating upsell modal:', error);
+     }
+   },
+
+   closeModal() {
+     if (this.currentModal) {
+       const content = this.currentModal.querySelector('.hmstudio-upsell-content');
+       
+       // Animate out
+       this.currentModal.style.opacity = '0';
+       if (content) {
+         content.style.transform = 'translateY(20px)';
+       }
+
+       // Remove after animation
+       setTimeout(() => {
+         if (this.currentModal && this.currentModal.parentElement) {
+           this.currentModal.remove();
+           this.currentModal = null;
+         }
+       }, 300);
+     }
+   },
+
+   initialize() {
+     console.log('Initializing Upsell');
+     
+     // Make sure the global object is available
+     if (!window.HMStudioUpsell) {
+       window.HMStudioUpsell = {
+         showUpsellModal: (...args) => this.showUpsellModal.apply(this, args),
+         closeModal: () => this.closeModal()
+       };
+       console.log('Global HMStudioUpsell object created');
+     }
+
+     // Handle page visibility changes
+     document.addEventListener('visibilitychange', () => {
+       if (document.hidden && this.currentModal) {
+         this.closeModal();
+       }
+     });
+
+     // Handle window resize
+     window.addEventListener('resize', () => {
+       if (this.currentModal) {
+         const content = this.currentModal.querySelector('.hmstudio-upsell-content');
+         if (content) {
+           content.style.maxHeight = `${window.innerHeight * 0.9}px`;
+         }
+       }
+     });
+
+     // Clean up on page unload
+     window.addEventListener('beforeunload', () => {
+       if (this.currentModal) {
+         this.closeModal();
+       }
+     });
+
+     // Add keyframe animation for spinner if needed
+     if (!document.getElementById('upsell-animations')) {
+       const style = document.createElement('style');
+       style.id = 'upsell-animations';
+       style.textContent = `
+         @keyframes spin {
+           0% { transform: rotate(0deg); }
+           100% { transform: rotate(360deg); }
+         }
+       `;
+       document.head.appendChild(style);
+     }
+   }
+ };
+
+ // Initialize when DOM is ready
+ if (document.readyState === 'loading') {
+   document.addEventListener('DOMContentLoaded', () => {
+     UpsellManager.initialize();
+   });
+ } else {
+   UpsellManager.initialize();
+ }
 })();
