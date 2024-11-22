@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v1.9.4
+// src/scripts/upsell.js v1.7.5
 // HMStudio Upsell Feature
 
 (function() {
@@ -25,13 +25,13 @@
       const decodedData = atob(campaignsData);
       const parsedData = JSON.parse(decodedData);
       
-      // Decode the URL-encoded Arabic text
+      // Remove decoding step for textSettings
       return parsedData.map(campaign => ({
         ...campaign,
         textSettings: {
-          titleAr: decodeURIComponent(campaign.textSettings?.titleAr || ''),
+          titleAr: campaign.textSettings?.titleAr || '',
           titleEn: campaign.textSettings?.titleEn || '',
-          subtitleAr: decodeURIComponent(campaign.textSettings?.subtitleAr || ''),
+          subtitleAr: campaign.textSettings?.subtitleAr || '',
           subtitleEn: campaign.textSettings?.subtitleEn || ''
         }
       }));
@@ -485,8 +485,9 @@
           margin-bottom: 30px;
         `;
 
+        // Update title and subtitle text assignment
         const title = document.createElement('h2');
-        title.textContent = campaign.textSettings[currentLang === 'ar' ? 'titleAr' : 'titleEn'];
+        title.textContent = currentLang === 'ar' ? decodeURIComponent(campaign.textSettings.titleAr) : campaign.textSettings.titleEn;
         title.style.cssText = `
           font-size: 28px;
           margin-bottom: 10px;
@@ -494,7 +495,7 @@
         `;
 
         const subtitle = document.createElement('p');
-        subtitle.textContent = campaign.textSettings[currentLang === 'ar' ? 'subtitleAr' : 'subtitleEn'];
+        subtitle.textContent = currentLang === 'ar' ? decodeURIComponent(campaign.textSettings.subtitleAr) : campaign.textSettings.subtitleEn;
         subtitle.style.cssText = `
           font-size: 18px;
           color: #666;
