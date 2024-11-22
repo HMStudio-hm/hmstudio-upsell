@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v1.7.5
+// src/scripts/upsell.js v1.9.6
 // HMStudio Upsell Feature
 
 (function() {
@@ -416,15 +416,15 @@
         console.warn('Invalid campaign data:', campaign);
         return;
       }
-
+    
       const currentLang = getCurrentLanguage();
       const isRTL = currentLang === 'ar';
-
+    
       try {
         if (this.currentModal) {
           this.currentModal.remove();
         }
-
+    
         const modal = document.createElement('div');
         modal.className = 'hmstudio-upsell-modal';
         modal.style.cssText = `
@@ -441,7 +441,7 @@
           opacity: 0;
           transition: opacity 0.3s ease;
         `;
-
+    
         const content = document.createElement('div');
         content.className = 'hmstudio-upsell-content';
         content.style.cssText = `
@@ -456,17 +456,15 @@
           transform: translateY(20px);
           transition: transform 0.3s ease;
           direction: ${isRTL ? 'rtl' : 'ltr'};
-          display: flex;
-          flex-direction: column;
         `;
-
+    
         // Close button
         const closeButton = document.createElement('button');
         closeButton.innerHTML = '✕';
         closeButton.style.cssText = `
           position: absolute;
           top: 20px;
-          ${isRTL ? 'left' : 'right'}: 20px;
+          ${isRTL ? 'right' : 'left'}: 20px;
           background: none;
           border: none;
           font-size: 24px;
@@ -477,15 +475,14 @@
           z-index: 1;
         `;
         closeButton.addEventListener('click', () => this.closeModal());
-
+    
         // Header section
         const header = document.createElement('div');
         header.style.cssText = `
           text-align: center;
           margin-bottom: 30px;
         `;
-
-        // Update title and subtitle text assignment
+    
         const title = document.createElement('h2');
         title.textContent = currentLang === 'ar' ? decodeURIComponent(campaign.textSettings.titleAr) : campaign.textSettings.titleEn;
         title.style.cssText = `
@@ -493,7 +490,7 @@
           margin-bottom: 10px;
           color: #333;
         `;
-
+    
         const subtitle = document.createElement('p');
         subtitle.textContent = currentLang === 'ar' ? decodeURIComponent(campaign.textSettings.subtitleAr) : campaign.textSettings.subtitleEn;
         subtitle.style.cssText = `
@@ -501,32 +498,41 @@
           color: #666;
           margin: 0;
         `;
-
+    
         header.appendChild(title);
         header.appendChild(subtitle);
-
-        // Products grid
-        const productsGrid = document.createElement('div');
-        productsGrid.style.cssText = `
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-          gap: 20px;
-          overflow-x: auto;
+    
+        // Main content wrapper
+        const mainWrapper = document.createElement('div');
+        mainWrapper.style.cssText = `
+          display: flex;
+          gap: 30px;
+          align-items: flex-start;
         `;
-
-        // Create product cards
-        const productCards = await Promise.all(
-          campaign.upsellProducts.map(async (product, index) => {
-            return await this.createProductCard(product);
-          })
-        );
-
-        productCards.forEach(card => {
-          if (card) {
-            productsGrid.appendChild(card);
-          }
-        });
-
+    
+        // Left sidebar
+        const sidebar = document.createElement('div');
+        sidebar.style.cssText = `
+          width: 250px;
+          flex-shrink: 0;
+          background: #f8f9fa;
+          padding: 20px;
+          border-radius: 8px;
+          position: sticky;
+          top: 20px;
+        `;
+    
+        // Benefit text
+        const benefitText = document.createElement('div');
+        benefitText.style.cssText = `
+          text-align: center;
+          margin-bottom: 20px;
+          font-size: 18px;
+          color: #333;
+          font-weight: bold;
+        `;
+        benefitText.textContent = currentLang === 'ar' ? 'استفد من العرض' : 'Benefit from the Offer';
+    
         // Add All to Cart button
         const addAllButton = document.createElement('button');
         addAllButton.textContent = currentLang === 'ar' ? 'أضف الكل إلى السلة' : 'Add All to Cart';
@@ -539,19 +545,17 @@
           font-size: 16px;
           cursor: pointer;
           width: 100%;
-          max-width: 300px;
-          margin: 20px auto 0;
           transition: background-color 0.3s;
         `;
-
+    
         addAllButton.addEventListener('mouseover', () => {
           addAllButton.style.backgroundColor = '#333';
         });
-
+    
         addAllButton.addEventListener('mouseout', () => {
           addAllButton.style.backgroundColor = '#000';
         });
-
+    
         addAllButton.addEventListener('click', async () => {
           const forms = content.querySelectorAll('form');
           for (const form of forms) {
@@ -572,30 +576,72 @@
           }
           this.closeModal();
         });
-
+    
+        sidebar.appendChild(benefitText);
+        sidebar.appendChild(addAllButton);
+    
+        // Products grid
+        const productsGrid = document.createElement('div');
+        productsGrid.style.cssText = `
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+          gap: 20px;
+          flex: 1;
+        `;
+    
+        // Update createProductCard method to use primary color for buttons
+        const productCards = await Promise.all(
+          campaign.upsellProducts.map(async (product) => {
+            const card = await this.createProductCard(product);
+            if (card) {
+              const addButton = card.querySelector('.add-to-cart-btn');
+              if (addButton) {
+                addButton.style.backgroundColor = '#007bff'; // Primary blue color
+                addButton.style.borderRadius = '20px';
+                
+                addButton.addEventListener('mouseover', () => {
+                  addButton.style.backgroundColor = '#0056b3';
+                });
+    
+                addButton.addEventListener('mouseout', () => {
+                  addButton.style.backgroundColor = '#007bff';
+                });
+              }
+            }
+            return card;
+          })
+        );
+    
+        productCards.filter(card => card !== null).forEach(card => {
+          productsGrid.appendChild(card);
+        });
+    
+        // Assemble the layout
+        mainWrapper.appendChild(sidebar);
+        mainWrapper.appendChild(productsGrid);
+    
         // Assemble modal
         content.appendChild(closeButton);
         content.appendChild(header);
-        content.appendChild(productsGrid);
-        content.appendChild(addAllButton);
+        content.appendChild(mainWrapper);
         modal.appendChild(content);
         document.body.appendChild(modal);
-
+    
         // Show modal with animation
         requestAnimationFrame(() => {
           modal.style.opacity = '1';
           content.style.transform = 'translateY(0)';
         });
-
+    
         this.currentModal = modal;
-
+    
         // Close modal when clicking outside
         modal.addEventListener('click', (e) => {
           if (e.target === modal) {
             this.closeModal();
           }
         });
-
+    
         // Handle escape key
         document.addEventListener('keydown', (e) => {
           if (e.key === 'Escape') {
