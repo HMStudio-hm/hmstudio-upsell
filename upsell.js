@@ -1,406 +1,4 @@
-// src/scripts/upsell.js v2.0.4
-// HMStudio Upsell Feature
-
-(function() {
-  console.log('Upsell script initialized');
-
-  function getStoreIdFromUrl() {
-    const scriptTag = document.currentScript;
-    const scriptUrl = new URL(scriptTag.src);
-    const storeId = scriptUrl.searchParams.get('storeId');
-    return storeId ? storeId.split('?')[0] : null;
-  }
-
-  function getCampaignsFromUrl() {
-    const scriptTag = document.currentScript;
-    const scriptUrl = new URL(scriptTag.src);
-    const campaignsData = scriptUrl.searchParams.get('campaigns');
-    
-    if (!campaignsData) {
-      console.log('No campaigns data found in URL');
-      return [];
-    }
-  
-    try {
-      const decodedData = atob(campaignsData);
-      const parsedData = JSON.parse(decodedData);
-      
-      return parsedData.map(campaign => ({
-        ...campaign,
-        textSettings: {
-          titleAr: campaign.textSettings?.titleAr || '',
-          titleEn: campaign.textSettings?.titleEn || '',
-          subtitleAr: campaign.textSettings?.subtitleAr || '',
-          subtitleEn: campaign.textSettings?.subtitleEn || ''
-        }
-      }));
-    } catch (error) {
-      console.error('Error parsing campaigns data:', error);
-      return [];
-    }
-  }
-
-  function getCurrentLanguage() {
-    return document.documentElement.lang || 'ar';
-  }
-
-  function isMobileDevice() {
-    return window.innerWidth <= 768;
-  }
-
-  const storeId = getStoreIdFromUrl();
-  if (!storeId) {
-    console.error('Store ID not found in script URL');
-    return;
-  }
-
-  const UpsellManager = {
-    campaigns: getCampaignsFromUrl(),
-    currentModal: null,
-    activeTimeout: null,
-
-    async fetchProductData(productId) {
-      console.log('Fetching product data for ID:', productId);
-      const url = `https://europe-west3-hmstudio-85f42.cloudfunctions.net/getProductData?storeId=${storeId}&productId=${productId}`;
-      
-      try {
-        const response = await fetch(url);
-        if (!response.ok) {
-          throw new Error(`Failed to fetch product data: ${response.statusText}`);
-        }
-        const data = await response.json();
-        console.log('Received product data:', data);
-        return data;
-      } catch (error) {
-        console.error('Error fetching product data:', error);
-        throw error;
-      }
-    },
-
-    async createProductCard(product) {
-      try {
-        const fullProductData = await this.fetchProductData(product.id);
-        console.log('Full product data:', fullProductData);
-
-        if (!fullProductData) {
-          throw new Error('Failed to fetch full product data');
-        }
-
-        const currentLang = getCurrentLanguage();
-        const isRTL = currentLang === 'ar';
-
-        let productName = fullProductData.name;
-        if (typeof productName === 'object') {
-          productName = currentLang === 'ar' ? productName.ar : productName.en;
-        }
-
-        const card = document.createElement('div');
-        card.style.cssText = `
-          border: 1px solid #eee;
-          border-radius: 8px;
-          padding: 10px;
-          text-align: center;
-          transition: transform 0.2s ease, box-shadow 0.2s ease;
-          width: ${isMobileDevice() ? '100%' : '180px'};
-          display: flex;
-          flex-direction: column;
-          justify-content: space-between;
-        `;
-
-        // Create form with proper structure for Zid API
-        const form = document.createElement('form');
-        form.id = `product-form-${fullProductData.id}`;
-
-        // Product ID input
-        const productIdInput = document.createElement('input');
-        productIdInput.type = 'hidden';
-        productIdInput.id = 'product-id';
-        productIdInput.name = 'product_id';
-        productIdInput.value = fullProductData.selected_product?.id || fullProductData.id;
-        form.appendChild(productIdInput);
-
-        // Product content
-        const productContent = document.createElement('div');
-        productContent.style.cssText = `
-          display: flex;
-          flex-direction: ${isMobileDevice() ? 'row' : 'column'};
-          align-items: ${isMobileDevice() ? 'center' : 'stretch'};
-          gap: ${isMobileDevice() ? '10px' : '0'};
-          margin-bottom: 10px;
-        `;
-
-        const imgStyle = `width: ${isMobileDevice() ? '60px' : '100%'}; height: ${isMobileDevice() ? '60px' : '120px'}; object-fit: contain; margin-bottom: ${isMobileDevice() ? '0' : '10px'};`;
-        const imgContainer = document.createElement('div');
-        imgContainer.style.cssText = `flex: ${isMobileDevice() ? '0 0 60px' : '1'};`;
-        imgContainer.innerHTML = `
-          <img 
-            src="${fullProductData.images?.[0]?.url || product.thumbnail}" 
-            alt="${productName}" 
-            style="${imgStyle}"
-          >
-        `;
-
-        const textContainer = document.createElement('div');
-        textContainer.style.cssText = `
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-          justify-content: ${isMobileDevice() ? 'center' : 'space-between'};
-          align-items: ${isMobileDevice() ? 'flex-start' : 'center'};
-          text-align: ${isMobileDevice() ? 'left' : 'center'};
-        `;
-
-        const titleElement = document.createElement('h4');
-        titleElement.textContent = productName;
-        titleElement.style.cssText = `
-          font-size: 0.9em;
-          margin: 0;
-          ${isMobileDevice() ? '' : 'min-height: 40px;'}
-        `;
-
-        textContainer.appendChild(titleElement);
-
-        productContent.appendChild(imgContainer);
-        productContent.appendChild(textContainer);
-        card.appendChild(productContent);
-
-        // Add variants section if product has options
-        if (fullProductData.has_options && fullProductData.variants?.length > 0) {
-          const variantsSection = this.createVariantsSection(fullProductData, currentLang);
-          form.appendChild(variantsSection);
-
-          // Initialize with default variant
-          if (fullProductData.selected_product) {
-            this.updateSelectedVariant(fullProductData, form);
-          }
-        }
-
-        // Price display
-        const priceContainer = document.createElement('div');
-        priceContainer.style.cssText = `margin-bottom: 10px; font-weight: bold;`;
-
-        const currentPrice = document.createElement('span');
-        currentPrice.className = 'product-price';
-        currentPrice.style.color = 'var(--theme-primary, #00b286)';
-
-        const oldPrice = document.createElement('span');
-        oldPrice.className = 'product-old-price';
-        oldPrice.style.cssText = `
-          text-decoration: line-through;
-          color: #999;
-          margin-${isRTL ? 'right' : 'left'}: 10px;
-          display: none;
-        `;
-
-        const currencySymbol = currentLang === 'ar' ? 'ر.س' : 'SAR';
-
-        if (fullProductData.formatted_sale_price) {
-          currentPrice.textContent = fullProductData.formatted_sale_price.replace('SAR', currencySymbol);
-          oldPrice.textContent = fullProductData.formatted_price.replace('SAR', currencySymbol);
-          oldPrice.style.display = 'inline';
-        } else {
-          currentPrice.textContent = fullProductData.formatted_price.replace('SAR', currencySymbol);
-        }
-
-        priceContainer.appendChild(currentPrice);
-        priceContainer.appendChild(oldPrice);
-        textContainer.appendChild(priceContainer);
-
-        // Quantity selector
-        const quantityWrapper = document.createElement('div');
-        quantityWrapper.style.cssText = `
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 10px;
-          margin-bottom: 10px;
-        `;
-
-        const quantityLabel = document.createElement('label');
-        quantityLabel.textContent = currentLang === 'ar' ? 'الكمية:' : 'Quantity:';
-        quantityLabel.style.cssText = `
-          font-size: 14px;
-          color: #666;
-        `;
-
-        const quantityInput = document.createElement('input');
-        quantityInput.type = 'number';
-        quantityInput.id = 'product-quantity';
-        quantityInput.name = 'quantity';
-        quantityInput.min = '1';
-        quantityInput.value = '1';
-        quantityInput.style.cssText = `
-          width: 50px;
-          padding: 5px;
-          border: 1px solid #ddd;
-          border-radius: 4px;
-          text-align: center;
-        `;
-
-        quantityWrapper.appendChild(quantityLabel);
-        quantityWrapper.appendChild(quantityInput);
-        form.appendChild(quantityWrapper);
-
-        // Add to cart button
-        const addButton = document.createElement('button');
-        addButton.className = 'btn btn-primary add-to-cart-btn';
-        addButton.type = 'button';
-        addButton.textContent = currentLang === 'ar' ? 'أضف إلى السلة' : 'Add to Cart';
-        addButton.style.cssText = `
-          background: var(--theme-primary, #007bff);
-          color: white;
-          width: 100%;
-          padding: 8px;
-          border: none;
-          border-radius: 20px;
-          cursor: pointer;
-          font-size: 0.9em;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 8px;
-          transition: background-color 0.3s;
-        `;
-
-        const spinner = document.createElement('div');
-        spinner.className = 'add-to-cart-progress d-none';
-        spinner.style.cssText = `
-          width: 16px;
-          height: 16px;
-          border: 2px solid #ffffff;
-          border-top: 2px solid transparent;
-          border-radius: 50%;
-          animation: spin 1s linear infinite;
-        `;
-        addButton.appendChild(spinner);
-
-        // Add to cart handler
-        addButton.addEventListener('click', function() {
-          if (fullProductData.has_options && fullProductData.variants?.length > 0) {
-            const selectedVariants = {};
-            const missingSelections = [];
-            
-            form.querySelectorAll('.variant-select').forEach(select => {
-              const labelText = select.previousElementSibling.textContent;
-              if (!select.value) {
-                missingSelections.push(labelText);
-              }
-              selectedVariants[labelText] = select.value;
-            });
-
-            if (missingSelections.length > 0) {
-              const message = currentLang === 'ar' 
-                ? `الرجاء اختيار ${missingSelections.join(', ')}`
-                : `Please select ${missingSelections.join(', ')}`;
-              alert(message);
-              return;
-            }
-          }
-
-          const spinners = form.querySelectorAll('.add-to-cart-progress');
-          spinners.forEach(s => s.classList.remove('d-none'));
-
-          zid.store.cart.addProduct({ 
-            formId: form.id
-          }).then(function(response) {
-            console.log('Add to cart response:', response);
-            if(response.status === 'success') {
-              if (typeof setCartBadge === 'function') {
-                setCartBadge(response.data.cart.products_count);
-              }
-              // Remove the modal closing line
-              // window.HMStudioUpsell.closeModal();
-            }
-            spinners.forEach(s => s.classList.add('d-none'));
-          }).catch(function(error) {
-            console.error('Add to cart error:', error);
-            spinners.forEach(s => s.classList.add('d-none'));
-          });
-        });
-
-        card.appendChild(form);
-        card.appendChild(addButton);
-
-        return card;
-      } catch (error) {
-        console.error('Error creating product card:', error);
-        return null;
-      }
-    },
-
-    createVariantsSection(product, currentLang) {
-      const variantsContainer = document.createElement('div');
-      variantsContainer.className = 'hmstudio-upsell-variants';
-      variantsContainer.style.cssText = `
-        margin-top: 10px;
-        margin-bottom: 10px;
-      `;
-
-      if (product.variants && product.variants.length > 0) {
-        const variantAttributes = new Map();
-        
-        product.variants.forEach(variant => {
-          if (variant.attributes && variant.attributes.length > 0) {
-            variant.attributes.forEach(attr => {
-              if (!variantAttributes.has(attr.name)) {
-                variantAttributes.set(attr.name, {
-                  name: attr.name,
-                  slug: attr.slug,
-                  values: new Set()
-                });
-              }
-              variantAttributes.get(attr.name).values.add(attr.value[currentLang]);
-            });
-          }
-        });
-
-        variantAttributes.forEach((attr) => {
-          const select = document.createElement('select');
-          select.className = 'variant-select';
-          select.style.cssText = `
-            margin: 5px 0;
-            padding: 6px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            width: 100%;
-            font-size: 0.9em;
-          `;
-
-          const labelText = currentLang === 'ar' ? attr.slug : attr.name;
-          
-          const label = document.createElement('label');
-          label.textContent = labelText;
-          label.style.cssText = `
-            display: block;
-            margin-bottom: 3px;
-            font-weight: bold;
-            font-size: 0.9em;
-          `;
-
-          const placeholderText = currentLang === 'ar' ? `اختر ${labelText}` : `Select ${labelText}`;
-          
-          let optionsHTML = `<option value="">${placeholderText}</option>`;
-          
-          Array.from(attr.values).forEach(value => {
-            optionsHTML += `<option value="${value}">${value}</option>`;
-          });
-          
-          select.innerHTML = optionsHTML;
-
-          select.addEventListener('change', () => {
-            console.log('Selected:', attr.name, select.value);
-            this.updateSelectedVariant(product, I understand your concerns. Let's make the necessary adjustments to improve the mobile layout without changing the desktop version. I'll update the code to address these issues:
-
-1. Make the pop-up smaller on mobile, not full-screen
-2. Adjust the product card layout for mobile
-3. Make the product cards smaller on mobile to fit the "Add all to cart" button without scrolling
-
-
-
-<ReactProject id="UpsellScript">
-
-```typescriptreact file="upsell.js"
-[v0-no-op-code-block-prefix]// src/scripts/upsell.js v1.7.6
+// src/scripts/upsell.js v2.0.5
 // HMStudio Upsell Feature
 
 (function() {
@@ -503,10 +101,10 @@
           padding: 15px;
           text-align: center;
           transition: transform 0.2s ease, box-shadow 0.2s ease;
-          width: ${isMobileDevice() ? '100%' : '180px'};
+          width: ${isMobileDevice() ? '100%' : '160px'};
           display: ${isMobileDevice() ? 'flex' : 'block'};
           flex-direction: ${isMobileDevice() ? 'column' : 'unset'};
-          align-items: ${isMobileDevice() ? 'center' : 'stretch'};
+          align-items: ${isMobileDevice() ? 'stretch' : 'unset'};
           gap: ${isMobileDevice() ? '10px' : '0'};
         `;
 
@@ -525,17 +123,16 @@
         // Product content
         const productContent = document.createElement('div');
         productContent.style.cssText = `
-          ${isMobileDevice() ? 'width: 100%; display: flex; align-items: center; gap: 10px;' : ''}
+          ${isMobileDevice() ? '' : ''}
         `;
 
-        const imgStyle = `width: ${isMobileDevice() ? '60px' : '100%'}; height: ${isMobileDevice() ? '60px' : '150px'}; object-fit: contain; margin-bottom: ${isMobileDevice() ? '0' : '10px'};`;
         productContent.innerHTML = `
           <img 
             src="${fullProductData.images?.[0]?.url || product.thumbnail}" 
             alt="${productName}" 
-            style="${imgStyle}"
+            style="width: 100%; height: ${isMobileDevice() ? '120px' : '120px'}; object-fit: contain; margin-bottom: ${isMobileDevice() ? '0' : '10px'};"
           >
-          <h4 style="font-size: 1em; margin: ${isMobileDevice() ? '0' : '10px 0'}; ${isMobileDevice() ? 'flex: 1; text-align: left;' : 'min-height: 40px;'}">
+          <h4 style="font-size: 1em; margin: ${isMobileDevice() ? '0' : '10px 0'}; min-height: ${isMobileDevice() ? 'auto' : '40px'};">
             ${productName}
           </h4>
         `;
@@ -556,10 +153,11 @@
         const quantityWrapper = document.createElement('div');
         quantityWrapper.style.cssText = `
           display: flex;
-          align-items: center;
+          flex-direction: ${isMobileDevice() ? 'column' : 'row'};
+          align-items: ${isMobileDevice() ? 'stretch' : 'center'};
           justify-content: center;
-          gap: 10px;
-          margin: 15px 0;
+          gap: ${isMobileDevice() ? '5px' : '10px'};
+          margin: ${isMobileDevice() ? '10px 0' : '15px 0'};
         `;
 
         const quantityLabel = document.createElement('label');
@@ -870,7 +468,7 @@
           background-color: rgba(0, 0, 0, 0.5);
           display: flex;
           justify-content: center;
-          align-items: center;
+          align-items: ${isMobileDevice() ? 'center' : 'center'};
           z-index: 999999;
           opacity: 0;
           transition: opacity 0.3s ease;
@@ -885,8 +483,7 @@
           border-radius: 12px;
           width: ${isMobileDevice() ? '90%' : (productCount === 1 ? '600px' : productCount === 2 ? '800px' : '1000px')};
           max-width: 90%;
-          height: ${isMobileDevice() ? 'auto' : 'auto'};
-          max-height: ${isMobileDevice() ? '80vh' : '90vh'};
+          max-height: 90vh;
           overflow-y: auto;
           position: relative;
           transform: translateY(20px);
@@ -944,7 +541,7 @@
           display: flex;
           flex-direction: ${isMobileDevice() ? 'column-reverse' : 'row'};
           gap: ${isMobileDevice() ? '20px' : '30px'};
-          align-items: ${isMobileDevice() ? 'stretch' : 'flex-start'};
+          align-items: stretch;
         `;
 
         // Left sidebar
@@ -953,10 +550,10 @@
           width: ${isMobileDevice() ? '100%' : '250px'};
           flex-shrink: 0;
           background: #f8f9fa;
-          padding: ${isMobileDevice() ? '15px' : '20px'};
+          padding: 20px;
           border-radius: 8px;
-          position: ${isMobileDevice() ? 'static' : 'sticky'};
-          top: ${isMobileDevice() ? 'auto' : '20px'};
+          position: ${isMobileDevice() ? 'relative' : 'sticky'};
+          top: ${isMobileDevice() ? '0' : '20px'};
         `;
 
         // Benefit text
@@ -1039,12 +636,11 @@
         productsGrid.style.cssText = `
           display: ${isMobileDevice() ? 'flex' : 'grid'};
           flex-direction: ${isMobileDevice() ? 'column' : 'unset'};
-          grid-template-columns: ${!isMobileDevice() ? `repeat(${productCount}, 180px)` : 'unset'};
-          gap: ${isMobileDevice() ? '10px' : '20px'};
+          grid-template-columns: ${!isMobileDevice() ? `repeat(${productCount}, 160px)` : 'unset'};
+          gap: ${isMobileDevice() ? '15px' : '20px'};
           justify-content: center;
-          width: ${isMobileDevice() ? '100%' : (productCount === 1 ? '200px' : productCount === 2 ? '400px' : '600px')};
+          width: ${isMobileDevice() ? '100%' : (productCount === 1 ? '180px' : productCount === 2 ? '360px' : '540px')};
           margin: 0 auto;
-          ${isMobileDevice() ? 'max-height: calc(80vh - 200px); overflow-y: auto;' : ''}
         `;
 
         // Create product cards
