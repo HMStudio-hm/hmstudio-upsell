@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v1.9.9
+// src/scripts/upsell.js v2.0.0
 // HMStudio Upsell Feature
 
 (function() {
@@ -42,6 +42,10 @@
 
   function getCurrentLanguage() {
     return document.documentElement.lang || 'ar';
+  }
+
+  function isMobileDevice() {
+    return window.innerWidth <= 768;
   }
 
   const storeId = getStoreIdFromUrl();
@@ -91,14 +95,16 @@
         }
 
         const card = document.createElement('div');
-        card.className = 'hmstudio-upsell-product-card';
         card.style.cssText = `
           border: 1px solid #eee;
           border-radius: 8px;
           padding: 15px;
           text-align: center;
           transition: transform 0.2s ease, box-shadow 0.2s ease;
-          width: 180px;
+          width: ${isMobileDevice() ? '100%' : '180px'};
+          display: ${isMobileDevice() ? 'flex' : 'block'};
+          align-items: ${isMobileDevice() ? 'center' : 'stretch'};
+          gap: ${isMobileDevice() ? '15px' : '0'};
         `;
 
         // Create form with proper structure for Zid API
@@ -115,13 +121,17 @@
 
         // Product content
         const productContent = document.createElement('div');
+        productContent.style.cssText = `
+          ${isMobileDevice() ? 'flex: 0 0 100px;' : ''}
+        `;
+
         productContent.innerHTML = `
           <img 
             src="${fullProductData.images?.[0]?.url || product.thumbnail}" 
             alt="${productName}" 
-            style="width: 100%; height: 150px; object-fit: contain; margin-bottom: 10px;"
+            style="width: 100%; height: ${isMobileDevice() ? '100px' : '150px'}; object-fit: contain; margin-bottom: ${isMobileDevice() ? '0' : '10px'};"
           >
-          <h4 style="font-size: 1em; margin: 10px 0; min-height: 40px;">
+          <h4 style="font-size: 1em; margin: ${isMobileDevice() ? '0' : '10px 0'}; min-height: ${isMobileDevice() ? 'auto' : '40px'};">
             ${productName}
           </h4>
         `;
@@ -299,6 +309,120 @@
         padding: 10px 0;
       `;
 
+      if (isMobileDevice()) {
+        const chooseButton = document.createElement('button');
+        chooseButton.textContent = currentLang === 'ar' ? 'اختر' : 'Choose';
+        chooseButton.style.cssText = `
+          background: #fff;
+          border: 1px solid #ddd;
+          border-radius: 20px;
+          padding: 8px 20px;
+          width: 100%;
+          margin: 10px 0;
+          cursor: pointer;
+        `;
+        
+        chooseButton.addEventListener('click', () => {
+          const variantsDialog = document.createElement('div');
+          variantsDialog.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000000;
+          `;
+          
+          const dialogContent = document.createElement('div');
+          dialogContent.style.cssText = `
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 400px;
+          `;
+          
+          // Create variant selectors
+          variantAttributes.forEach((attr) => {
+            const select = document.createElement('select');
+            select.className = 'variant-select';
+            select.style.cssText = `
+              margin: 5px 0;
+              padding: 8px;
+              border: 1px solid #ddd;
+              border-radius: 4px;
+              width: 100%;
+            `;
+
+            const labelText = currentLang === 'ar' ? attr.slug : attr.name;
+            
+            const label = document.createElement('label');
+            label.textContent = labelText;
+            label.style.cssText = `
+              display: block;
+              margin-bottom: 5px;
+              font-weight: bold;
+            `;
+
+            const placeholderText = currentLang === 'ar' ? `اختر ${labelText}` : `Select ${labelText}`;
+            
+            let optionsHTML = `<option value="">${placeholderText}</option>`;
+            
+            Array.from(attr.values).forEach(value => {
+              optionsHTML += `<option value="${value}">${value}</option>`;
+            });
+            
+            select.innerHTML = optionsHTML;
+            
+            dialogContent.appendChild(label);
+            dialogContent.appendChild(select);
+          });
+          
+          // Add confirm button
+          const confirmButton = document.createElement('button');
+          confirmButton.textContent = currentLang === 'ar' ? 'تأكيد' : 'Confirm';
+          confirmButton.style.cssText = `
+            background: var(--theme-primary, #00b286);
+            color: white;
+            border: none;
+            border-radius: 20px;
+            padding: 10px;
+            width: 100%;
+            margin-top: 20px;
+            cursor: pointer;
+          `;
+          
+          confirmButton.addEventListener('click', () => {
+            const selects = dialogContent.querySelectorAll('select');
+            selects.forEach(select => {
+              const originalSelect = variantsContainer.querySelector(`select[data-name="${select.dataset.name}"]`);
+              if (originalSelect) {
+                originalSelect.value = select.value;
+                originalSelect.dispatchEvent(new Event('change'));
+              }
+            });
+            variantsDialog.remove();
+          });
+          
+          dialogContent.appendChild(confirmButton);
+          variantsDialog.appendChild(dialogContent);
+          document.body.appendChild(variantsDialog);
+          
+          variantsDialog.addEventListener('click', (e) => {
+            if (e.target === variantsDialog) {
+              variantsDialog.remove();
+            }
+          });
+        });
+        
+        variantsContainer.appendChild(chooseButton);
+        return variantsContainer;
+      }
+
       if (product.variants && product.variants.length > 0) {
         const variantAttributes = new Map();
         
@@ -467,9 +591,9 @@
         const productCount = campaign.upsellProducts.length;
         content.style.cssText = `
           background: white;
-          padding: 40px;
+          padding: ${isMobileDevice() ? '20px' : '40px'};
           border-radius: 12px;
-          width: ${productCount === 1 ? '600px' : productCount === 2 ? '800px' : '1000px'};
+          width: ${isMobileDevice() ? '100%' : (productCount === 1 ? '600px' : productCount === 2 ? '800px' : '1000px')};
           max-width: 90%;
           max-height: 90vh;
           overflow-y: auto;
@@ -526,9 +650,10 @@
         // Main content wrapper
         const mainWrapper = document.createElement('div');
         mainWrapper.style.cssText = `
-          display: flex;
+          display: ${isMobileDevice() ? 'flex' : 'flex'};
+          flex-direction: ${isMobileDevice() ? 'column-reverse' : 'row'};
           gap: 30px;
-          align-items: flex-start;
+          align-items: ${isMobileDevice() ? 'stretch' : 'flex-start'};
         `;
 
         // Left sidebar
@@ -620,15 +745,13 @@
 
         // Products grid
         const productsGrid = document.createElement('div');
-        const gridWidth = productCount === 1 ? '200px' : 
-                          productCount === 2 ? '400px' : 
-                          '600px';
         productsGrid.style.cssText = `
-          display: grid;
-          grid-template-columns: repeat(${productCount}, 180px);
+          display: ${isMobileDevice() ? 'flex' : 'grid'};
+          flex-direction: ${isMobileDevice() ? 'column' : 'unset'};
+          grid-template-columns: ${!isMobileDevice() ? `repeat(${productCount}, 180px)` : 'unset'};
           gap: 20px;
           justify-content: center;
-          width: ${gridWidth};
+          width: ${isMobileDevice() ? '100%' : (productCount === 1 ? '200px' : productCount === 2 ? '400px' : '600px')};
           margin: 0 auto;
         `;
 
@@ -724,6 +847,7 @@
           const content = this.currentModal.querySelector('.hmstudio-upsell-content');
           if (content) {
             content.style.maxHeight = `${window.innerHeight * 0.9}px`;
+            this.showUpsellModal(this.currentCampaign, this.currentProductCart);
           }
         }
       });
