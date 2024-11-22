@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v2.0.0
+// src/scripts/upsell.js v2.0.1
 // HMStudio Upsell Feature
 
 (function() {
@@ -122,14 +122,15 @@
         // Product content
         const productContent = document.createElement('div');
         productContent.style.cssText = `
-          ${isMobileDevice() ? 'flex: 0 0 100px;' : ''}
+          ${isMobileDevice() ? 'flex: 0 0 80px;' : ''}
         `;
 
+        const imgStyle = `width: 100%; height: ${isMobileDevice() ? '80px' : '150px'}; object-fit: contain; margin-bottom: ${isMobileDevice() ? '0' : '10px'};`;
         productContent.innerHTML = `
           <img 
             src="${fullProductData.images?.[0]?.url || product.thumbnail}" 
             alt="${productName}" 
-            style="width: 100%; height: ${isMobileDevice() ? '100px' : '150px'}; object-fit: contain; margin-bottom: ${isMobileDevice() ? '0' : '10px'};"
+            style="${imgStyle}"
           >
           <h4 style="font-size: 1em; margin: ${isMobileDevice() ? '0' : '10px 0'}; min-height: ${isMobileDevice() ? 'auto' : '40px'};">
             ${productName}
@@ -309,120 +310,6 @@
         padding: 10px 0;
       `;
 
-      if (isMobileDevice()) {
-        const chooseButton = document.createElement('button');
-        chooseButton.textContent = currentLang === 'ar' ? 'اختر' : 'Choose';
-        chooseButton.style.cssText = `
-          background: #fff;
-          border: 1px solid #ddd;
-          border-radius: 20px;
-          padding: 8px 20px;
-          width: 100%;
-          margin: 10px 0;
-          cursor: pointer;
-        `;
-        
-        chooseButton.addEventListener('click', () => {
-          const variantsDialog = document.createElement('div');
-          variantsDialog.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.5);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000000;
-          `;
-          
-          const dialogContent = document.createElement('div');
-          dialogContent.style.cssText = `
-            background: white;
-            padding: 20px;
-            border-radius: 12px;
-            width: 90%;
-            max-width: 400px;
-          `;
-          
-          // Create variant selectors
-          variantAttributes.forEach((attr) => {
-            const select = document.createElement('select');
-            select.className = 'variant-select';
-            select.style.cssText = `
-              margin: 5px 0;
-              padding: 8px;
-              border: 1px solid #ddd;
-              border-radius: 4px;
-              width: 100%;
-            `;
-
-            const labelText = currentLang === 'ar' ? attr.slug : attr.name;
-            
-            const label = document.createElement('label');
-            label.textContent = labelText;
-            label.style.cssText = `
-              display: block;
-              margin-bottom: 5px;
-              font-weight: bold;
-            `;
-
-            const placeholderText = currentLang === 'ar' ? `اختر ${labelText}` : `Select ${labelText}`;
-            
-            let optionsHTML = `<option value="">${placeholderText}</option>`;
-            
-            Array.from(attr.values).forEach(value => {
-              optionsHTML += `<option value="${value}">${value}</option>`;
-            });
-            
-            select.innerHTML = optionsHTML;
-            
-            dialogContent.appendChild(label);
-            dialogContent.appendChild(select);
-          });
-          
-          // Add confirm button
-          const confirmButton = document.createElement('button');
-          confirmButton.textContent = currentLang === 'ar' ? 'تأكيد' : 'Confirm';
-          confirmButton.style.cssText = `
-            background: var(--theme-primary, #00b286);
-            color: white;
-            border: none;
-            border-radius: 20px;
-            padding: 10px;
-            width: 100%;
-            margin-top: 20px;
-            cursor: pointer;
-          `;
-          
-          confirmButton.addEventListener('click', () => {
-            const selects = dialogContent.querySelectorAll('select');
-            selects.forEach(select => {
-              const originalSelect = variantsContainer.querySelector(`select[data-name="${select.dataset.name}"]`);
-              if (originalSelect) {
-                originalSelect.value = select.value;
-                originalSelect.dispatchEvent(new Event('change'));
-              }
-            });
-            variantsDialog.remove();
-          });
-          
-          dialogContent.appendChild(confirmButton);
-          variantsDialog.appendChild(dialogContent);
-          document.body.appendChild(variantsDialog);
-          
-          variantsDialog.addEventListener('click', (e) => {
-            if (e.target === variantsDialog) {
-              variantsDialog.remove();
-            }
-          });
-        });
-        
-        variantsContainer.appendChild(chooseButton);
-        return variantsContainer;
-      }
-
       if (product.variants && product.variants.length > 0) {
         const variantAttributes = new Map();
         
@@ -587,19 +474,22 @@
         `;
 
         const content = document.createElement('div');
-        content.className = 'hmstudio-upsell-content';
         const productCount = campaign.upsellProducts.length;
+        content.className = 'hmstudio-upsell-content';
         content.style.cssText = `
           background: white;
           padding: ${isMobileDevice() ? '20px' : '40px'};
           border-radius: 12px;
           width: ${isMobileDevice() ? '100%' : (productCount === 1 ? '600px' : productCount === 2 ? '800px' : '1000px')};
-          max-width: 90%;
-          max-height: 90vh;
+          max-width: ${isMobileDevice() ? '100%' : '90%'};
+          height: ${isMobileDevice() ? '100%' : 'auto'};
+          max-height: ${isMobileDevice() ? '100%' : '90vh'};
           overflow-y: auto;
-          position: relative;
-          transform: translateY(20px);
-          transition: transform 0.3s ease;
+          position: ${isMobileDevice() ? 'fixed' : 'relative'};
+          top: ${isMobileDevice() ? '0' : 'auto'};
+          left: ${isMobileDevice() ? '0' : 'auto'};
+          transform: ${isMobileDevice() ? 'none' : 'translateY(20px)'};
+          transition: ${isMobileDevice() ? 'none' : 'transform 0.3s ease'};
           direction: ${isRTL ? 'rtl' : 'ltr'};
         `;
 
@@ -650,22 +540,22 @@
         // Main content wrapper
         const mainWrapper = document.createElement('div');
         mainWrapper.style.cssText = `
-          display: ${isMobileDevice() ? 'flex' : 'flex'};
+          display: flex;
           flex-direction: ${isMobileDevice() ? 'column-reverse' : 'row'};
-          gap: 30px;
+          gap: ${isMobileDevice() ? '20px' : '30px'};
           align-items: ${isMobileDevice() ? 'stretch' : 'flex-start'};
         `;
 
         // Left sidebar
         const sidebar = document.createElement('div');
         sidebar.style.cssText = `
-          width: 250px;
+          width: ${isMobileDevice() ? '100%' : '250px'};
           flex-shrink: 0;
           background: #f8f9fa;
-          padding: 20px;
+          padding: ${isMobileDevice() ? '15px' : '20px'};
           border-radius: 8px;
-          position: sticky;
-          top: 20px;
+          position: ${isMobileDevice() ? 'static' : 'sticky'};
+          top: ${isMobileDevice() ? 'auto' : '20px'};
         `;
 
         // Benefit text
@@ -687,8 +577,8 @@
           color: white;
           border: none;
           border-radius: 25px;
-          padding: 12px 20px;
-          font-size: 16px;
+          padding: ${isMobileDevice() ? '10px 15px' : '12px 20px'};
+          font-size: ${isMobileDevice() ? '14px' : '16px'};
           cursor: pointer;
           width: 100%;
           transition: background-color 0.3s;
@@ -749,7 +639,7 @@
           display: ${isMobileDevice() ? 'flex' : 'grid'};
           flex-direction: ${isMobileDevice() ? 'column' : 'unset'};
           grid-template-columns: ${!isMobileDevice() ? `repeat(${productCount}, 180px)` : 'unset'};
-          gap: 20px;
+          gap: ${isMobileDevice() ? '15px' : '20px'};
           justify-content: center;
           width: ${isMobileDevice() ? '100%' : (productCount === 1 ? '200px' : productCount === 2 ? '400px' : '600px')};
           margin: 0 auto;
