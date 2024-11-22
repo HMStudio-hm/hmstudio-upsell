@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v2.0.5
+// src/scripts/upsell.js v2.0.6
 // HMStudio Upsell Feature
 
 (function() {
@@ -45,7 +45,7 @@
   }
 
   function isMobileDevice() {
-    return window.innerWidth <= 768;
+    return window.innerWidth <= 1024; // Increased to include tablets
   }
 
   const storeId = getStoreIdFromUrl();
@@ -95,17 +95,17 @@
         }
 
         const card = document.createElement('div');
+        card.className = 'hmstudio-upsell-product-card';
         card.style.cssText = `
           border: 1px solid #eee;
           border-radius: 8px;
           padding: 15px;
-          text-align: center;
+          text-align: ${isMobileDevice() ? 'left' : 'center'};
           transition: transform 0.2s ease, box-shadow 0.2s ease;
-          width: ${isMobileDevice() ? '100%' : '160px'};
+          width: ${isMobileDevice() ? '100%' : '180px'};
           display: ${isMobileDevice() ? 'flex' : 'block'};
-          flex-direction: ${isMobileDevice() ? 'column' : 'unset'};
-          align-items: ${isMobileDevice() ? 'stretch' : 'unset'};
-          gap: ${isMobileDevice() ? '10px' : '0'};
+          align-items: ${isMobileDevice() ? 'center' : 'stretch'};
+          gap: ${isMobileDevice() ? '15px' : '0'};
         `;
 
         // Create form with proper structure for Zid API
@@ -123,19 +123,34 @@
         // Product content
         const productContent = document.createElement('div');
         productContent.style.cssText = `
-          ${isMobileDevice() ? '' : ''}
+          ${isMobileDevice() ? 'flex: 1; display: flex; flex-direction: column;' : ''}
         `;
 
-        productContent.innerHTML = `
-          <img 
-            src="${fullProductData.images?.[0]?.url || product.thumbnail}" 
-            alt="${productName}" 
-            style="width: 100%; height: ${isMobileDevice() ? '120px' : '120px'}; object-fit: contain; margin-bottom: ${isMobileDevice() ? '0' : '10px'};"
-          >
-          <h4 style="font-size: 1em; margin: ${isMobileDevice() ? '0' : '10px 0'}; min-height: ${isMobileDevice() ? 'auto' : '40px'};">
-            ${productName}
-          </h4>
+        const productImage = document.createElement('img');
+        productImage.src = fullProductData.images?.[0]?.url || product.thumbnail;
+        productImage.alt = productName;
+        productImage.style.cssText = `
+          width: ${isMobileDevice() ? '100px' : '100%'};
+          height: ${isMobileDevice() ? '100px' : '150px'};
+          object-fit: contain;
+          ${isMobileDevice() ? 'order: 1;' : 'margin-bottom: 10px;'}
         `;
+
+        const productTitle = document.createElement('h4');
+        productTitle.textContent = productName;
+        productTitle.style.cssText = `
+          font-size: 1em;
+          margin: ${isMobileDevice() ? '0 0 10px' : '10px 0'};
+          min-height: ${isMobileDevice() ? 'auto' : '40px'};
+        `;
+
+        if (isMobileDevice()) {
+          productContent.appendChild(productTitle);
+        }
+        productContent.appendChild(productImage);
+        if (!isMobileDevice()) {
+          productContent.appendChild(productTitle);
+        }
         card.appendChild(productContent);
 
         // Add variants section if product has options
@@ -149,22 +164,36 @@
           }
         }
 
-        // Quantity selector
+        // Update quantity selector
         const quantityWrapper = document.createElement('div');
         quantityWrapper.style.cssText = `
           display: flex;
-          flex-direction: ${isMobileDevice() ? 'column' : 'row'};
-          align-items: ${isMobileDevice() ? 'stretch' : 'center'};
-          justify-content: center;
-          gap: ${isMobileDevice() ? '5px' : '10px'};
-          margin: ${isMobileDevice() ? '10px 0' : '15px 0'};
+          align-items: center;
+          justify-content: ${isMobileDevice() ? 'flex-start' : 'center'};
+          gap: 10px;
+          margin: ${isMobileDevice() ? '0' : '15px 0'};
         `;
 
-        const quantityLabel = document.createElement('label');
-        quantityLabel.textContent = currentLang === 'ar' ? 'الكمية:' : 'Quantity:';
-        quantityLabel.style.cssText = `
-          font-size: 14px;
-          color: #666;
+        const decreaseButton = document.createElement('button');
+        decreaseButton.textContent = '-';
+        decreaseButton.style.cssText = `
+          width: 30px;
+          height: 30px;
+          border: 1px solid #ddd;
+          background: #f8f8f8;
+          border-radius: 4px;
+          cursor: pointer;
+        `;
+
+        const increaseButton = document.createElement('button');
+        increaseButton.textContent = '+';
+        increaseButton.style.cssText = `
+          width: 30px;
+          height: 30px;
+          border: 1px solid #ddd;
+          background: #f8f8f8;
+          border-radius: 4px;
+          cursor: pointer;
         `;
 
         const quantityInput = document.createElement('input');
@@ -174,15 +203,26 @@
         quantityInput.min = '1';
         quantityInput.value = '1';
         quantityInput.style.cssText = `
-          width: 60px;
+          width: 40px;
           padding: 5px;
           border: 1px solid #ddd;
           border-radius: 4px;
           text-align: center;
         `;
 
-        quantityWrapper.appendChild(quantityLabel);
+        decreaseButton.addEventListener('click', () => {
+          if (parseInt(quantityInput.value) > 1) {
+            quantityInput.value = parseInt(quantityInput.value) - 1;
+          }
+        });
+
+        increaseButton.addEventListener('click', () => {
+          quantityInput.value = parseInt(quantityInput.value) + 1;
+        });
+
+        quantityWrapper.appendChild(decreaseButton);
         quantityWrapper.appendChild(quantityInput);
+        quantityWrapper.appendChild(increaseButton);
         form.appendChild(quantityWrapper);
 
         // Price display
@@ -216,7 +256,7 @@
         priceContainer.appendChild(oldPrice);
         card.appendChild(priceContainer);
 
-        // Add to cart button
+        // Update add to cart button
         const addButton = document.createElement('button');
         addButton.className = 'btn btn-primary add-to-cart-btn';
         addButton.type = 'button';
@@ -224,30 +264,18 @@
         addButton.style.cssText = `
           background: var(--theme-primary, #007bff);
           color: white;
-          width: 100%;
+          width: ${isMobileDevice() ? 'auto' : '100%'};
           padding: 10px;
           border: none;
           border-radius: 20px;
           cursor: pointer;
-          margin-top: 10px;
+          margin-top: ${isMobileDevice() ? '0' : '10px'};
           display: flex;
           align-items: center;
           justify-content: center;
           gap: 8px;
           transition: background-color 0.3s;
         `;
-
-        const spinner = document.createElement('div');
-        spinner.className = 'add-to-cart-progress d-none';
-        spinner.style.cssText = `
-          width: 20px;
-          height: 20px;
-          border: 2px solid #ffffff;
-          border-top: 2px solid transparent;
-          border-radius: 50%;
-          animation: spin 1s linear infinite;
-        `;
-        addButton.appendChild(spinner);
 
         // Add to cart handler
         addButton.addEventListener('click', function() {
@@ -468,7 +496,7 @@
           background-color: rgba(0, 0, 0, 0.5);
           display: flex;
           justify-content: center;
-          align-items: ${isMobileDevice() ? 'center' : 'center'};
+          align-items: center;
           z-index: 999999;
           opacity: 0;
           transition: opacity 0.3s ease;
@@ -483,7 +511,7 @@
           border-radius: 12px;
           width: ${isMobileDevice() ? '90%' : (productCount === 1 ? '600px' : productCount === 2 ? '800px' : '1000px')};
           max-width: 90%;
-          max-height: 90vh;
+          max-height: ${isMobileDevice() ? '80vh' : '90vh'};
           overflow-y: auto;
           position: relative;
           transform: translateY(20px);
@@ -538,10 +566,10 @@
         // Main content wrapper
         const mainWrapper = document.createElement('div');
         mainWrapper.style.cssText = `
-          display: flex;
-          flex-direction: ${isMobileDevice() ? 'column-reverse' : 'row'};
+          display: ${isMobileDevice() ? 'flex' : 'flex'};
+          flex-direction: ${isMobileDevice() ? 'column' : 'row'};
           gap: ${isMobileDevice() ? '20px' : '30px'};
-          align-items: stretch;
+          align-items: ${isMobileDevice() ? 'stretch' : 'flex-start'};
         `;
 
         // Left sidebar
@@ -550,10 +578,10 @@
           width: ${isMobileDevice() ? '100%' : '250px'};
           flex-shrink: 0;
           background: #f8f9fa;
-          padding: 20px;
+          padding: ${isMobileDevice() ? '15px' : '20px'};
           border-radius: 8px;
-          position: ${isMobileDevice() ? 'relative' : 'sticky'};
-          top: ${isMobileDevice() ? '0' : '20px'};
+          position: ${isMobileDevice() ? 'static' : 'sticky'};
+          top: ${isMobileDevice() ? 'auto' : '20px'};
         `;
 
         // Benefit text
@@ -636,10 +664,10 @@
         productsGrid.style.cssText = `
           display: ${isMobileDevice() ? 'flex' : 'grid'};
           flex-direction: ${isMobileDevice() ? 'column' : 'unset'};
-          grid-template-columns: ${!isMobileDevice() ? `repeat(${productCount}, 160px)` : 'unset'};
+          grid-template-columns: ${!isMobileDevice() ? `repeat(${productCount}, 180px)` : 'unset'};
           gap: ${isMobileDevice() ? '15px' : '20px'};
           justify-content: center;
-          width: ${isMobileDevice() ? '100%' : (productCount === 1 ? '180px' : productCount === 2 ? '360px' : '540px')};
+          width: ${isMobileDevice() ? '100%' : (productCount === 1 ? '200px' : productCount === 2 ? '400px' : '600px')};
           margin: 0 auto;
         `;
 
@@ -758,4 +786,3 @@
     UpsellManager.initialize();
   }
 })();
-
