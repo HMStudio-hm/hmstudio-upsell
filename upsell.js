@@ -1,9 +1,10 @@
-// src/scripts/upsell.js v2.0.2
+// src/scripts/upsell.js v1.7.7
 // HMStudio Upsell Feature
 
 (function() {
 console.log('Upsell script initialized');
 
+// Previous helper functions remain the same...
 function getStoreIdFromUrl() {
   const scriptTag = document.currentScript;
   const scriptUrl = new URL(scriptTag.src);
@@ -99,17 +100,20 @@ const UpsellManager = {
         border: 1px solid #eee;
         border-radius: 8px;
         padding: 12px;
-        text-align: ${isRTL ? 'right' : 'left'};
-        width: ${isMobileDevice() ? '100%' : '180px'};
         display: flex;
-        flex-direction: column;
-        gap: 8px;
+        flex-direction: ${isRTL ? 'row-reverse' : 'row'};
+        align-items: center;
+        gap: 15px;
+        background: white;
+        width: 100%;
+        max-width: 400px;
       `;
 
-      // Create form
+      // Create form with proper structure for Zid API
       const form = document.createElement('form');
       form.id = `product-form-${fullProductData.id}`;
       form.style.cssText = `
+        flex: 1;
         display: flex;
         flex-direction: column;
         gap: 8px;
@@ -123,29 +127,44 @@ const UpsellManager = {
       productIdInput.value = fullProductData.selected_product?.id || fullProductData.id;
       form.appendChild(productIdInput);
 
-      // Product image
+      // Product image container
+      const imageContainer = document.createElement('div');
+      imageContainer.style.cssText = `
+        width: 80px;
+        height: 80px;
+        flex-shrink: 0;
+      `;
+
       const productImage = document.createElement('img');
       productImage.src = fullProductData.images?.[0]?.url || product.thumbnail;
       productImage.alt = productName;
       productImage.style.cssText = `
         width: 100%;
-        height: ${isMobileDevice() ? '80px' : '120px'};
+        height: 100%;
         object-fit: contain;
-        margin-bottom: 8px;
+        border-radius: 4px;
       `;
-      form.appendChild(productImage);
+      imageContainer.appendChild(productImage);
+
+      // Product info container
+      const infoContainer = document.createElement('div');
+      infoContainer.style.cssText = `
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      `;
 
       // Product name
       const nameElement = document.createElement('h4');
       nameElement.textContent = productName;
       nameElement.style.cssText = `
-        font-size: 14px;
+        font-size: 0.9em;
         margin: 0;
-        font-weight: 500;
+        font-weight: 600;
         color: #333;
-        min-height: 40px;
       `;
-      form.appendChild(nameElement);
+      infoContainer.appendChild(nameElement);
 
       // Price display
       const priceContainer = document.createElement('div');
@@ -159,9 +178,9 @@ const UpsellManager = {
       const currentPrice = document.createElement('span');
       currentPrice.className = 'product-price';
       currentPrice.style.cssText = `
-        font-weight: 600;
-        color: #333;
-        font-size: 14px;
+        font-weight: bold;
+        color: var(--theme-primary, #00b286);
+        font-size: 0.9em;
       `;
 
       const oldPrice = document.createElement('span');
@@ -169,7 +188,7 @@ const UpsellManager = {
       oldPrice.style.cssText = `
         text-decoration: line-through;
         color: #999;
-        font-size: 12px;
+        font-size: 0.8em;
         margin-${isRTL ? 'right' : 'left'}: 8px;
         display: none;
       `;
@@ -186,13 +205,21 @@ const UpsellManager = {
 
       priceContainer.appendChild(currentPrice);
       priceContainer.appendChild(oldPrice);
-      form.appendChild(priceContainer);
+      infoContainer.appendChild(priceContainer);
 
-      // Variants section (if product has options)
+      // Controls container
+      const controlsContainer = document.createElement('div');
+      controlsContainer.style.cssText = `
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-top: 4px;
+      `;
+
+      // Variants section
       if (fullProductData.has_options && fullProductData.variants?.length > 0) {
         const variantsSection = this.createVariantsSection(fullProductData, currentLang);
-        variantsSection.style.margin = '4px 0';
-        form.appendChild(variantsSection);
+        controlsContainer.appendChild(variantsSection);
       }
 
       // Quantity selector
@@ -200,15 +227,13 @@ const UpsellManager = {
       quantityContainer.style.cssText = `
         display: flex;
         align-items: center;
-        justify-content: center;
         gap: 8px;
-        margin: 8px 0;
       `;
 
-      const minusButton = document.createElement('button');
-      minusButton.type = 'button';
-      minusButton.textContent = '-';
-      minusButton.style.cssText = `
+      const decrementBtn = document.createElement('button');
+      decrementBtn.type = 'button';
+      decrementBtn.textContent = '-';
+      decrementBtn.style.cssText = `
         width: 24px;
         height: 24px;
         border: 1px solid #ddd;
@@ -219,7 +244,6 @@ const UpsellManager = {
         align-items: center;
         justify-content: center;
         font-size: 16px;
-        color: #666;
       `;
 
       const quantityInput = document.createElement('input');
@@ -229,61 +253,59 @@ const UpsellManager = {
       quantityInput.value = '1';
       quantityInput.style.cssText = `
         width: 40px;
-        text-align: center;
+        padding: 4px;
         border: 1px solid #ddd;
         border-radius: 4px;
-        padding: 2px;
-        font-size: 14px;
+        text-align: center;
+        font-size: 0.9em;
       `;
 
-      const plusButton = document.createElement('button');
-      plusButton.type = 'button';
-      plusButton.textContent = '+';
-      plusButton.style.cssText = minusButton.style.cssText;
+      const incrementBtn = document.createElement('button');
+      incrementBtn.type = 'button';
+      incrementBtn.textContent = '+';
+      incrementBtn.style.cssText = decrementBtn.style.cssText;
 
-      minusButton.addEventListener('click', () => {
+      decrementBtn.addEventListener('click', () => {
         const currentValue = parseInt(quantityInput.value);
         if (currentValue > 1) {
           quantityInput.value = (currentValue - 1).toString();
         }
       });
 
-      plusButton.addEventListener('click', () => {
+      incrementBtn.addEventListener('click', () => {
         const currentValue = parseInt(quantityInput.value);
         quantityInput.value = (currentValue + 1).toString();
       });
 
-      quantityContainer.appendChild(minusButton);
+      quantityContainer.appendChild(decrementBtn);
       quantityContainer.appendChild(quantityInput);
-      quantityContainer.appendChild(plusButton);
-      form.appendChild(quantityContainer);
+      quantityContainer.appendChild(incrementBtn);
 
       // Add to cart button
       const addButton = document.createElement('button');
+      addButton.className = 'btn btn-primary add-to-cart-btn';
       addButton.type = 'button';
-      addButton.textContent = currentLang === 'ar' ? 'إضافة للسلة' : 'Add to Cart';
+      addButton.textContent = currentLang === 'ar' ? 'أضف إلى السلة' : 'Add to Cart';
       addButton.style.cssText = `
-        background: white;
-        color: #333;
-        border: 1px solid #ddd;
+        background: transparent;
+        color: var(--theme-primary, #00b286);
+        border: 1px solid var(--theme-primary, #00b286);
         border-radius: 20px;
-        padding: 8px 16px;
-        font-size: 13px;
+        padding: 6px 16px;
+        font-size: 0.85em;
         cursor: pointer;
-        width: 100%;
-        transition: all 0.2s;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
+        width: fit-content;
+        transition: all 0.3s;
       `;
 
       addButton.addEventListener('mouseover', () => {
-        addButton.style.backgroundColor = '#f5f5f5';
+        addButton.style.backgroundColor = 'var(--theme-primary, #00b286)';
+        addButton.style.color = 'white';
       });
 
       addButton.addEventListener('mouseout', () => {
-        addButton.style.backgroundColor = 'white';
+        addButton.style.backgroundColor = 'transparent';
+        addButton.style.color = 'var(--theme-primary, #00b286)';
       });
 
       const spinner = document.createElement('div');
@@ -291,10 +313,11 @@ const UpsellManager = {
       spinner.style.cssText = `
         width: 16px;
         height: 16px;
-        border: 2px solid #333;
+        border: 2px solid currentColor;
         border-top: 2px solid transparent;
         border-radius: 50%;
         animation: spin 1s linear infinite;
+        margin-left: 8px;
         display: none;
       `;
       addButton.appendChild(spinner);
@@ -341,8 +364,18 @@ const UpsellManager = {
         });
       });
 
-      form.appendChild(addButton);
-      card.appendChild(form);
+      controlsContainer.appendChild(quantityContainer);
+      controlsContainer.appendChild(addButton);
+      infoContainer.appendChild(controlsContainer);
+
+      if (isRTL) {
+        card.appendChild(form);
+        card.appendChild(imageContainer);
+      } else {
+        card.appendChild(imageContainer);
+        card.appendChild(form);
+      }
+      form.appendChild(infoContainer);
 
       return card;
     } catch (error) {
@@ -356,8 +389,8 @@ const UpsellManager = {
     variantsContainer.className = 'hmstudio-upsell-variants';
     variantsContainer.style.cssText = `
       display: flex;
-      flex-direction: column;
-      gap: 4px;
+      flex-wrap: wrap;
+      gap: 8px;
     `;
 
     if (product.variants && product.variants.length > 0) {
@@ -382,12 +415,12 @@ const UpsellManager = {
         const select = document.createElement('select');
         select.className = 'variant-select';
         select.style.cssText = `
-          padding: 6px;
+          padding: 4px 8px;
           border: 1px solid #ddd;
           border-radius: 4px;
-          width: 100%;
-          font-size: 13px;
+          font-size: 0.85em;
           background: white;
+          max-width: 120px;
         `;
 
         const labelText = currentLang === 'ar' ? attr.slug : attr.name;
@@ -424,7 +457,7 @@ const UpsellManager = {
 
     form.querySelectorAll('.variant-select').forEach(select => {
       if (select.value) {
-        const labelText = select.previousElementSibling ? select.previousElementSibling.textContent : select.name;
+        const labelText = select.previousElementSibling?.textContent || select.querySelector('option[value=""]').textContent.replace(/^اختر |^Select /, '');
         selectedValues[labelText] = select.value;
       }
     });
@@ -516,12 +549,11 @@ const UpsellManager = {
 
       const content = document.createElement('div');
       content.className = 'hmstudio-upsell-content';
-      const productCount = campaign.upsellProducts.length;
       content.style.cssText = `
         background: white;
-        padding: ${isMobileDevice() ? '20px' : '40px'};
+        padding: ${isMobileDevice() ? '20px' : '30px'};
         border-radius: 12px;
-        width: ${isMobileDevice() ? '100%' : (productCount === 1 ? '600px' : productCount === 2 ? '800px' : '1000px')};
+        width: ${isMobileDevice() ? '90%' : '600px'};
         max-width: 90%;
         max-height: 90vh;
         overflow-y: auto;
@@ -536,11 +568,11 @@ const UpsellManager = {
       closeButton.innerHTML = '✕';
       closeButton.style.cssText = `
         position: absolute;
-        top: 20px;
-        ${isRTL ? 'right' : 'left'}: 20px;
+        top: 15px;
+        ${isRTL ? 'right' : 'left'}: 15px;
         background: none;
         border: none;
-        font-size: 24px;
+        font-size: 20px;
         cursor: pointer;
         color: #666;
         padding: 5px;
@@ -553,21 +585,21 @@ const UpsellManager = {
       const header = document.createElement('div');
       header.style.cssText = `
         text-align: center;
-        margin-bottom: 30px;
+        margin-bottom: 20px;
       `;
 
       const title = document.createElement('h2');
       title.textContent = currentLang === 'ar' ? decodeURIComponent(campaign.textSettings.titleAr) : campaign.textSettings.titleEn;
       title.style.cssText = `
-        font-size: 28px;
-        margin-bottom: 10px;
+        font-size: 1.5em;
+        margin-bottom: 8px;
         color: #333;
       `;
 
       const subtitle = document.createElement('p');
       subtitle.textContent = currentLang === 'ar' ? decodeURIComponent(campaign.textSettings.subtitleAr) : campaign.textSettings.subtitleEn;
       subtitle.style.cssText = `
-        font-size: 18px;
+        font-size: 1em;
         color: #666;
         margin: 0;
       `;
@@ -575,59 +607,54 @@ const UpsellManager = {
       header.appendChild(title);
       header.appendChild(subtitle);
 
-      // Main content wrapper
-      const mainWrapper = document.createElement('div');
-      mainWrapper.style.cssText = `
-        display: ${isMobileDevice() ? 'flex' : 'flex'};
-        flex-direction: ${isMobileDevice() ? 'column-reverse' : 'row'};
-        gap: 30px;
-        align-items: ${isMobileDevice() ? 'stretch' : 'flex-start'};
+      // Products container
+      const productsContainer = document.createElement('div');
+      productsContainer.style.cssText = `
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        margin: 20px 0;
       `;
 
-      // Left sidebar
-      const sidebar = document.createElement('div');
-      sidebar.style.cssText = `
-        width: 250px;
-        flex-shrink: 0;
-        background: #f8f9fa;
-        padding: 20px;
-        border-radius: 8px;
-        position: sticky;
-        top: 20px;
-      `;
+      // Create product cards
+      const productCards = await Promise.all(
+        campaign.upsellProducts.map(async (product) => {
+          return await this.createProductCard(product);
+        })
+      );
 
-      // Benefit text
-      const benefitText = document.createElement('div');
-      benefitText.style.cssText = `
-        text-align: center;
-        margin-bottom: 20px;
-        font-size: 18px;
-        color: #333;
-        font-weight: bold;
+      productCards.filter(card => card !== null).forEach(card => {
+        productsContainer.appendChild(card);
+      });
+
+      // Add All to Cart button container
+      const addAllContainer = document.createElement('div');
+      addAllContainer.style.cssText = `
+        display: flex;
+        justify-content: center;
+        margin-top: 20px;
       `;
-      benefitText.textContent = currentLang === 'ar' ? 'استفد من العرض' : 'Benefit from the Offer';
 
       // Add All to Cart button
       const addAllButton = document.createElement('button');
       addAllButton.textContent = currentLang === 'ar' ? 'أضف الكل إلى السلة' : 'Add All to Cart';
       addAllButton.style.cssText = `
-        background: #000;
+        background: var(--theme-primary, #00b286);
         color: white;
         border: none;
-        border-radius: 25px;
-        padding: 12px 20px;
-        font-size: 16px;
+        border-radius: 20px;
+        padding: 8px 24px;
+        font-size: 0.9em;
         cursor: pointer;
-        width: 100%;
-        transition: background-color 0.3s;
+        transition: opacity 0.3s;
       `;
 
       addAllButton.addEventListener('mouseover', () => {
-        addAllButton.style.backgroundColor = '#333';
+        addAllButton.style.opacity = '0.9';
       });
 
       addAllButton.addEventListener('mouseout', () => {
-        addAllButton.style.backgroundColor = '#000';
+        addAllButton.style.opacity = '1';
       });
 
       addAllButton.addEventListener('click', async () => {
@@ -664,44 +691,16 @@ const UpsellManager = {
               });
           });
         }
-        // Close the modal after adding all products to the cart
         this.closeModal();
       });
 
-      sidebar.appendChild(benefitText);
-      sidebar.appendChild(addAllButton);
-
-      // Products grid
-      const productsGrid = document.createElement('div');
-      productsGrid.style.cssText = `
-        display: ${isMobileDevice() ? 'flex' : 'grid'};
-        flex-direction: ${isMobileDevice() ? 'column' : 'unset'};
-        grid-template-columns: ${!isMobileDevice() ? `repeat(${productCount}, 180px)` : 'unset'};
-        gap: 20px;
-        justify-content: center;
-        width: ${isMobileDevice() ? '100%' : (productCount === 1 ? '200px' : productCount === 2 ? '400px' : '600px')};
-        margin: 0 auto;
-      `;
-
-      // Create product cards
-      const productCards = await Promise.all(
-        campaign.upsellProducts.map(async (product) => {
-          return await this.createProductCard(product);
-        })
-      );
-
-      productCards.filter(card => card !== null).forEach(card => {
-        productsGrid.appendChild(card);
-      });
-
-      // Assemble the layout
-      mainWrapper.appendChild(sidebar);
-      mainWrapper.appendChild(productsGrid);
+      addAllContainer.appendChild(addAllButton);
 
       // Assemble modal
       content.appendChild(closeButton);
       content.appendChild(header);
-      content.appendChild(mainWrapper);
+      content.appendChild(productsContainer);
+      content.appendChild(addAllContainer);
       modal.appendChild(content);
       document.body.appendChild(modal);
 
@@ -775,7 +774,6 @@ const UpsellManager = {
         const content = this.currentModal.querySelector('.hmstudio-upsell-content');
         if (content) {
           content.style.maxHeight = `${window.innerHeight * 0.9}px`;
-          this.showUpsellModal(this.currentCampaign, this.currentProductCart);
         }
       }
     });
