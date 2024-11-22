@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v1.9.6
+// src/scripts/upsell.js v1.9.7
 // HMStudio Upsell Feature
 
 (function() {
@@ -25,7 +25,6 @@
       const decodedData = atob(campaignsData);
       const parsedData = JSON.parse(decodedData);
       
-      // Remove decoding step for textSettings
       return parsedData.map(campaign => ({
         ...campaign,
         textSettings: {
@@ -99,27 +98,20 @@
           padding: 15px;
           text-align: center;
           transition: transform 0.2s ease, box-shadow 0.2s ease;
+          width: 180px;
         `;
 
         // Create form with proper structure for Zid API
         const form = document.createElement('form');
         form.id = `product-form-${fullProductData.id}`;
 
-        // Product ID input following Zid's convention
+        // Product ID input
         const productIdInput = document.createElement('input');
         productIdInput.type = 'hidden';
-        productIdInput.id = 'product-id';  // Required by Zid
+        productIdInput.id = 'product-id';
         productIdInput.name = 'product_id';
         productIdInput.value = fullProductData.selected_product?.id || fullProductData.id;
         form.appendChild(productIdInput);
-
-        // Quantity input following Zid's convention
-        const quantityInput = document.createElement('input');
-        quantityInput.type = 'hidden';
-        quantityInput.id = 'product-quantity';  // Required by Zid
-        quantityInput.name = 'quantity';
-        quantityInput.value = '1';
-        form.appendChild(quantityInput);
 
         // Product content
         const productContent = document.createElement('div');
@@ -145,6 +137,41 @@
             this.updateSelectedVariant(fullProductData, form);
           }
         }
+
+        // Quantity selector
+        const quantityWrapper = document.createElement('div');
+        quantityWrapper.style.cssText = `
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 10px;
+          margin: 15px 0;
+        `;
+
+        const quantityLabel = document.createElement('label');
+        quantityLabel.textContent = currentLang === 'ar' ? 'الكمية:' : 'Quantity:';
+        quantityLabel.style.cssText = `
+          font-size: 14px;
+          color: #666;
+        `;
+
+        const quantityInput = document.createElement('input');
+        quantityInput.type = 'number';
+        quantityInput.id = 'product-quantity';
+        quantityInput.name = 'quantity';
+        quantityInput.min = '1';
+        quantityInput.value = '1';
+        quantityInput.style.cssText = `
+          width: 60px;
+          padding: 5px;
+          border: 1px solid #ddd;
+          border-radius: 4px;
+          text-align: center;
+        `;
+
+        quantityWrapper.appendChild(quantityLabel);
+        quantityWrapper.appendChild(quantityInput);
+        form.appendChild(quantityWrapper);
 
         // Price display
         const priceContainer = document.createElement('div');
@@ -175,13 +202,13 @@
         priceContainer.appendChild(oldPrice);
         card.appendChild(priceContainer);
 
-        // Add to cart button with spinner
+        // Add to cart button
         const addButton = document.createElement('button');
         addButton.className = 'btn btn-primary add-to-cart-btn';
         addButton.type = 'button';
         addButton.textContent = currentLang === 'ar' ? 'أضف إلى السلة' : 'Add to Cart';
         addButton.style.cssText = `
-          background: var(--theme-primary, #00b286);
+          background: var(--theme-primary, #007bff);
           color: white;
           width: 100%;
           padding: 10px;
@@ -196,14 +223,6 @@
           transition: background-color 0.3s;
         `;
 
-        addButton.addEventListener('mouseover', () => {
-          addButton.style.backgroundColor = '#0056b3';
-        });
-
-        addButton.addEventListener('mouseout', () => {
-          addButton.style.backgroundColor = 'var(--theme-primary, #00b286)';
-        });
-
         const spinner = document.createElement('div');
         spinner.className = 'add-to-cart-progress d-none';
         spinner.style.cssText = `
@@ -216,11 +235,9 @@
         `;
         addButton.appendChild(spinner);
 
-        // Add to cart handler using Zid's convention
+        // Add to cart handler
         addButton.addEventListener('click', function() {
-          // Check if product has variants
           if (fullProductData.has_options && fullProductData.variants?.length > 0) {
-            // Get all variant selections
             const selectedVariants = {};
             const missingSelections = [];
             
@@ -232,7 +249,6 @@
               selectedVariants[labelText] = select.value;
             });
         
-            // Check if all variants are selected
             if (missingSelections.length > 0) {
               const message = currentLang === 'ar' 
                 ? `الرجاء اختيار ${missingSelections.join(', ')}`
@@ -416,15 +432,15 @@
         console.warn('Invalid campaign data:', campaign);
         return;
       }
-    
+
       const currentLang = getCurrentLanguage();
       const isRTL = currentLang === 'ar';
-    
+
       try {
         if (this.currentModal) {
           this.currentModal.remove();
         }
-    
+
         const modal = document.createElement('div');
         modal.className = 'hmstudio-upsell-modal';
         modal.style.cssText = `
@@ -441,14 +457,15 @@
           opacity: 0;
           transition: opacity 0.3s ease;
         `;
-    
+
         const content = document.createElement('div');
         content.className = 'hmstudio-upsell-content';
+        const productCount = campaign.upsellProducts.length;
         content.style.cssText = `
           background: white;
           padding: 40px;
           border-radius: 12px;
-          width: 1000px;
+          width: ${productCount === 1 ? '600px' : productCount === 2 ? '800px' : '1000px'};
           max-width: 90%;
           max-height: 90vh;
           overflow-y: auto;
@@ -457,7 +474,7 @@
           transition: transform 0.3s ease;
           direction: ${isRTL ? 'rtl' : 'ltr'};
         `;
-    
+
         // Close button
         const closeButton = document.createElement('button');
         closeButton.innerHTML = '✕';
@@ -475,14 +492,14 @@
           z-index: 1;
         `;
         closeButton.addEventListener('click', () => this.closeModal());
-    
+
         // Header section
         const header = document.createElement('div');
         header.style.cssText = `
           text-align: center;
           margin-bottom: 30px;
         `;
-    
+
         const title = document.createElement('h2');
         title.textContent = currentLang === 'ar' ? decodeURIComponent(campaign.textSettings.titleAr) : campaign.textSettings.titleEn;
         title.style.cssText = `
@@ -490,7 +507,7 @@
           margin-bottom: 10px;
           color: #333;
         `;
-    
+
         const subtitle = document.createElement('p');
         subtitle.textContent = currentLang === 'ar' ? decodeURIComponent(campaign.textSettings.subtitleAr) : campaign.textSettings.subtitleEn;
         subtitle.style.cssText = `
@@ -498,10 +515,10 @@
           color: #666;
           margin: 0;
         `;
-    
+
         header.appendChild(title);
         header.appendChild(subtitle);
-    
+
         // Main content wrapper
         const mainWrapper = document.createElement('div');
         mainWrapper.style.cssText = `
@@ -509,7 +526,7 @@
           gap: 30px;
           align-items: flex-start;
         `;
-    
+
         // Left sidebar
         const sidebar = document.createElement('div');
         sidebar.style.cssText = `
@@ -521,7 +538,7 @@
           position: sticky;
           top: 20px;
         `;
-    
+
         // Benefit text
         const benefitText = document.createElement('div');
         benefitText.style.cssText = `
@@ -532,7 +549,7 @@
           font-weight: bold;
         `;
         benefitText.textContent = currentLang === 'ar' ? 'استفد من العرض' : 'Benefit from the Offer';
-    
+
         // Add All to Cart button
         const addAllButton = document.createElement('button');
         addAllButton.textContent = currentLang === 'ar' ? 'أضف الكل إلى السلة' : 'Add All to Cart';
@@ -547,15 +564,15 @@
           width: 100%;
           transition: background-color 0.3s;
         `;
-    
+
         addAllButton.addEventListener('mouseover', () => {
           addAllButton.style.backgroundColor = '#333';
         });
-    
+
         addAllButton.addEventListener('mouseout', () => {
           addAllButton.style.backgroundColor = '#000';
         });
-    
+
         addAllButton.addEventListener('click', async () => {
           const forms = content.querySelectorAll('form');
           for (const form of forms) {
@@ -576,72 +593,61 @@
           }
           this.closeModal();
         });
-    
+
         sidebar.appendChild(benefitText);
         sidebar.appendChild(addAllButton);
-    
+
         // Products grid
         const productsGrid = document.createElement('div');
+        const gridWidth = productCount === 1 ? '200px' : 
+                          productCount === 2 ? '400px' : 
+                          '600px';
         productsGrid.style.cssText = `
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+          grid-template-columns: repeat(${productCount}, 180px);
           gap: 20px;
-          flex: 1;
+          justify-content: center;
+          width: ${gridWidth};
+          margin: 0 auto;
         `;
-    
-        // Update createProductCard method to use primary color for buttons
+
+        // Create product cards
         const productCards = await Promise.all(
           campaign.upsellProducts.map(async (product) => {
-            const card = await this.createProductCard(product);
-            if (card) {
-              const addButton = card.querySelector('.add-to-cart-btn');
-              if (addButton) {
-                addButton.style.backgroundColor = '#007bff'; // Primary blue color
-                addButton.style.borderRadius = '20px';
-                
-                addButton.addEventListener('mouseover', () => {
-                  addButton.style.backgroundColor = '#0056b3';
-                });
-    
-                addButton.addEventListener('mouseout', () => {
-                  addButton.style.backgroundColor = '#007bff';
-                });
-              }
-            }
-            return card;
+            return await this.createProductCard(product);
           })
         );
-    
+
         productCards.filter(card => card !== null).forEach(card => {
           productsGrid.appendChild(card);
         });
-    
+
         // Assemble the layout
         mainWrapper.appendChild(sidebar);
         mainWrapper.appendChild(productsGrid);
-    
+
         // Assemble modal
         content.appendChild(closeButton);
         content.appendChild(header);
         content.appendChild(mainWrapper);
         modal.appendChild(content);
         document.body.appendChild(modal);
-    
+
         // Show modal with animation
         requestAnimationFrame(() => {
           modal.style.opacity = '1';
           content.style.transform = 'translateY(0)';
         });
-    
+
         this.currentModal = modal;
-    
+
         // Close modal when clicking outside
         modal.addEventListener('click', (e) => {
           if (e.target === modal) {
             this.closeModal();
           }
         });
-    
+
         // Handle escape key
         document.addEventListener('keydown', (e) => {
           if (e.key === 'Escape') {
