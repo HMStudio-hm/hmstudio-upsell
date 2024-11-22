@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v1.7.7
+// src/scripts/upsell.js v2.0.3
 // HMStudio Upsell Feature
 
 (function() {
