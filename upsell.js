@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v1.9.8
+// src/scripts/upsell.js v1.9.9
 // HMStudio Upsell Feature
 
 (function() {
@@ -176,11 +176,11 @@
         // Price display
         const priceContainer = document.createElement('div');
         priceContainer.style.cssText = `margin: 15px 0; font-weight: bold;`;
-        
+
         const currentPrice = document.createElement('span');
         currentPrice.className = 'product-price';
         currentPrice.style.color = 'var(--theme-primary, #00b286)';
-        
+
         const oldPrice = document.createElement('span');
         oldPrice.className = 'product-old-price';
         oldPrice.style.cssText = `
@@ -190,12 +190,14 @@
           display: none;
         `;
 
+        const currencySymbol = currentLang === 'ar' ? 'ر.س' : 'SAR';
+
         if (fullProductData.formatted_sale_price) {
-          currentPrice.textContent = fullProductData.formatted_sale_price;
-          oldPrice.textContent = fullProductData.formatted_price;
+          currentPrice.textContent = fullProductData.formatted_sale_price.replace('SAR', currencySymbol);
+          oldPrice.textContent = fullProductData.formatted_price.replace('SAR', currencySymbol);
           oldPrice.style.display = 'inline';
         } else {
-          currentPrice.textContent = fullProductData.formatted_price;
+          currentPrice.textContent = fullProductData.formatted_price.replace('SAR', currencySymbol);
         }
 
         priceContainer.appendChild(currentPrice);
@@ -257,10 +259,10 @@
               return;
             }
           }
-        
+
           const spinners = form.querySelectorAll('.add-to-cart-progress');
           spinners.forEach(s => s.classList.remove('d-none'));
-        
+
           zid.store.cart.addProduct({ 
             formId: form.id
           }).then(function(response) {
@@ -269,7 +271,8 @@
               if (typeof setCartBadge === 'function') {
                 setCartBadge(response.data.cart.products_count);
               }
-              window.HMStudioUpsell.closeModal();
+              // Remove the modal closing line
+              // window.HMStudioUpsell.closeModal();
             }
             spinners.forEach(s => s.classList.add('d-none'));
           }).catch(function(error) {
@@ -394,16 +397,17 @@
 
         const priceElement = form.querySelector('.product-price');
         const oldPriceElement = form.querySelector('.product-old-price');
-        
+        const currencySymbol = currentLang === 'ar' ? 'ر.س' : 'SAR';
+
         if (priceElement) {
           if (selectedVariant.formatted_sale_price) {
-            priceElement.textContent = selectedVariant.formatted_sale_price;
+            priceElement.textContent = selectedVariant.formatted_sale_price.replace('SAR', currencySymbol);
             if (oldPriceElement) {
-              oldPriceElement.textContent = selectedVariant.formatted_price;
+              oldPriceElement.textContent = selectedVariant.formatted_price.replace('SAR', currencySymbol);
               oldPriceElement.style.display = 'inline';
             }
           } else {
-            priceElement.textContent = selectedVariant.formatted_price;
+            priceElement.textContent = selectedVariant.formatted_price.replace('SAR', currencySymbol);
             if (oldPriceElement) {
               oldPriceElement.style.display = 'none';
             }
@@ -607,6 +611,7 @@
                 });
             });
           }
+          // Close the modal after adding all products to the cart
           this.closeModal();
         });
 
