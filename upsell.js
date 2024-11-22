@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v1.9.7
+// src/scripts/upsell.js v1.9.8
 // HMStudio Upsell Feature
 
 (function() {
@@ -248,7 +248,7 @@
               }
               selectedVariants[labelText] = select.value;
             });
-        
+
             if (missingSelections.length > 0) {
               const message = currentLang === 'ar' 
                 ? `الرجاء اختيار ${missingSelections.join(', ')}`
@@ -575,6 +575,22 @@
 
         addAllButton.addEventListener('click', async () => {
           const forms = content.querySelectorAll('form');
+          const variantForms = Array.from(forms).filter(form => form.querySelector('.variant-select'));
+          
+          // Check if all variants are selected
+          const allVariantsSelected = variantForms.every(form => {
+            const selects = form.querySelectorAll('.variant-select');
+            return Array.from(selects).every(select => select.value !== '');
+          });
+
+          if (!allVariantsSelected) {
+            const message = currentLang === 'ar' 
+              ? 'الرجاء اختيار جميع الخيارات المطلوبة قبل الإضافة إلى السلة'
+              : 'Please select all required options before adding to cart';
+            alert(message);
+            return;
+          }
+
           for (const form of forms) {
             await new Promise((resolve) => {
               zid.store.cart.addProduct({ formId: form.id })
