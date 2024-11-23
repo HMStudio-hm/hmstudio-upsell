@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v2.1.5
+// src/scripts/upsell.js v2.1.6
 // HMStudio Upsell Feature
 
 (function() {
@@ -412,75 +412,80 @@ document.head.appendChild(styleTag);
     
         // Quantity selector
         const quantityContainer = document.createElement('div');
-quantityContainer.className = 'hmstudio-upsell-product-quantity';
-
-const decreaseBtn = document.createElement('button');
-decreaseBtn.className = 'hmstudio-upsell-quantity-btn';
-decreaseBtn.type = 'button';
-decreaseBtn.textContent = '-';
-
-const quantityInput = document.createElement('input');
-quantityInput.type = 'number';
-quantityInput.name = 'quantity';
-quantityInput.min = '1';
-quantityInput.value = '1';
-
-const increaseBtn = document.createElement('button');
-increaseBtn.className = 'hmstudio-upsell-quantity-btn';
-increaseBtn.type = 'button';
-increaseBtn.textContent = '+';
-
-// Add quantity controls functionality
-decreaseBtn.addEventListener('click', () => {
-  const currentValue = parseInt(quantityInput.value);
-  if (currentValue > 1) {
-    quantityInput.value = currentValue - 1;
-    // Trigger change event
-    const event = new Event('change', { bubbles: true });
-    quantityInput.dispatchEvent(event);
-  }
-});
-
-increaseBtn.addEventListener('click', () => {
-  const currentValue = parseInt(quantityInput.value);
-  quantityInput.value = currentValue + 1;
-  // Trigger change event
-  const event = new Event('change', { bubbles: true });
-  quantityInput.dispatchEvent(event);
-});
-
-// Prevent manual typing
-quantityInput.addEventListener('keydown', (e) => {
-  e.preventDefault();
-});
-
-quantityContainer.appendChild(decreaseBtn);
-quantityContainer.appendChild(quantityInput);
-quantityContainer.appendChild(increaseBtn);
-
-// For the add to cart functionality, update the button click handler:
-addButton.addEventListener('click', () => {
-  const formData = new FormData(form);
-  const productID = formData.get('product_id');
-  const quantity = formData.get('quantity');
-
-  zid.store.cart.addProduct({
-    formId: form.id,
-    data: {
-      product_id: productID,
-      quantity: quantity
-    }
-  }).then(response => {
-    console.log('Add to cart response:', response);
-    if (response.status === 'success' && typeof setCartBadge === 'function') {
-      setCartBadge(response.data.cart.products_count);
-    }
-  }).catch(error => {
-    console.error('Add to cart error:', error);
-  });
-});
+        quantityContainer.className = 'hmstudio-upsell-product-quantity';
     
-        controlsContainer.appendChild(addButton);
+        const decreaseBtn = document.createElement('button');
+        decreaseBtn.className = 'hmstudio-upsell-quantity-btn';
+        decreaseBtn.type = 'button';
+        decreaseBtn.textContent = '-';
+    
+        const quantityInput = document.createElement('input');
+        quantityInput.type = 'number';
+        quantityInput.name = 'quantity';
+        quantityInput.min = '1';
+        quantityInput.value = '1';
+    
+        const increaseBtn = document.createElement('button');
+        increaseBtn.className = 'hmstudio-upsell-quantity-btn';
+        increaseBtn.type = 'button';
+        increaseBtn.textContent = '+';
+    
+        // Add quantity controls functionality
+        decreaseBtn.addEventListener('click', () => {
+          const currentValue = parseInt(quantityInput.value);
+          if (currentValue > 1) {
+            quantityInput.value = currentValue - 1;
+            const event = new Event('change', { bubbles: true });
+            quantityInput.dispatchEvent(event);
+          }
+        });
+    
+        increaseBtn.addEventListener('click', () => {
+          const currentValue = parseInt(quantityInput.value);
+          quantityInput.value = currentValue + 1;
+          const event = new Event('change', { bubbles: true });
+          quantityInput.dispatchEvent(event);
+        });
+    
+        // Prevent manual typing
+        quantityInput.addEventListener('keydown', (e) => {
+          e.preventDefault();
+        });
+    
+        quantityContainer.appendChild(decreaseBtn);
+        quantityContainer.appendChild(quantityInput);
+        quantityContainer.appendChild(increaseBtn);
+        controlsContainer.appendChild(quantityContainer);
+    
+        // Create Add to Cart button
+        const addToCartBtn = document.createElement('button');
+        addToCartBtn.className = 'addToCartBtn';
+        addToCartBtn.type = 'button';
+        addToCartBtn.textContent = currentLang === 'ar' ? 'إضافة للسلة' : 'Add to Cart';
+    
+        // Add to cart functionality
+        addToCartBtn.addEventListener('click', () => {
+          const formData = new FormData(form);
+          const productID = formData.get('product_id');
+          const quantity = formData.get('quantity');
+    
+          zid.store.cart.addProduct({
+            formId: form.id,
+            data: {
+              product_id: productID,
+              quantity: quantity
+            }
+          }).then(response => {
+            console.log('Add to cart response:', response);
+            if (response.status === 'success' && typeof setCartBadge === 'function') {
+              setCartBadge(response.data.cart.products_count);
+            }
+          }).catch(error => {
+            console.error('Add to cart error:', error);
+          });
+        });
+    
+        controlsContainer.appendChild(addToCartBtn);
     
         // Assemble the card
         form.appendChild(imageContainer);
