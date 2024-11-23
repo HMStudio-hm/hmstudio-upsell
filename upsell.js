@@ -1,7 +1,149 @@
-// src/scripts/upsell.js v2.1.2
+// src/scripts/upsell.js v2.1.3
 // HMStudio Upsell Feature
 
 (function() {
+
+// Add this style block first
+const styleTag = document.createElement('style');
+styleTag.textContent = `
+  /* Base styles for upsell modal */
+  .hmstudio-upsell-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 999999;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+
+  .hmstudio-upsell-content {
+    background: white;
+    padding: 40px;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 1000px;
+    max-height: 90vh;
+    overflow-y: auto;
+    position: relative;
+    transform: translateY(20px);
+    transition: transform 0.3s ease;
+  }
+
+  .hmstudio-upsell-header {
+    text-align: center;
+    margin-bottom: 30px;
+  }
+
+  .hmstudio-upsell-title {
+    font-size: 28px;
+    margin-bottom: 10px;
+    color: #333;
+  }
+
+  .hmstudio-upsell-subtitle {
+    font-size: 18px;
+    color: #666;
+    margin: 0;
+  }
+
+  .hmstudio-upsell-main {
+    display: flex;
+    gap: 30px;
+    align-items: flex-start;
+  }
+
+  .hmstudio-upsell-sidebar {
+    width: 250px;
+    flex-shrink: 0;
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+    position: sticky;
+    top: 20px;
+  }
+
+  .hmstudio-upsell-products {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, 180px);
+    gap: 20px;
+    justify-content: center;
+    width: 100%;
+    margin: 0 auto;
+  }
+
+  .hmstudio-upsell-product-card {
+    border: 1px solid #eee;
+    border-radius: 8px;
+    padding: 15px;
+    text-align: center;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  /* Media queries for mobile devices */
+  @media (max-width: 768px) {
+    .hmstudio-upsell-content {
+      padding: 20px;
+      width: 100%;
+      height: 100vh;
+      border-radius: 0;
+      margin: 0;
+    }
+
+    .hmstudio-upsell-main {
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .hmstudio-upsell-sidebar {
+      width: 100%;
+      position: static;
+      order: 2;
+    }
+
+    .hmstudio-upsell-products {
+      grid-template-columns: 1fr;
+      gap: 15px;
+      order: 1;
+    }
+
+    .hmstudio-upsell-title {
+      font-size: 20px;
+    }
+
+    .hmstudio-upsell-subtitle {
+      font-size: 14px;
+    }
+
+    .hmstudio-upsell-product-card {
+      padding: 10px;
+    }
+  }
+
+  /* Media queries for small mobile devices */
+  @media (max-width: 480px) {
+    .hmstudio-upsell-content {
+      padding: 15px;
+    }
+
+    .hmstudio-upsell-title {
+      font-size: 18px;
+    }
+
+    .hmstudio-upsell-product-card img {
+      height: 120px;
+    }
+  }
+`;
+
+// Add the style tag to the document head
+document.head.appendChild(styleTag);
+
   console.log('Upsell script initialized');
 
   function getStoreIdFromUrl() {
@@ -92,6 +234,14 @@
 
         const card = document.createElement('div');
         card.className = 'hmstudio-upsell-product-card';
+        card.style.cssText = `
+          border: 1px solid #eee;
+          border-radius: 8px;
+          padding: 15px;
+          text-align: center;
+          transition: transform 0.2s ease, box-shadow 0.2s ease;
+          width: 180px;
+        `;
 
         // Create form with proper structure for Zid API
         const form = document.createElement('form');
@@ -263,6 +413,8 @@
               if (typeof setCartBadge === 'function') {
                 setCartBadge(response.data.cart.products_count);
               }
+              // Remove the modal closing line
+              // window.HMStudioUpsell.closeModal();
             }
             spinners.forEach(s => s.classList.add('d-none'));
           }).catch(function(error) {
@@ -426,169 +578,25 @@
         console.warn('Invalid campaign data:', campaign);
         return;
       }
-
+    
       const currentLang = getCurrentLanguage();
       const isRTL = currentLang === 'ar';
-
+    
       try {
         if (this.currentModal) {
           this.currentModal.remove();
         }
-
-        // Create style tag for responsive design
-        const styleTag = document.createElement('style');
-        styleTag.textContent = `
-          .hmstudio-upsell-modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 999999;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-          }
-
-          .hmstudio-upsell-content {
-            background: white;
-            padding: 40px;
-            border-radius: 12px;
-            width: 90%;
-            max-width: 1000px;
-            max-height: 90vh;
-            overflow-y: auto;
-            position: relative;
-            transform: translateY(20px);
-            transition: transform 0.3s ease;
-          }
-
-          .hmstudio-upsell-header {
-            text-align: center;
-            margin-bottom: 30px;
-          }
-
-          .hmstudio-upsell-title {
-            font-size: 28px;
-            margin-bottom: 10px;
-            color: #333;
-          }
-
-          .hmstudio-upsell-subtitle {
-            font-size: 18px;
-            color: #666;
-            margin: 0;
-          }
-
-          .hmstudio-upsell-main {
-            display: flex;
-            gap: 30px;
-            align-items: flex-start;
-          }
-
-          .hmstudio-upsell-sidebar {
-            width: 250px;
-            flex-shrink: 0;
-            background: #f8f9fa;
-            padding: 20px;
-            border-radius: 8px;
-            position: sticky;
-            top: 20px;
-          }
-
-          .hmstudio-upsell-products {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, 180px);
-            gap: 20px;
-            justify-content: center;
-            width: 100%;
-            margin: 0 auto;
-          }
-
-          .hmstudio-upsell-product-card {
-            border: 1px solid #eee;
-            border-radius: 8px;
-            padding: 15px;
-            text-align: center;
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-          }
-
-          @media (max-width: 768px) {
-            .hmstudio-upsell-content {
-              padding: 20px;
-              width: 100%;
-              height: 100vh;
-              border-radius: 12px;
-              margin: 0;
-            }
-
-            .hmstudio-upsell-main {
-              flex-direction: column;
-              gap: 20px;
-            }
-
-           @media (max-width: 768px) {
-              .hmstudio-upsell-main {
-              flex-direction: row;
-        align-items: center !important;
-        width: 80% !important;
-              gap: 20px;
-            }
-
-
-            .hmstudio-upsell-sidebar {
-              width: 100%;
-              position: static;
-              order: 2;
-            }
-
-            .hmstudio-upsell-products {
-              grid-template-columns: 1fr;
-              gap: 15px;
-              order: 1;
-            }
-
-            .hmstudio-upsell-title {
-              font-size: 20px;
-            }
-
-            .hmstudio-upsell-subtitle {
-              font-size: 14px;
-            }
-
-            .hmstudio-upsell-product-card {
-              padding: 10px;
-            }
-          }
-
-          @media (max-width: 480px) {
-            .hmstudio-upsell-content {
-              padding: 15px;
-              width: 92%;
-            }
-
-            .hmstudio-upsell-title {
-              font-size: 18px;
-            }
-
-            .hmstudio-upsell-product-card img {
-              height: 120px;
-            }
-          }
-        `;
-        document.head.appendChild(styleTag);
-
+    
+        // Create main modal container
         const modal = document.createElement('div');
         modal.className = 'hmstudio-upsell-modal';
         if (isRTL) modal.style.direction = 'rtl';
-
+    
+        // Create modal content container
         const content = document.createElement('div');
         content.className = 'hmstudio-upsell-content';
-
-        // Close button
+    
+        // Create close button
         const closeButton = document.createElement('button');
         closeButton.innerHTML = '✕';
         closeButton.style.cssText = `
@@ -605,35 +613,47 @@
           z-index: 1;
         `;
         closeButton.addEventListener('click', () => this.closeModal());
-
-        // Header
+    
+        // Create header section
         const header = document.createElement('div');
         header.className = 'hmstudio-upsell-header';
-
+    
         const title = document.createElement('h2');
         title.className = 'hmstudio-upsell-title';
         title.textContent = currentLang === 'ar' ? 
           decodeURIComponent(campaign.textSettings.titleAr) : 
           campaign.textSettings.titleEn;
-
+    
         const subtitle = document.createElement('p');
         subtitle.className = 'hmstudio-upsell-subtitle';
         subtitle.textContent = currentLang === 'ar' ? 
           decodeURIComponent(campaign.textSettings.subtitleAr) : 
           campaign.textSettings.subtitleEn;
-
+    
         header.appendChild(title);
         header.appendChild(subtitle);
-
-        // Main content wrapper
+    
+        // Create main content wrapper
         const mainWrapper = document.createElement('div');
         mainWrapper.className = 'hmstudio-upsell-main';
-
-        // Sidebar
+    
+        // Create sidebar section
         const sidebar = document.createElement('div');
         sidebar.className = 'hmstudio-upsell-sidebar';
-
-        // Add All to Cart button
+    
+        // Create benefit text
+        const benefitText = document.createElement('div');
+        benefitText.style.cssText = `
+          text-align: center;
+          margin-bottom: 20px;
+          font-size: 18px;
+          color: #333;
+          font-weight: bold;
+        `;
+        benefitText.textContent = currentLang === 'ar' ? 'استفد من العرض' : 'Benefit from the Offer';
+        sidebar.appendChild(benefitText);
+    
+        // Create Add All to Cart button
         const addAllButton = document.createElement('button');
         addAllButton.textContent = currentLang === 'ar' ? 'أضف الكل إلى السلة' : 'Add All to Cart';
         addAllButton.style.cssText = `
@@ -647,55 +667,136 @@
           cursor: pointer;
           transition: background-color 0.3s;
         `;
-
-        // Products grid
+    
+        addAllButton.addEventListener('mouseover', () => {
+          addAllButton.style.backgroundColor = '#333';
+        });
+    
+        addAllButton.addEventListener('mouseout', () => {
+          addAllButton.style.backgroundColor = '#000';
+        });
+    
+        addAllButton.addEventListener('click', async () => {
+          const forms = content.querySelectorAll('form');
+          const variantForms = Array.from(forms).filter(form => form.querySelector('.variant-select'));
+          
+          // Check if all variants are selected
+          const allVariantsSelected = variantForms.every(form => {
+            const selects = form.querySelectorAll('.variant-select');
+            return Array.from(selects).every(select => select.value !== '');
+          });
+    
+          if (!allVariantsSelected) {
+            const message = currentLang === 'ar' 
+              ? 'الرجاء اختيار جميع الخيارات المطلوبة قبل الإضافة إلى السلة'
+              : 'Please select all required options before adding to cart';
+            alert(message);
+            return;
+          }
+    
+          // Add loading state to button
+          addAllButton.disabled = true;
+          addAllButton.style.opacity = '0.7';
+          const originalText = addAllButton.textContent;
+          addAllButton.textContent = currentLang === 'ar' ? 'جاري الإضافة...' : 'Adding...';
+    
+          for (const form of forms) {
+            await new Promise((resolve) => {
+              zid.store.cart.addProduct({ formId: form.id })
+                .then((response) => {
+                  console.log('Add to cart response:', response);
+                  if (response.status === 'success' && typeof setCartBadge === 'function') {
+                    setCartBadge(response.data.cart.products_count);
+                  }
+                  resolve();
+                })
+                .catch((error) => {
+                  console.error('Add to cart error:', error);
+                  resolve();
+                });
+            });
+          }
+    
+          this.closeModal();
+        });
+    
+        sidebar.appendChild(addAllButton);
+    
+        // Create products grid
         const productsGrid = document.createElement('div');
         productsGrid.className = 'hmstudio-upsell-products';
-
+    
         // Create and append product cards
         const productCards = await Promise.all(
           campaign.upsellProducts.map(product => this.createProductCard(product))
         );
-
+    
         productCards.filter(Boolean).forEach(card => {
+          card.className = 'hmstudio-upsell-product-card';
           productsGrid.appendChild(card);
         });
-
+    
         // Assemble the modal
-        sidebar.appendChild(addAllButton);
         mainWrapper.appendChild(sidebar);
         mainWrapper.appendChild(productsGrid);
-
+    
         content.appendChild(closeButton);
         content.appendChild(header);
         content.appendChild(mainWrapper);
         modal.appendChild(content);
-
-        // Add to document and animate in
+    
+        // Add modal to document and animate in
         document.body.appendChild(modal);
         requestAnimationFrame(() => {
           modal.style.opacity = '1';
           content.style.transform = 'translateY(0)';
         });
-
+    
         this.currentModal = modal;
-
+    
+        // Add mobile swipe to close functionality
+        let touchStartY = 0;
+        content.addEventListener('touchstart', (e) => {
+          touchStartY = e.touches[0].clientY;
+        });
+    
+        content.addEventListener('touchmove', (e) => {
+          const touchY = e.touches[0].clientY;
+          const diff = touchY - touchStartY;
+          
+          if (diff > 0 && content.scrollTop === 0) {
+            e.preventDefault();
+            content.style.transform = `translateY(${diff}px)`;
+          }
+        });
+    
+        content.addEventListener('touchend', (e) => {
+          const touchY = e.changedTouches[0].clientY;
+          const diff = touchY - touchStartY;
+          
+          if (diff > 100 && content.scrollTop === 0) {
+            this.closeModal();
+          } else {
+            content.style.transform = 'translateY(0)';
+          }
+        });
+    
         // Close modal when clicking outside
         modal.addEventListener('click', (e) => {
           if (e.target === modal) this.closeModal();
         });
-
+    
         // Handle escape key
         const handleEscape = (e) => {
           if (e.key === 'Escape') this.closeModal();
         };
         document.addEventListener('keydown', handleEscape);
-
+    
         // Clean up event listener when modal closes
         modal.addEventListener('remove', () => {
           document.removeEventListener('keydown', handleEscape);
         });
-
+    
       } catch (error) {
         console.error('Error creating upsell modal:', error);
       }
@@ -723,7 +824,10 @@
       // Make sure the global object is available
       if (!window.HMStudioUpsell) {
         window.HMStudioUpsell = {
-          showUpsellModal: (...args) => this.showUpsellModal.apply(this, args),
+          showUpsellModal: (...args) => {
+            console.log('showUpsellModal called with args:', args);
+            return this.showUpsellModal.apply(this, args);
+          },
           closeModal: () => this.closeModal()
         };
         console.log('Global HMStudioUpsell object created');
@@ -764,3 +868,4 @@
     UpsellManager.initialize();
   }
 })();
+
