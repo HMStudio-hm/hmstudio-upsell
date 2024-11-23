@@ -44,8 +44,8 @@
     return document.documentElement.lang || 'ar';
   }
 
-  function isMobileDevice() {
-    return window.innerWidth <= 1024; // Increased to include tablets
+  function isMobile() {
+    return window.innerWidth <= 768;
   }
 
   const storeId = getStoreIdFromUrl();
@@ -80,14 +80,13 @@
     async createProductCard(product) {
       try {
         const fullProductData = await this.fetchProductData(product.id);
-        console.log('Full product data:', fullProductData);
-
         if (!fullProductData) {
           throw new Error('Failed to fetch full product data');
         }
 
         const currentLang = getCurrentLanguage();
         const isRTL = currentLang === 'ar';
+        const mobile = isMobile();
 
         let productName = fullProductData.name;
         if (typeof productName === 'object') {
@@ -97,232 +96,178 @@
         const card = document.createElement('div');
         card.className = 'hmstudio-upsell-product-card';
         card.style.cssText = `
-          border: 1px solid #eee;
+          background: white;
           border-radius: 8px;
-          padding: 15px;
-          text-align: ${isMobileDevice() ? 'left' : 'center'};
-          transition: transform 0.2s ease, box-shadow 0.2s ease;
-          width: ${isMobileDevice() ? '100%' : '180px'};
-          display: ${isMobileDevice() ? 'flex' : 'block'};
-          align-items: ${isMobileDevice() ? 'center' : 'stretch'};
-          gap: ${isMobileDevice() ? '15px' : '0'};
+          padding: ${mobile ? '15px' : '20px'};
+          text-align: center;
+          width: ${mobile ? '100%' : '180px'};
+          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+          margin-bottom: ${mobile ? '15px' : '0'};
         `;
 
-        // Create form with proper structure for Zid API
-        const form = document.createElement('form');
-        form.id = `product-form-${fullProductData.id}`;
-
-        // Product ID input
-        const productIdInput = document.createElement('input');
-        productIdInput.type = 'hidden';
-        productIdInput.id = 'product-id';
-        productIdInput.name = 'product_id';
-        productIdInput.value = fullProductData.selected_product?.id || fullProductData.id;
-        form.appendChild(productIdInput);
-
-        // Product content
         const productContent = document.createElement('div');
         productContent.style.cssText = `
-          ${isMobileDevice() ? 'flex: 1; display: flex; flex-direction: column;' : ''}
+          display: ${mobile ? 'flex' : 'block'};
+          align-items: ${mobile ? 'center' : 'stretch'};
+          gap: ${mobile ? '15px' : '0'};
+          text-align: ${mobile ? 'start' : 'center'};
+        `;
+
+        const imageContainer = document.createElement('div');
+        imageContainer.style.cssText = `
+          flex: ${mobile ? '0 0 100px' : '1'};
+          margin-bottom: ${mobile ? '0' : '15px'};
         `;
 
         const productImage = document.createElement('img');
         productImage.src = fullProductData.images?.[0]?.url || product.thumbnail;
         productImage.alt = productName;
         productImage.style.cssText = `
-          width: ${isMobileDevice() ? '100px' : '100%'};
-          height: ${isMobileDevice() ? '100px' : '150px'};
+          width: ${mobile ? '100px' : '100%'};
+          height: ${mobile ? '100px' : '150px'};
           object-fit: contain;
-          ${isMobileDevice() ? 'order: 1;' : 'margin-bottom: 10px;'}
+          border-radius: 4px;
+        `;
+        imageContainer.appendChild(productImage);
+
+        const detailsContainer = document.createElement('div');
+        detailsContainer.style.cssText = `
+          flex: ${mobile ? '1' : 'none'};
         `;
 
-        const productTitle = document.createElement('h4');
-        productTitle.textContent = productName;
-        productTitle.style.cssText = `
-          font-size: 1em;
-          margin: ${isMobileDevice() ? '0 0 10px' : '10px 0'};
-          min-height: ${isMobileDevice() ? 'auto' : '40px'};
+        const nameElement = document.createElement('h4');
+        nameElement.textContent = productName;
+        nameElement.style.cssText = `
+          font-size: ${mobile ? '14px' : '16px'};
+          margin: ${mobile ? '0 0 8px' : '15px 0'};
+          font-weight: 500;
+          color: #333;
         `;
 
-        if (isMobileDevice()) {
-          productContent.appendChild(productTitle);
-        }
-        productContent.appendChild(productImage);
-        if (!isMobileDevice()) {
-          productContent.appendChild(productTitle);
-        }
-        card.appendChild(productContent);
-
-        // Add variants section if product has options
-        if (fullProductData.has_options && fullProductData.variants?.length > 0) {
-          const variantsSection = this.createVariantsSection(fullProductData, currentLang);
-          form.appendChild(variantsSection);
-
-          // Initialize with default variant
-          if (fullProductData.selected_product) {
-            this.updateSelectedVariant(fullProductData, form);
-          }
-        }
-
-        // Update quantity selector
-        const quantityWrapper = document.createElement('div');
-        quantityWrapper.style.cssText = `
+        // Price display with support for sale prices
+        const priceContainer = document.createElement('div');
+        priceContainer.style.cssText = `
           display: flex;
           align-items: center;
-          justify-content: ${isMobileDevice() ? 'flex-start' : 'center'};
-          gap: 10px;
-          margin: ${isMobileDevice() ? '0' : '15px 0'};
+          gap: 8px;
+          justify-content: ${mobile ? 'start' : 'center'};
+          margin-bottom: 15px;
+          flex-wrap: wrap;
         `;
-
-        const decreaseButton = document.createElement('button');
-        decreaseButton.textContent = '-';
-        decreaseButton.style.cssText = `
-          width: 30px;
-          height: 30px;
-          border: 1px solid #ddd;
-          background: #f8f8f8;
-          border-radius: 4px;
-          cursor: pointer;
-        `;
-
-        const increaseButton = document.createElement('button');
-        increaseButton.textContent = '+';
-        increaseButton.style.cssText = `
-          width: 30px;
-          height: 30px;
-          border: 1px solid #ddd;
-          background: #f8f8f8;
-          border-radius: 4px;
-          cursor: pointer;
-        `;
-
-        const quantityInput = document.createElement('input');
-        quantityInput.type = 'number';
-        quantityInput.id = 'product-quantity';
-        quantityInput.name = 'quantity';
-        quantityInput.min = '1';
-        quantityInput.value = '1';
-        quantityInput.style.cssText = `
-          width: 40px;
-          padding: 5px;
-          border: 1px solid #ddd;
-          border-radius: 4px;
-          text-align: center;
-        `;
-
-        decreaseButton.addEventListener('click', () => {
-          if (parseInt(quantityInput.value) > 1) {
-            quantityInput.value = parseInt(quantityInput.value) - 1;
-          }
-        });
-
-        increaseButton.addEventListener('click', () => {
-          quantityInput.value = parseInt(quantityInput.value) + 1;
-        });
-
-        quantityWrapper.appendChild(decreaseButton);
-        quantityWrapper.appendChild(quantityInput);
-        quantityWrapper.appendChild(increaseButton);
-        form.appendChild(quantityWrapper);
-
-        // Price display
-        const priceContainer = document.createElement('div');
-        priceContainer.style.cssText = `margin: 15px 0; font-weight: bold;`;
 
         const currentPrice = document.createElement('span');
-        currentPrice.className = 'product-price';
-        currentPrice.style.color = 'var(--theme-primary, #00b286)';
+        currentPrice.style.cssText = `
+          font-size: ${mobile ? '16px' : '18px'};
+          font-weight: bold;
+          color: var(--theme-primary, #00b286);
+        `;
 
         const oldPrice = document.createElement('span');
-        oldPrice.className = 'product-old-price';
         oldPrice.style.cssText = `
           text-decoration: line-through;
           color: #999;
-          margin-${isRTL ? 'right' : 'left'}: 10px;
-          display: none;
+          font-size: ${mobile ? '14px' : '16px'};
         `;
 
-        const currencySymbol = currentLang === 'ar' ? 'ر.س' : 'SAR';
-
-        if (fullProductData.formatted_sale_price) {
-          currentPrice.textContent = fullProductData.formatted_sale_price.replace('SAR', currencySymbol);
-          oldPrice.textContent = fullProductData.formatted_price.replace('SAR', currencySymbol);
-          oldPrice.style.display = 'inline';
+        if (fullProductData.sale_price) {
+          currentPrice.textContent = `${fullProductData.sale_price} ${isRTL ? 'ر.س' : 'SAR'}`;
+          oldPrice.textContent = `${fullProductData.price} ${isRTL ? 'ر.س' : 'SAR'}`;
+          priceContainer.appendChild(currentPrice);
+          priceContainer.appendChild(oldPrice);
         } else {
-          currentPrice.textContent = fullProductData.formatted_price.replace('SAR', currencySymbol);
+          currentPrice.textContent = `${fullProductData.price} ${isRTL ? 'ر.س' : 'SAR'}`;
+          priceContainer.appendChild(currentPrice);
         }
 
-        priceContainer.appendChild(currentPrice);
-        priceContainer.appendChild(oldPrice);
-        card.appendChild(priceContainer);
+        // Quantity controls
+        const quantityContainer = document.createElement('div');
+        quantityContainer.style.cssText = `
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          justify-content: ${mobile ? 'start' : 'center'};
+          margin: ${mobile ? '15px 0' : '20px 0'};
+        `;
 
-        // Update add to cart button
+        const quantityControls = document.createElement('div');
+        quantityControls.style.cssText = `
+          display: flex;
+          align-items: center;
+          border: 1px solid #ddd;
+          border-radius: 4px;
+          overflow: hidden;
+        `;
+
+        const createQuantityButton = (text) => {
+          const button = document.createElement('button');
+          button.textContent = text;
+          button.style.cssText = `
+            width: 32px;
+            height: 32px;
+            border: none;
+            background: #f5f5f5;
+            cursor: pointer;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          `;
+          return button;
+        };
+
+        const minusButton = createQuantityButton('-');
+        const plusButton = createQuantityButton('+');
+        const quantityInput = document.createElement('input');
+        quantityInput.type = 'number';
+        quantityInput.value = '1';
+        quantityInput.min = '1';
+        quantityInput.style.cssText = `
+          width: 40px;
+          height: 32px;
+          border: none;
+          border-left: 1px solid #ddd;
+          border-right: 1px solid #ddd;
+          text-align: center;
+          -moz-appearance: textfield;
+        `;
+
+        quantityControls.appendChild(minusButton);
+        quantityControls.appendChild(quantityInput);
+        quantityControls.appendChild(plusButton);
+        quantityContainer.appendChild(quantityControls);
+
+        // Add to cart button
         const addButton = document.createElement('button');
-        addButton.className = 'btn btn-primary add-to-cart-btn';
-        addButton.type = 'button';
-        addButton.textContent = currentLang === 'ar' ? 'أضف إلى السلة' : 'Add to Cart';
+        addButton.textContent = isRTL ? 'أضف إلى السلة' : 'Add to Cart';
         addButton.style.cssText = `
-          background: var(--theme-primary, #007bff);
-          color: white;
-          width: ${isMobileDevice() ? 'auto' : '100%'};
+          width: 100%;
           padding: 10px;
+          background: var(--theme-primary, #00b286);
+          color: white;
           border: none;
           border-radius: 20px;
           cursor: pointer;
-          margin-top: ${isMobileDevice() ? '0' : '10px'};
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 8px;
-          transition: background-color 0.3s;
+          font-weight: 500;
+          font-size: 14px;
+          transition: opacity 0.3s;
         `;
 
-        // Add to cart handler
-        addButton.addEventListener('click', function() {
-          if (fullProductData.has_options && fullProductData.variants?.length > 0) {
-            const selectedVariants = {};
-            const missingSelections = [];
-            
-            form.querySelectorAll('.variant-select').forEach(select => {
-              const labelText = select.previousElementSibling.textContent;
-              if (!select.value) {
-                missingSelections.push(labelText);
-              }
-              selectedVariants[labelText] = select.value;
-            });
-
-            if (missingSelections.length > 0) {
-              const message = currentLang === 'ar' 
-                ? `الرجاء اختيار ${missingSelections.join(', ')}`
-                : `Please select ${missingSelections.join(', ')}`;
-              alert(message);
-              return;
-            }
-          }
-
-          const spinners = form.querySelectorAll('.add-to-cart-progress');
-          spinners.forEach(s => s.classList.remove('d-none'));
-
-          zid.store.cart.addProduct({ 
-            formId: form.id
-          }).then(function(response) {
-            console.log('Add to cart response:', response);
-            if(response.status === 'success') {
-              if (typeof setCartBadge === 'function') {
-                setCartBadge(response.data.cart.products_count);
-              }
-              // Remove the modal closing line
-              // window.HMStudioUpsell.closeModal();
-            }
-            spinners.forEach(s => s.classList.add('d-none'));
-          }).catch(function(error) {
-            console.error('Add to cart error:', error);
-            spinners.forEach(s => s.classList.add('d-none'));
-          });
-        });
-
-        card.appendChild(form);
-        card.appendChild(addButton);
+        // Assemble the card
+        if (mobile) {
+          detailsContainer.appendChild(nameElement);
+          detailsContainer.appendChild(priceContainer);
+          productContent.appendChild(imageContainer);
+          productContent.appendChild(detailsContainer);
+          card.appendChild(productContent);
+          card.appendChild(quantityContainer);
+          card.appendChild(addButton);
+        } else {
+          card.appendChild(imageContainer);
+          card.appendChild(nameElement);
+          card.appendChild(priceContainer);
+          card.appendChild(quantityContainer);
+          card.appendChild(addButton);
+        }
 
         return card;
       } catch (error) {
@@ -331,146 +276,8 @@
       }
     },
 
-    createVariantsSection(product, currentLang) {
-      const variantsContainer = document.createElement('div');
-      variantsContainer.className = 'hmstudio-upsell-variants';
-      variantsContainer.style.cssText = `
-        margin-top: 15px;
-        padding: 10px 0;
-      `;
-
-      if (product.variants && product.variants.length > 0) {
-        const variantAttributes = new Map();
-        
-        product.variants.forEach(variant => {
-          if (variant.attributes && variant.attributes.length > 0) {
-            variant.attributes.forEach(attr => {
-              if (!variantAttributes.has(attr.name)) {
-                variantAttributes.set(attr.name, {
-                  name: attr.name,
-                  slug: attr.slug,
-                  values: new Set()
-                });
-              }
-              variantAttributes.get(attr.name).values.add(attr.value[currentLang]);
-            });
-          }
-        });
-
-        variantAttributes.forEach((attr) => {
-          const select = document.createElement('select');
-          select.className = 'variant-select';
-          select.style.cssText = `
-            margin: 5px 0;
-            padding: 8px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            width: 100%;
-          `;
-
-          const labelText = currentLang === 'ar' ? attr.slug : attr.name;
-          
-          const label = document.createElement('label');
-          label.textContent = labelText;
-          label.style.cssText = `
-            display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
-          `;
-
-          const placeholderText = currentLang === 'ar' ? `اختر ${labelText}` : `Select ${labelText}`;
-          
-          let optionsHTML = `<option value="">${placeholderText}</option>`;
-          
-          Array.from(attr.values).forEach(value => {
-            optionsHTML += `<option value="${value}">${value}</option>`;
-          });
-          
-          select.innerHTML = optionsHTML;
-
-          select.addEventListener('change', () => {
-            console.log('Selected:', attr.name, select.value);
-            this.updateSelectedVariant(product, select.closest('form'));
-          });
-
-          variantsContainer.appendChild(label);
-          variantsContainer.appendChild(select);
-        });
-      }
-
-      return variantsContainer;
-    },
-
-    updateSelectedVariant(product, form) {
-      if (!form) {
-        console.error('Product form not found');
-        return;
-      }
-
-      const currentLang = getCurrentLanguage();
-      const selectedValues = {};
-
-      form.querySelectorAll('.variant-select').forEach(select => {
-        if (select.value) {
-          const labelText = select.previousElementSibling.textContent;
-          selectedValues[labelText] = select.value;
-        }
-      });
-
-      console.log('Selected values:', selectedValues);
-
-      const selectedVariant = product.variants.find(variant => {
-        return variant.attributes.every(attr => {
-          const attrLabel = currentLang === 'ar' ? attr.slug : attr.name;
-          return selectedValues[attrLabel] === attr.value[currentLang];
-        });
-      });
-
-      console.log('Found variant:', selectedVariant);
-
-      if (selectedVariant) {
-        const productIdInput = form.querySelector('#product-id');
-        if (productIdInput) {
-          productIdInput.value = selectedVariant.id;
-          console.log('Updated product ID to:', selectedVariant.id);
-        }
-
-        const priceElement = form.querySelector('.product-price');
-        const oldPriceElement = form.querySelector('.product-old-price');
-        const currencySymbol = currentLang === 'ar' ? 'ر.س' : 'SAR';
-
-        if (priceElement) {
-          if (selectedVariant.formatted_sale_price) {
-            priceElement.textContent = selectedVariant.formatted_sale_price.replace('SAR', currencySymbol);
-            if (oldPriceElement) {
-              oldPriceElement.textContent = selectedVariant.formatted_price.replace('SAR', currencySymbol);
-              oldPriceElement.style.display = 'inline';
-            }
-          } else {
-            priceElement.textContent = selectedVariant.formatted_price.replace('SAR', currencySymbol);
-            if (oldPriceElement) {
-              oldPriceElement.style.display = 'none';
-            }
-          }
-        }
-
-        const addToCartBtn = form.parentElement.querySelector('.add-to-cart-btn');
-        if (addToCartBtn) {
-          if (!selectedVariant.unavailable) {
-            addToCartBtn.disabled = false;
-            addToCartBtn.style.opacity = '1';
-            addToCartBtn.style.cursor = 'pointer';
-          } else {
-            addToCartBtn.disabled = true;
-            addToCartBtn.style.opacity = '0.5';
-            addToCartBtn.style.cursor = 'not-allowed';
-          }
-        }
-      }
-    },
-
     async showUpsellModal(campaign, productCart) {
-      console.log('Showing bundle-style upsell modal:', { campaign, productCart });
+      console.log('Showing upsell modal:', { campaign, productCart });
       
       if (!campaign || !campaign.upsellProducts || campaign.upsellProducts.length === 0) {
         console.warn('Invalid campaign data:', campaign);
@@ -479,6 +286,7 @@
 
       const currentLang = getCurrentLanguage();
       const isRTL = currentLang === 'ar';
+      const mobile = isMobile();
 
       try {
         if (this.currentModal) {
@@ -496,36 +304,41 @@
           background-color: rgba(0, 0, 0, 0.5);
           display: flex;
           justify-content: center;
-          align-items: center;
+          align-items: ${mobile ? 'flex-start' : 'center'};
           z-index: 999999;
-          opacity: 0;
-          transition: opacity 0.3s ease;
         `;
 
         const content = document.createElement('div');
-        const productCount = campaign.upsellProducts.length;
         content.className = 'hmstudio-upsell-content';
         content.style.cssText = `
           background: white;
-          padding: ${isMobileDevice() ? '20px' : '40px'};
-          border-radius: 12px;
-          width: ${isMobileDevice() ? '90%' : (productCount === 1 ? '600px' : productCount === 2 ? '800px' : '1000px')};
-          max-width: 90%;
-          max-height: ${isMobileDevice() ? '80vh' : '90vh'};
+          width: ${mobile ? '100%' : '90%'};
+          max-width: ${mobile ? '100%' : '800px'};
+          min-height: ${mobile ? '100vh' : 'auto'};
+          max-height: ${mobile ? '100vh' : '90vh'};
           overflow-y: auto;
           position: relative;
-          transform: translateY(20px);
-          transition: transform 0.3s ease;
           direction: ${isRTL ? 'rtl' : 'ltr'};
+          display: flex;
+          flex-direction: column;
         `;
 
-        // Close button
+        // Header
+        const header = document.createElement('div');
+        header.style.cssText = `
+          padding: ${mobile ? '15px' : '25px'};
+          text-align: center;
+          border-bottom: 1px solid #eee;
+          position: relative;
+        `;
+
         const closeButton = document.createElement('button');
         closeButton.innerHTML = '✕';
         closeButton.style.cssText = `
           position: absolute;
-          top: 20px;
-          ${isRTL ? 'right' : 'left'}: 20px;
+          ${isRTL ? 'left' : 'right'}: 15px;
+          top: 50%;
+          transform: translateY(-50%);
           background: none;
           border: none;
           font-size: 24px;
@@ -533,145 +346,43 @@
           color: #666;
           padding: 5px;
           line-height: 1;
-          z-index: 1;
         `;
         closeButton.addEventListener('click', () => this.closeModal());
 
-        // Header section
-        const header = document.createElement('div');
-        header.style.cssText = `
-          text-align: center;
-          margin-bottom: 30px;
-        `;
-
         const title = document.createElement('h2');
-        title.textContent = currentLang === 'ar' ? decodeURIComponent(campaign.textSettings.titleAr) : campaign.textSettings.titleEn;
+        title.textContent = currentLang === 'ar' ? 
+          decodeURIComponent(campaign.textSettings.titleAr) : 
+          campaign.textSettings.titleEn;
         title.style.cssText = `
-          font-size: 28px;
-          margin-bottom: 10px;
+          font-size: ${mobile ? '18px' : '24px'};
+          margin: 0;
+          padding: 0 30px;
           color: #333;
         `;
 
         const subtitle = document.createElement('p');
-        subtitle.textContent = currentLang === 'ar' ? decodeURIComponent(campaign.textSettings.subtitleAr) : campaign.textSettings.subtitleEn;
+        subtitle.textContent = currentLang === 'ar' ? 
+          decodeURIComponent(campaign.textSettings.subtitleAr) : 
+          campaign.textSettings.subtitleEn;
         subtitle.style.cssText = `
-          font-size: 18px;
+          font-size: ${mobile ? '14px' : '16px'};
+          margin: 10px 0 0;
           color: #666;
-          margin: 0;
         `;
 
+        header.appendChild(closeButton);
         header.appendChild(title);
         header.appendChild(subtitle);
 
-        // Main content wrapper
-        const mainWrapper = document.createElement('div');
-        mainWrapper.style.cssText = `
-          display: ${isMobileDevice() ? 'flex' : 'flex'};
-          flex-direction: ${isMobileDevice() ? 'column' : 'row'};
-          gap: ${isMobileDevice() ? '20px' : '30px'};
-          align-items: ${isMobileDevice() ? 'stretch' : 'flex-start'};
+        // Products container
+        const productsContainer = document.createElement('div');
+        productsContainer.style.cssText = `
+          padding: ${mobile ? '15px' : '25px'};
+          flex: 1;
+          overflow-y: auto;
         `;
 
-        // Left sidebar
-        const sidebar = document.createElement('div');
-        sidebar.style.cssText = `
-          width: ${isMobileDevice() ? '100%' : '250px'};
-          flex-shrink: 0;
-          background: #f8f9fa;
-          padding: ${isMobileDevice() ? '15px' : '20px'};
-          border-radius: 8px;
-          position: ${isMobileDevice() ? 'static' : 'sticky'};
-          top: ${isMobileDevice() ? 'auto' : '20px'};
-        `;
-
-        // Benefit text
-        const benefitText = document.createElement('div');
-        benefitText.style.cssText = `
-          text-align: center;
-          margin-bottom: 20px;
-          font-size: 18px;
-          color: #333;
-          font-weight: bold;
-        `;
-        benefitText.textContent = currentLang === 'ar' ? 'استفد من العرض' : 'Benefit from the Offer';
-
-        // Add All to Cart button
-        const addAllButton = document.createElement('button');
-        addAllButton.textContent = currentLang === 'ar' ? 'أضف الكل إلى السلة' : 'Add All to Cart';
-        addAllButton.style.cssText = `
-          background: #000;
-          color: white;
-          border: none;
-          border-radius: 25px;
-          padding: ${isMobileDevice() ? '10px 15px' : '12px 20px'};
-          font-size: ${isMobileDevice() ? '14px' : '16px'};
-          cursor: pointer;
-          width: 100%;
-          transition: background-color 0.3s;
-        `;
-
-        addAllButton.addEventListener('mouseover', () => {
-          addAllButton.style.backgroundColor = '#333';
-        });
-
-        addAllButton.addEventListener('mouseout', () => {
-          addAllButton.style.backgroundColor = '#000';
-        });
-
-        addAllButton.addEventListener('click', async () => {
-          const forms = content.querySelectorAll('form');
-          const variantForms = Array.from(forms).filter(form => form.querySelector('.variant-select'));
-          
-          // Check if all variants are selected
-          const allVariantsSelected = variantForms.every(form => {
-            const selects = form.querySelectorAll('.variant-select');
-            return Array.from(selects).every(select => select.value !== '');
-          });
-
-          if (!allVariantsSelected) {
-            const message = currentLang === 'ar' 
-              ? 'الرجاء اختيار جميع الخيارات المطلوبة قبل الإضافة إلى السلة'
-              : 'Please select all required options before adding to cart';
-            alert(message);
-            return;
-          }
-
-          for (const form of forms) {
-            await new Promise((resolve) => {
-              zid.store.cart.addProduct({ formId: form.id })
-                .then((response) => {
-                  console.log('Add to cart response:', response);
-                  if (response.status === 'success' && typeof setCartBadge === 'function') {
-                    setCartBadge(response.data.cart.products_count);
-                  }
-                  resolve();
-                })
-                .catch((error) => {
-                  console.error('Add to cart error:', error);
-                  resolve();
-                });
-            });
-          }
-          // Close the modal after adding all products to the cart
-          this.closeModal();
-        });
-
-        sidebar.appendChild(benefitText);
-        sidebar.appendChild(addAllButton);
-
-        // Products grid
-        const productsGrid = document.createElement('div');
-        productsGrid.style.cssText = `
-          display: ${isMobileDevice() ? 'flex' : 'grid'};
-          flex-direction: ${isMobileDevice() ? 'column' : 'unset'};
-          grid-template-columns: ${!isMobileDevice() ? `repeat(${productCount}, 180px)` : 'unset'};
-          gap: ${isMobileDevice() ? '15px' : '20px'};
-          justify-content: center;
-          width: ${isMobileDevice() ? '100%' : (productCount === 1 ? '200px' : productCount === 2 ? '400px' : '600px')};
-          margin: 0 auto;
-        `;
-
-        // Create product cards
+        // Create and append product cards
         const productCards = await Promise.all(
           campaign.upsellProducts.map(async (product) => {
             return await this.createProductCard(product);
@@ -679,110 +390,220 @@
         );
 
         productCards.filter(card => card !== null).forEach(card => {
-          productsGrid.appendChild(card);
+          productsContainer.appendChild(card);
         });
 
-        // Assemble the layout
-        mainWrapper.appendChild(sidebar);
-        mainWrapper.appendChild(productsGrid);
+        // Add All to Cart button container (fixed at bottom for mobile)
+        const addAllContainer = document.createElement('div');
+        addAllContainer.style.cssText = `
+          padding: 15px;
+          background: white;
+          border-top: 1px solid #eee;
+          ${mobile ? 'position: sticky; bottom: 0;' : ''}
+        `;
+        
+       const addAllButton = document.createElement('button');
+       addAllButton.textContent = currentLang === 'ar' ? 'أضف الكل إلى السلة' : 'Add All to Cart';
+       addAllButton.style.cssText = `
+         width: 100%;
+         padding: ${mobile ? '12px' : '15px'};
+         background: var(--theme-primary, #00b286);
+         color: white;
+         border: none;
+         border-radius: 25px;
+         font-size: ${mobile ? '16px' : '18px'};
+         font-weight: 500;
+         cursor: pointer;
+         transition: opacity 0.3s;
+         display: flex;
+         align-items: center;
+         justify-content: center;
+       `;
 
-        // Assemble modal
-        content.appendChild(closeButton);
-        content.appendChild(header);
-        content.appendChild(mainWrapper);
-        modal.appendChild(content);
-        document.body.appendChild(modal);
+       addAllButton.addEventListener('mouseover', () => {
+         addAllButton.style.opacity = '0.9';
+       });
 
-        // Show modal with animation
-        requestAnimationFrame(() => {
-          modal.style.opacity = '1';
-          content.style.transform = 'translateY(0)';
-        });
+       addAllButton.addEventListener('mouseout', () => {
+         addAllButton.style.opacity = '1';
+       });
 
-        this.currentModal = modal;
+       addAllButton.addEventListener('click', async () => {
+         const forms = content.querySelectorAll('form');
+         const variantForms = Array.from(forms).filter(form => form.querySelector('.variant-select'));
+         
+         // Check if all variants are selected
+         const allVariantsSelected = variantForms.every(form => {
+           const selects = form.querySelectorAll('.variant-select');
+           return Array.from(selects).every(select => select.value !== '');
+         });
 
-        // Close modal when clicking outside
-        modal.addEventListener('click', (e) => {
-          if (e.target === modal) {
-            this.closeModal();
-          }
-        });
+         if (!allVariantsSelected) {
+           const message = currentLang === 'ar' 
+             ? 'الرجاء اختيار جميع الخيارات المطلوبة قبل الإضافة إلى السلة'
+             : 'Please select all required options before adding to cart';
+           alert(message);
+           return;
+         }
 
-        // Handle escape key
-        document.addEventListener('keydown', (e) => {
-          if (e.key === 'Escape') {
-            this.closeModal();
-          }
-        });
-      } catch (error) {
-        console.error('Error creating bundle-style upsell modal:', error);
-      }
-    },
+         const loadingSpinner = document.createElement('div');
+         loadingSpinner.style.cssText = `
+           width: 20px;
+           height: 20px;
+           border: 2px solid #fff;
+           border-top-color: transparent;
+           border-radius: 50%;
+           margin-${isRTL ? 'left' : 'right'}: 10px;
+           animation: spin 1s linear infinite;
+         `;
+         addAllButton.insertBefore(loadingSpinner, addAllButton.firstChild);
+         addAllButton.disabled = true;
+         addAllButton.style.opacity = '0.7';
 
-    closeModal() {
-      if (this.currentModal) {
-        this.currentModal.style.opacity = '0';
-        const content = this.currentModal.querySelector('.hmstudio-upsell-content');
-        if (content) {
-          content.style.transform = 'translateY(20px)';
-        }
-        setTimeout(() => {
-          if (this.currentModal) {
-            this.currentModal.remove();
-            this.currentModal = null;
-          }
-        }, 300);
-      }
-    },
+         try {
+           for (const form of forms) {
+             await new Promise((resolve) => {
+               zid.store.cart.addProduct({ formId: form.id })
+                 .then((response) => {
+                   console.log('Add to cart response:', response);
+                   if (response.status === 'success' && typeof setCartBadge === 'function') {
+                     setCartBadge(response.data.cart.products_count);
+                   }
+                   resolve();
+                 })
+                 .catch((error) => {
+                   console.error('Add to cart error:', error);
+                   resolve();
+                 });
+             });
+           }
+           this.closeModal();
+         } catch (error) {
+           console.error('Error adding products to cart:', error);
+         } finally {
+           if (loadingSpinner) {
+             loadingSpinner.remove();
+           }
+           addAllButton.disabled = false;
+           addAllButton.style.opacity = '1';
+         }
+       });
 
-    initialize() {
-      console.log('Initializing Upsell');
-      
-      // Make sure the global object is available
-      if (!window.HMStudioUpsell) {
-        window.HMStudioUpsell = {
-          showUpsellModal: (...args) => {
-            console.log('showUpsellModal called with args:', args);
-            return this.showUpsellModal.apply(this, args);
-          },
-          closeModal: () => this.closeModal()
-        };
-        console.log('Global HMStudioUpsell object created');
-      }
+       // Assemble the modal
+       addAllContainer.appendChild(addAllButton);
+       content.appendChild(header);
+       content.appendChild(productsContainer);
+       content.appendChild(addAllContainer);
+       modal.appendChild(content);
+       document.body.appendChild(modal);
 
-      // Handle page visibility changes
-      document.addEventListener('visibilitychange', () => {
-        if (document.hidden && this.currentModal) {
-          this.closeModal();
-        }
-      });
+       // Add animation styles
+       const styleSheet = document.createElement('style');
+       styleSheet.textContent = `
+         @keyframes spin {
+           to { transform: rotate(360deg); }
+         }
+       `;
+       document.head.appendChild(styleSheet);
 
-      // Handle window resize
-      window.addEventListener('resize', () => {
-        if (this.currentModal) {
-          const content = this.currentModal.querySelector('.hmstudio-upsell-content');
-          if (content) {
-            content.style.maxHeight = `${window.innerHeight * 0.9}px`;
-            this.showUpsellModal(this.currentCampaign, this.currentProductCart);
-          }
-        }
-      });
+       // Show modal with animation
+       requestAnimationFrame(() => {
+         modal.style.opacity = '1';
+         content.style.transform = 'translateY(0)';
+       });
 
-      // Clean up on page unload
-      window.addEventListener('beforeunload', () => {
-        if (this.currentModal) {
-          this.closeModal();
-        }
-      });
-    }
-  };
+       this.currentModal = modal;
 
-  // Initialize when DOM is ready
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-      UpsellManager.initialize();
-    });
-  } else {
-    UpsellManager.initialize();
-  }
+       // Handle scroll behavior on mobile
+       if (mobile) {
+         document.body.style.overflow = 'hidden';
+       }
+
+       // Close modal when clicking outside
+       modal.addEventListener('click', (e) => {
+         if (e.target === modal) {
+           this.closeModal();
+         }
+       });
+
+       // Handle escape key
+       document.addEventListener('keydown', (e) => {
+         if (e.key === 'Escape') {
+           this.closeModal();
+         }
+       });
+
+     } catch (error) {
+       console.error('Error creating upsell modal:', error);
+     }
+   },
+
+   closeModal() {
+     if (this.currentModal) {
+       this.currentModal.style.opacity = '0';
+       const content = this.currentModal.querySelector('.hmstudio-upsell-content');
+       if (content) {
+         content.style.transform = 'translateY(20px)';
+       }
+
+       // Restore scroll behavior
+       document.body.style.overflow = '';
+
+       setTimeout(() => {
+         if (this.currentModal) {
+           this.currentModal.remove();
+           this.currentModal = null;
+         }
+       }, 300);
+     }
+   },
+
+   initialize() {
+     console.log('Initializing Upsell');
+     
+     if (!window.HMStudioUpsell) {
+       window.HMStudioUpsell = {
+         showUpsellModal: (...args) => this.showUpsellModal.apply(this, args),
+         closeModal: () => this.closeModal()
+       };
+     }
+
+     // Handle page visibility changes
+     document.addEventListener('visibilitychange', () => {
+       if (document.hidden && this.currentModal) {
+         this.closeModal();
+       }
+     });
+
+     // Handle window resize
+     window.addEventListener('resize', () => {
+       if (this.currentModal) {
+         const content = this.currentModal.querySelector('.hmstudio-upsell-content');
+         const isMobile = window.innerWidth <= 768;
+         if (content) {
+           content.style.width = isMobile ? '100%' : '90%';
+           content.style.maxWidth = isMobile ? '100%' : '800px';
+           content.style.height = isMobile ? '100vh' : 'auto';
+           content.style.maxHeight = isMobile ? '100vh' : '90vh';
+         }
+       }
+     });
+
+     // Clean up on page unload
+     window.addEventListener('beforeunload', () => {
+       if (this.currentModal) {
+         this.closeModal();
+       }
+     });
+   }
+ };
+
+ // Initialize when DOM is ready
+ if (document.readyState === 'loading') {
+   document.addEventListener('DOMContentLoaded', () => {
+     UpsellManager.initialize();
+   });
+ } else {
+   UpsellManager.initialize();
+ }
 })();
