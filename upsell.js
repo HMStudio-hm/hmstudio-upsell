@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v2.1.1
+// src/scripts/upsell.js v2.1.2
 // HMStudio Upsell Feature
 
 (function() {
@@ -135,9 +135,9 @@
         quantityWrapper.style.cssText = `
           display: flex;
           align-items: center;
+          justify-content: center;
           gap: 10px;
           margin: 15px 0;
-          justify-content: ${isRTL ? 'flex-end' : 'flex-start'};
         `;
 
         const quantityLabel = document.createElement('label');
@@ -454,12 +454,16 @@
           }
 
           .hmstudio-upsell-content {
-            padding: 20px;
-            width: 95%;
-            max-height: 90vh;
-            border-radius: 12px;
-            margin: 10px;
             background: white;
+            padding: 40px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 1000px;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+            transform: translateY(20px);
+            transition: transform 0.3s ease;
           }
 
           .hmstudio-upsell-header {
@@ -510,110 +514,68 @@
             padding: 15px;
             text-align: center;
             transition: transform 0.2s ease, box-shadow 0.2s ease;
-            display: flex;
-            align-items: center;
-            text-align: right;
-            gap: 15px;
-            background: white;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-          }
-
-          .hmstudio-upsell-product-card img {
-            width: 100px;
-            height: 100px;
-            object-fit: contain;
-          }
-
-          .hmstudio-upsell-product-card h4 {
-            margin: 0 0 10px 0;
-            font-size: 16px;
-          }
-
-          .hmstudio-upsell-product-card .product-price {
-            font-size: 18px;
-            color: #00b286;
-            display: block;
-            margin-bottom: 10px;
-          }
-
-          .hmstudio-upsell-product-card .quantity-wrapper {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin: 10px 0;
-          }
-
-          .hmstudio-upsell-product-card .add-to-cart-btn {
-            background: #00b286;
-            border-radius: 20px;
-            padding: 8px 15px;
           }
 
           @media (max-width: 768px) {
             .hmstudio-upsell-content {
               padding: 20px;
-              width: 95%;
-              max-height: 90vh;
+              width: 100%;
+              height: 100vh;
               border-radius: 12px;
-              margin: 10px;
+              margin: 0;
+            }
+
+            .hmstudio-upsell-main {
+              flex-direction: column;
+              gap: 20px;
+            }
+
+           @media (max-width: 768px) {
+              .hmstudio-upsell-main {
+              flex-direction: row;
+        align-items: center !important;
+        width: 80% !important;
+              gap: 20px;
+            }
+
+
+            .hmstudio-upsell-sidebar {
+              width: 100%;
+              position: static;
+              order: 2;
+            }
+
+            .hmstudio-upsell-products {
+              grid-template-columns: 1fr;
+              gap: 15px;
+              order: 1;
+            }
+
+            .hmstudio-upsell-title {
+              font-size: 20px;
+            }
+
+            .hmstudio-upsell-subtitle {
+              font-size: 14px;
             }
 
             .hmstudio-upsell-product-card {
-              display: flex;
-              align-items: center;
-              text-align: right;
-              padding: 15px;
-              gap: 15px;
-              background: white;
-              border-radius: 12px;
-              box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            }
-
-            .hmstudio-upsell-product-card img {
-              width: 100px;
-              height: 100px;
-              object-fit: contain;
-            }
-
-            .hmstudio-upsell-product-card h4 {
-              margin: 0 0 10px 0;
-              font-size: 16px;
-            }
-
-            .hmstudio-upsell-product-card .product-price {
-              font-size: 18px;
-              color: #00b286;
-              display: block;
-              margin-bottom: 10px;
-            }
-
-            .hmstudio-upsell-product-card .quantity-wrapper {
-              display: flex;
-              align-items: center;
-              gap: 10px;
-              margin: 10px 0;
-            }
-
-            .hmstudio-upsell-product-card .add-to-cart-btn {
-              background: #00b286;
-              border-radius: 20px;
-              padding: 8px 15px;
+              padding: 10px;
             }
           }
 
           @media (max-width: 480px) {
             .hmstudio-upsell-content {
-              width: 92%;
               padding: 15px;
+              width: 92%;
             }
 
-            .hmstudio-upsell-product-card {
-              padding: 12px;
+            .hmstudio-upsell-title {
+              font-size: 18px;
             }
 
             .hmstudio-upsell-product-card img {
-              width: 80px;
-              height: 80px;
+              height: 120px;
             }
           }
         `;
@@ -802,4 +764,3 @@
     UpsellManager.initialize();
   }
 })();
-
