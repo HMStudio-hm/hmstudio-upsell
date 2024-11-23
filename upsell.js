@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v2.1.7
+// src/scripts/upsell.js v2.1.8
 // HMStudio Upsell Feature
 
 (function() {
@@ -136,7 +136,7 @@ styleTag.textContent = `
     gap: 10px;
   }
 
-  /* Updated Quantity Selector Styles */
+  /* Quantity Selector Styles */
   .hmstudio-upsell-product-quantity {
     display: flex;
     align-items: center;
@@ -179,7 +179,7 @@ styleTag.textContent = `
     margin: 0;
   }
 
-  /* Updated Add to Cart Button */
+  /* Add to Cart Button */
   .addToCartBtn {
     width: 100%;
     padding: 8px 15px;
@@ -196,7 +196,7 @@ styleTag.textContent = `
     opacity: 0.9;
   }
 
-  /* Mobile Styles */
+  /* Tablet Styles */
   @media (max-width: 768px) {
     .hmstudio-upsell-content {
       padding: 20px;
@@ -245,18 +245,69 @@ styleTag.textContent = `
     }
   }
 
-  /* Small Mobile Styles */
+  /* Mobile Styles */
   @media (max-width: 480px) {
     .hmstudio-upsell-content {
-      padding: 15px;
+      padding: 20px;
+      width: 100%;
+      height: 100vh;
+      border-radius: 15px;
+      margin: 10px;
     }
 
     .hmstudio-upsell-products {
+      flex-direction: column;
+      align-items: center !important;
+      display: flex !important;
       grid-template-columns: 1fr;
+    }
+
+    .hmstudio-upsell-product-form {
+      flex-direction: row;
+      align-items: center !important;
+      width: 100% !important;
+      display: flex;
+    }
+
+    .hmstudio-upsell-product-image-container {
+      width: 100% !important;
+      height: 100px !important;
+      overflow: unset !important;
+    }
+
+    .hmstudio-upsell-product-content {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
     }
 
     .hmstudio-upsell-product-title {
       min-height: auto;
+      font-size: 14px !important;
+      text-align: start;
+      margin-bottom: 0 !important;
+    }
+
+    .hmstudio-upsell-product-price {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between !important;
+      gap: 8px;
+      color: var(--theme-primary, #00b286);
+      font-weight: bold;
+    }
+
+    .hmstudio-upsell-product-controls {
+      display: flex;
+      flex-direction: unset;
+      gap: 10px;
+    }
+
+    .hmstudio-upsell-product-card {
+      width: 100%;
+      display: flex;
+      padding: 10px;
     }
   }
 `;
