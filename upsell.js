@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v2.1.8
+// src/scripts/upsell.js v2.1.9
 // HMStudio Upsell Feature
 
 (function() {
@@ -121,13 +121,42 @@ styleTag.textContent = `
     text-align: center;
   }
 
+  /* Updated Price Styles */
   .hmstudio-upsell-product-price {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: 2px;
     color: var(--theme-primary, #00b286);
     font-weight: bold;
+  }
+
+  .hmstudio-upsell-price-currency {
+    order: -1;
+    margin-left: 2px;
+    color: #00b286;
+    font-size: 0.9em;
+  }
+
+  /* Variants Styles - Separated */
+  .hmstudio-upsell-variants {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .hmstudio-upsell-variants select {
+    padding: 6px 8px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 12px;
+    width: 100%;
+  }
+
+  .hmstudio-upsell-variants label {
+    font-size: 12px;
+    color: #666;
   }
 
   .hmstudio-upsell-product-controls {
@@ -136,7 +165,7 @@ styleTag.textContent = `
     gap: 10px;
   }
 
-  /* Quantity Selector Styles */
+  /* Updated Quantity Selector Styles */
   .hmstudio-upsell-product-quantity {
     display: flex;
     align-items: center;
@@ -144,30 +173,31 @@ styleTag.textContent = `
     gap: 0;
     margin: 10px auto;
     border: 1px solid #ddd;
-    border-radius: 20px;
-    padding: 2px;
+    border-radius: 15px;
+    padding: 1px;
     width: fit-content;
+    height: 28px;
   }
 
   .hmstudio-upsell-quantity-btn {
-    width: 24px;
-    height: 24px;
+    width: 20px;
+    height: 20px;
     border: none;
     background: none;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 16px;
+    font-size: 14px;
     color: #666;
     padding: 0;
   }
 
   .hmstudio-upsell-product-quantity input {
-    width: 40px;
+    width: 30px;
     border: none;
     text-align: center;
-    font-size: 14px;
+    font-size: 12px;
     padding: 0;
     -moz-appearance: textfield;
     background: transparent;
@@ -179,17 +209,18 @@ styleTag.textContent = `
     margin: 0;
   }
 
-  /* Add to Cart Button */
+  /* Updated Add to Cart Button */
   .addToCartBtn {
     width: 100%;
-    padding: 8px 15px;
+    padding: 6px 12px;
     background: var(--theme-primary, #00b286);
     color: white;
     border: none;
-    border-radius: 20px;
+    border-radius: 15px;
     cursor: pointer;
     transition: opacity 0.3s;
-    font-size: 14px;
+    font-size: 12px;
+    height: 28px;
   }
 
   .addToCartBtn:hover {
@@ -442,22 +473,25 @@ document.head.appendChild(styleTag);
         // Price container
         const priceContainer = document.createElement('div');
         priceContainer.className = 'hmstudio-upsell-product-price';
-    
+        
         const currentPrice = document.createElement('span');
-        const oldPrice = document.createElement('span');
-        oldPrice.style.textDecoration = 'line-through';
-        oldPrice.style.color = '#999';
-        oldPrice.style.fontSize = '0.9em';
-    
-        const currencySymbol = currentLang === 'ar' ? 'ر.س' : 'SAR';
-    
+        const currencySpan = document.createElement('span');
+        currencySpan.className = 'hmstudio-upsell-price-currency';
+        currencySpan.textContent = 'ر.س';
+        
         if (fullProductData.formatted_sale_price) {
-          currentPrice.textContent = fullProductData.formatted_sale_price.replace('SAR', currencySymbol);
-          oldPrice.textContent = fullProductData.formatted_price.replace('SAR', currencySymbol);
-          priceContainer.appendChild(oldPrice);
+          currentPrice.textContent = fullProductData.formatted_sale_price.replace('SAR', '').replace('ر.س', '').trim();
+          const oldPrice = document.createElement('span');
+          oldPrice.style.textDecoration = 'line-through';
+          oldPrice.style.color = '#999';
+          oldPrice.style.fontSize = '0.9em';
+          oldPrice.textContent = fullProductData.formatted_price.replace('SAR', '').replace('ر.س', '').trim();
+          priceContainer.appendChild(currencySpan);
           priceContainer.appendChild(currentPrice);
+          priceContainer.appendChild(oldPrice);
         } else {
-          currentPrice.textContent = fullProductData.formatted_price.replace('SAR', currencySymbol);
+          currentPrice.textContent = fullProductData.formatted_price.replace('SAR', '').replace('ر.س', '').trim();
+          priceContainer.appendChild(currencySpan);
           priceContainer.appendChild(currentPrice);
         }
     
