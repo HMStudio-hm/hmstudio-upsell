@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v2.2.1
+// src/scripts/upsell.js v2.2.2
 // HMStudio Upsell Feature
 
 (function() {
@@ -123,11 +123,13 @@
   
     .hmstudio-upsell-product-price {
       display: flex;
+      flex-direction: row-reverse;
       align-items: center;
-      justify-content: center;
       gap: 8px;
       color: var(--theme-primary, #00b286);
       font-weight: bold;
+      justify-content: center;
+      margin-bottom: 5px;
     }
   
     /* Variants Styles */
@@ -136,7 +138,7 @@
       flex-direction: column;
       gap: 8px;
       width: 100%;
-      margin: 10px 0;
+      margin: 5px 0;
     }
   
     .hmstudio-upsell-variants select {
@@ -159,6 +161,7 @@
       display: flex;
       flex-direction: column;
       gap: 10px;
+      margin-top: 5px;
     }
   
     .hmstudio-upsell-product-quantity {
@@ -313,6 +316,7 @@
   
       .hmstudio-upsell-product-price {
         justify-content: flex-start !important;
+        margin-top: 4px;
       }
   
       .hmstudio-upsell-variants {
@@ -334,7 +338,7 @@
         align-items: center;
         justify-content: space-between;
         gap: 10px;
-        margin-top: 5px;
+        margin-top: 8px;
       }
   
       .hmstudio-upsell-product-quantity {
@@ -491,17 +495,25 @@
           const currencySymbol = currentLang === 'ar' ? 'ر.س' : 'SAR';
       
           if (fullProductData.formatted_sale_price) {
-            currentPrice.textContent = fullProductData.formatted_sale_price.replace('SAR', currencySymbol);
-            oldPrice.textContent = fullProductData.formatted_price.replace('SAR', currencySymbol);
-            priceContainer.appendChild(oldPrice);
+            const priceValue = fullProductData.formatted_sale_price.replace(' ر.س', '').replace('SAR', '').trim();
+            const oldPriceValue = fullProductData.formatted_price.replace(' ر.س', '').replace('SAR', '').trim();
+            
+            currentPrice.textContent = isRTL ? `${priceValue} ${currencySymbol}` : `${currencySymbol} ${priceValue}`;
+            oldPrice.textContent = isRTL ? `${oldPriceValue} ${currencySymbol}` : `${currencySymbol} ${oldPriceValue}`;
+            
+            // Add current price first, then old price
             priceContainer.appendChild(currentPrice);
+            priceContainer.appendChild(oldPrice);
           } else {
-            currentPrice.textContent = fullProductData.formatted_price.replace('SAR', currencySymbol);
+            const priceValue = fullProductData.formatted_price.replace(' ر.س', '').replace('SAR', '').trim();
+            currentPrice.textContent = isRTL ? `${priceValue} ${currencySymbol}` : `${currencySymbol} ${priceValue}`;
             priceContainer.appendChild(currentPrice);
           }
+      
+          contentContainer.appendChild(title);
           contentContainer.appendChild(priceContainer);
       
-          // Add variants if product has options - Now inside content container
+          // Add variants if product has options
           if (fullProductData.has_options && fullProductData.variants?.length > 0) {
             const variantsSection = this.createVariantsSection(fullProductData, currentLang);
             variantsSection.className = 'hmstudio-upsell-variants';
