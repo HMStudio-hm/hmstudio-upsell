@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v2.1.4
+// src/scripts/upsell.js v2.1.5
 // HMStudio Upsell Feature
 
 (function() {
@@ -128,20 +128,63 @@ styleTag.textContent = `
     gap: 10px;
   }
 
+  /* Updated Quantity Selector Styles */
   .hmstudio-upsell-product-quantity {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 10px;
-    margin: 10px 0;
+    gap: 0;
+    margin: 10px auto;
+    border: 1px solid #ddd;
+    border-radius: 20px;
+    padding: 2px;
+    width: fit-content;
+  }
+
+  .hmstudio-upsell-quantity-btn {
+    width: 24px;
+    height: 24px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    color: #666;
+    padding: 0;
   }
 
   .hmstudio-upsell-product-quantity input {
-    width: 60px;
-    padding: 5px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
+    width: 40px;
+    border: none;
     text-align: center;
+    font-size: 14px;
+    padding: 0;
+    -moz-appearance: textfield;
+  }
+
+  .hmstudio-upsell-product-quantity input::-webkit-outer-spin-button,
+  .hmstudio-upsell-product-quantity input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  /* Updated Add to Cart Button */
+  .addToCartBtn {
+    width: 100%;
+    padding: 8px 15px;
+    background: var(--theme-primary, #00b286);
+    color: white;
+    border: none;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: opacity 0.3s;
+    font-size: 14px;
+  }
+
+  .addToCartBtn:hover {
+    opacity: 0.9;
   }
 
   /* Mobile Styles */
@@ -369,63 +412,73 @@ document.head.appendChild(styleTag);
     
         // Quantity selector
         const quantityContainer = document.createElement('div');
-        quantityContainer.className = 'hmstudio-upsell-product-quantity';
-        quantityContainer.style.cssText = `
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 10px;
-        `;
-    
-        const quantityLabel = document.createElement('label');
-        quantityLabel.textContent = currentLang === 'ar' ? 'الكمية:' : 'Quantity:';
-        quantityLabel.style.fontSize = '14px';
-    
-        const quantityInput = document.createElement('input');
-        quantityInput.type = 'number';
-        quantityInput.name = 'quantity';
-        quantityInput.min = '1';
-        quantityInput.value = '1';
-        quantityInput.style.cssText = `
-          width: 60px;
-          padding: 5px;
-          border: 1px solid #ddd;
-          border-radius: 4px;
-          text-align: center;
-        `;
-    
-        quantityContainer.appendChild(quantityLabel);
-        quantityContainer.appendChild(quantityInput);
-        controlsContainer.appendChild(quantityContainer);
-    
-        // Add to cart button
-        const addButton = document.createElement('button');
-        addButton.className = 'addToCartBtn';
-        addButton.type = 'button';
-        addButton.textContent = currentLang === 'ar' ? 'إضافة للسلة' : 'Add to Cart';
-        addButton.style.cssText = `
-          width: 100%;
-          padding: 10px;
-          background: var(--theme-primary, #00b286);
-          color: white;
-          border: none;
-          border-radius: 20px;
-          cursor: pointer;
-          transition: opacity 0.3s;
-        `;
-    
-        addButton.addEventListener('click', () => {
-          zid.store.cart.addProduct({ 
-            formId: form.id
-          }).then(response => {
-            console.log('Add to cart response:', response);
-            if (response.status === 'success' && typeof setCartBadge === 'function') {
-              setCartBadge(response.data.cart.products_count);
-            }
-          }).catch(error => {
-            console.error('Add to cart error:', error);
-          });
-        });
+quantityContainer.className = 'hmstudio-upsell-product-quantity';
+
+const decreaseBtn = document.createElement('button');
+decreaseBtn.className = 'hmstudio-upsell-quantity-btn';
+decreaseBtn.type = 'button';
+decreaseBtn.textContent = '-';
+
+const quantityInput = document.createElement('input');
+quantityInput.type = 'number';
+quantityInput.name = 'quantity';
+quantityInput.min = '1';
+quantityInput.value = '1';
+
+const increaseBtn = document.createElement('button');
+increaseBtn.className = 'hmstudio-upsell-quantity-btn';
+increaseBtn.type = 'button';
+increaseBtn.textContent = '+';
+
+// Add quantity controls functionality
+decreaseBtn.addEventListener('click', () => {
+  const currentValue = parseInt(quantityInput.value);
+  if (currentValue > 1) {
+    quantityInput.value = currentValue - 1;
+    // Trigger change event
+    const event = new Event('change', { bubbles: true });
+    quantityInput.dispatchEvent(event);
+  }
+});
+
+increaseBtn.addEventListener('click', () => {
+  const currentValue = parseInt(quantityInput.value);
+  quantityInput.value = currentValue + 1;
+  // Trigger change event
+  const event = new Event('change', { bubbles: true });
+  quantityInput.dispatchEvent(event);
+});
+
+// Prevent manual typing
+quantityInput.addEventListener('keydown', (e) => {
+  e.preventDefault();
+});
+
+quantityContainer.appendChild(decreaseBtn);
+quantityContainer.appendChild(quantityInput);
+quantityContainer.appendChild(increaseBtn);
+
+// For the add to cart functionality, update the button click handler:
+addButton.addEventListener('click', () => {
+  const formData = new FormData(form);
+  const productID = formData.get('product_id');
+  const quantity = formData.get('quantity');
+
+  zid.store.cart.addProduct({
+    formId: form.id,
+    data: {
+      product_id: productID,
+      quantity: quantity
+    }
+  }).then(response => {
+    console.log('Add to cart response:', response);
+    if (response.status === 'success' && typeof setCartBadge === 'function') {
+      setCartBadge(response.data.cart.products_count);
+    }
+  }).catch(error => {
+    console.error('Add to cart error:', error);
+  });
+});
     
         controlsContainer.appendChild(addButton);
     
