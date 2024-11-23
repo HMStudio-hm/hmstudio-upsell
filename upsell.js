@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v2.1.6
+// src/scripts/upsell.js v2.1.7
 // HMStudio Upsell Feature
 
 (function() {
@@ -86,6 +86,14 @@ styleTag.textContent = `
     transition: transform 0.2s ease, box-shadow 0.2s ease;
   }
 
+  /* Product Form Styles */
+  .hmstudio-upsell-product-form {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
   .hmstudio-upsell-product-image-container {
     width: 100%;
     margin-bottom: 15px;
@@ -162,6 +170,7 @@ styleTag.textContent = `
     font-size: 14px;
     padding: 0;
     -moz-appearance: textfield;
+    background: transparent;
   }
 
   .hmstudio-upsell-product-quantity input::-webkit-outer-spin-button,
@@ -350,7 +359,8 @@ document.head.appendChild(styleTag);
         // Create form
         const form = document.createElement('form');
         form.id = `product-form-${fullProductData.id}`;
-    
+        form.className = 'hmstudio-upsell-product-form';
+
         // Product ID input
         const productIdInput = document.createElement('input');
         productIdInput.type = 'hidden';
