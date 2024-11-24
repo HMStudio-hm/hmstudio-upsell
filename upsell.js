@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v2.2.7
+// src/scripts/upsell.js v2.2.8
 // HMStudio Upsell Feature
 
 (function() {
@@ -123,7 +123,6 @@
   
     .hmstudio-upsell-product-price {
       display: flex;
-      flex-direction: row-reverse;
       align-items: center;
       gap: 8px;
       color: var(--theme-primary, #00b286);
@@ -572,73 +571,90 @@
       
           // Add to cart button
           const addToCartBtn = document.createElement('button');
-          addToCartBtn.className = 'addToCartBtn';
-          addToCartBtn.type = 'button';
-          addToCartBtn.textContent = currentLang === 'ar' ? 'إضافة للسلة' : 'Add to Cart';
+addToCartBtn.className = 'addToCartBtn';
+addToCartBtn.type = 'button';
+const originalText = currentLang === 'ar' ? 'إضافة للسلة' : 'Add to Cart';
+const loadingText = currentLang === 'ar' ? 'جاري الإضافة...' : 'Adding...';
+addToCartBtn.textContent = originalText;
+
+// Add to cart functionality
+addToCartBtn.addEventListener('click', () => {
+  try {
+    // If product has variants, validate all variants are selected
+    if (fullProductData.has_options && fullProductData.variants?.length > 0) {
+      const selects = form.querySelectorAll('.variant-select');
+      const missingSelections = [];
       
-          // Add to cart functionality
-          addToCartBtn.addEventListener('click', () => {
-            try {
-              // If product has variants, validate all variants are selected
-              if (fullProductData.has_options && fullProductData.variants?.length > 0) {
-                const selects = form.querySelectorAll('.variant-select');
-                const missingSelections = [];
-                
-                selects.forEach(select => {
-                  const labelText = select.previousElementSibling.textContent;
-                  if (!select.value) {
-                    missingSelections.push(labelText);
-                  }
-                });
-      
-                if (missingSelections.length > 0) {
-                  const message = currentLang === 'ar' 
-                    ? `الرجاء اختيار ${missingSelections.join(', ')}`
-                    : `Please select ${missingSelections.join(', ')}`;
-                  alert(message);
-                  return;
-                }
-              }
-      
-              // Get quantity value
-              const quantityValue = parseInt(quantityInput.value);
-              if (isNaN(quantityValue) || quantityValue < 1) {
-                const message = currentLang === 'ar' 
-                  ? 'الرجاء إدخال كمية صحيحة'
-                  : 'Please enter a valid quantity';
-                alert(message);
-                return;
-              }
-      
-              // Use Zid's cart function with formId
-              zid.store.cart.addProduct({ 
-                formId: form.id
-              })
-              .then(function(response) {
-                console.log('Add to cart response:', response);
-                if (response.status === 'success') {
-                  if (typeof setCartBadge === 'function') {
-                    setCartBadge(response.data.cart.products_count);
-                  }
-                } else {
-                  console.error('Add to cart failed:', response);
-                  const errorMessage = currentLang === 'ar' 
-                    ? response.data.message || 'فشل إضافة المنتج إلى السلة'
-                    : response.data.message || 'Failed to add product to cart';
-                  alert(errorMessage);
-                }
-              })
-              .catch(function(error) {
-                console.error('Add to cart error:', error);
-                const errorMessage = currentLang === 'ar' 
-                  ? 'حدث خطأ أثناء إضافة المنتج إلى السلة'
-                  : 'Error occurred while adding product to cart';
-                alert(errorMessage);
-              });
-            } catch (error) {
-              console.error('Critical error in add to cart:', error);
-            }
-          });
+      selects.forEach(select => {
+        const labelText = select.previousElementSibling.textContent;
+        if (!select.value) {
+          missingSelections.push(labelText);
+        }
+      });
+
+      if (missingSelections.length > 0) {
+        const message = currentLang === 'ar' 
+          ? `الرجاء اختيار ${missingSelections.join(', ')}`
+          : `Please select ${missingSelections.join(', ')}`;
+        alert(message);
+        return;
+      }
+    }
+
+    // Get quantity value
+    const quantityValue = parseInt(quantityInput.value);
+    if (isNaN(quantityValue) || quantityValue < 1) {
+      const message = currentLang === 'ar' 
+        ? 'الرجاء إدخال كمية صحيحة'
+        : 'Please enter a valid quantity';
+      alert(message);
+      return;
+    }
+
+    // Show loading state
+    addToCartBtn.textContent = loadingText;
+    addToCartBtn.disabled = true;
+    addToCartBtn.style.opacity = '0.7';
+
+    // Use Zid's cart function with formId
+    zid.store.cart.addProduct({ 
+      formId: form.id
+    })
+    .then(function(response) {
+      console.log('Add to cart response:', response);
+      if (response.status === 'success') {
+        if (typeof setCartBadge === 'function') {
+          setCartBadge(response.data.cart.products_count);
+        }
+      } else {
+        console.error('Add to cart failed:', response);
+        const errorMessage = currentLang === 'ar' 
+          ? response.data.message || 'فشل إضافة المنتج إلى السلة'
+          : response.data.message || 'Failed to add product to cart';
+        alert(errorMessage);
+      }
+    })
+    .catch(function(error) {
+      console.error('Add to cart error:', error);
+      const errorMessage = currentLang === 'ar' 
+        ? 'حدث خطأ أثناء إضافة المنتج إلى السلة'
+        : 'Error occurred while adding product to cart';
+      alert(errorMessage);
+    })
+    .finally(function() {
+      // Reset button state
+      addToCartBtn.textContent = originalText;
+      addToCartBtn.disabled = false;
+      addToCartBtn.style.opacity = '1';
+    });
+  } catch (error) {
+    console.error('Critical error in add to cart:', error);
+    // Reset button state on error
+    addToCartBtn.textContent = originalText;
+    addToCartBtn.disabled = false;
+    addToCartBtn.style.opacity = '1';
+  }
+});
       
           controlsContainer.appendChild(addToCartBtn);
           contentContainer.appendChild(controlsContainer);
