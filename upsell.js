@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v2.2.9
+// src/scripts/upsell.js v2.3.0
 // HMStudio Upsell Feature
 
 (function() {
@@ -9,6 +9,7 @@
     /* Base modal styles */
     .hmstudio-upsell-modal {
       position: fixed;
+      align-items: flex-end !important; /* Add this */
       top: 0;
       left: 0;
       width: 100%;
@@ -275,15 +276,22 @@
     padding: 20px;
     width: 100%;
     height: 100vh;
-    border-radius: 15px;
-    margin: 10px;
-    max-width: none !important; /* Override max-width for mobile */
+    position: fixed;  /* Add this */
+    bottom: 0;       /* Add this */
+    left: 0;         /* Add this */
+    right: 0;        /* Add this */
+    border-radius: 15px 15px 0 0; /* Update this */
+    margin: 0;       /* Update this */
+    max-width: none !important;
+    overflow-y: auto;
   }
   
       .hmstudio-upsell-products {
         flex-direction: column;
         align-items: center !important;
         display: flex !important;
+        overflow-y: auto;    /* Add this */
+         max-height: 70vh;    /* Add this */
       }
   
       .hmstudio-upsell-product-card {
