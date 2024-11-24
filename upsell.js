@@ -1,8 +1,7 @@
-// src/scripts/upsell.js v2.2.4
+// src/scripts/upsell.js v2.2.5
 // HMStudio Upsell Feature
 
 (function() {
-
   // Add this style block first
   const styleTag = document.createElement('style');
   styleTag.textContent = `
@@ -70,7 +69,7 @@
   
     .hmstudio-upsell-products {
       display: grid;
-      grid-template-columns: repeat(auto-fit, 180px);
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
       gap: 20px;
       justify-content: center;
       width: 100%;
@@ -123,6 +122,7 @@
   
     .hmstudio-upsell-product-price {
       display: flex;
+      flex-direction: row-reverse;
       align-items: center;
       gap: 8px;
       color: var(--theme-primary, #00b286);
@@ -244,7 +244,7 @@
       }
   
       .hmstudio-upsell-products {
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
         gap: 15px;
         order: 1;
       }
@@ -269,9 +269,7 @@
       }
   
       .hmstudio-upsell-products {
-        flex-direction: column;
-        align-items: center !important;
-        display: flex !important;
+        grid-template-columns: 1fr;
       }
   
       .hmstudio-upsell-product-card {
@@ -282,15 +280,15 @@
   
       .hmstudio-upsell-product-form {
         flex-direction: row;
-        align-items: center !important;
-        width: 100% !important;
+        align-items: center;
+        width: 100%;
         display: flex;
       }
   
       .hmstudio-upsell-product-image-container {
-        width: 100px !important;
-        height: 100px !important;
-        overflow: unset !important;
+        width: 100px;
+        height: 100px;
+        overflow: hidden;
         margin-bottom: 0;
         margin-right: 15px;
       }
@@ -308,13 +306,13 @@
   
       .hmstudio-upsell-product-title {
         min-height: auto;
-        font-size: 14px !important;
+        font-size: 14px;
         text-align: start;
-        margin-bottom: 0 !important;
+        margin-bottom: 0;
       }
   
       .hmstudio-upsell-product-price {
-        justify-content: flex-start !important;
+        justify-content: flex-start;
         margin-top: 4px;
       }
   
@@ -356,532 +354,521 @@
   // Add the style tag to the document head
   document.head.appendChild(styleTag);
   
-    console.log('Upsell script initialized');
-  
-    function getStoreIdFromUrl() {
-      const scriptTag = document.currentScript;
-      const scriptUrl = new URL(scriptTag.src);
-      const storeId = scriptUrl.searchParams.get('storeId');
-      return storeId ? storeId.split('?')[0] : null;
-    }
-  
-    function getCampaignsFromUrl() {
-      const scriptTag = document.currentScript;
-      const scriptUrl = new URL(scriptTag.src);
-      const campaignsData = scriptUrl.searchParams.get('campaigns');
-      
-      if (!campaignsData) {
-        console.log('No campaigns data found in URL');
-        return [];
-      }
+  console.log('Upsell script initialized');
+
+  function getStoreIdFromUrl() {
+    const scriptTag = document.currentScript;
+    const scriptUrl = new URL(scriptTag.src);
+    const storeId = scriptUrl.searchParams.get('storeId');
+    return storeId ? storeId.split('?')[0] : null;
+  }
+
+  function getCampaignsFromUrl() {
+    const scriptTag = document.currentScript;
+    const scriptUrl = new URL(scriptTag.src);
+    const campaignsData = scriptUrl.searchParams.get('campaigns');
     
+    if (!campaignsData) {
+      console.log('No campaigns data found in URL');
+      return [];
+    }
+  
+    try {
+      const decodedData = atob(campaignsData);
+      const parsedData = JSON.parse(decodedData);
+      
+      return parsedData.map(campaign => ({
+        ...campaign,
+        textSettings: {
+          titleAr: campaign.textSettings?.titleAr || '',
+          titleEn: campaign.textSettings?.titleEn || '',
+          subtitleAr: campaign.textSettings?.subtitleAr || '',
+          subtitleEn: campaign.textSettings?.subtitleEn || ''
+        }
+      }));
+    } catch (error) {
+      console.error('Error parsing campaigns data:', error);
+      return [];
+    }
+  }
+
+  function getCurrentLanguage() {
+    return document.documentElement.lang || 'ar';
+  }
+
+  const storeId = getStoreIdFromUrl();
+  if (!storeId) {
+    console.error('Store ID not found in script URL');
+    return;
+  }
+
+  const UpsellManager = {
+    campaigns: getCampaignsFromUrl(),
+    currentModal: null,
+    activeTimeout: null,
+
+    async fetchProductData(productId) {
+      console.log('Fetching product data for ID:', productId);
+      const url = `https://europe-west3-hmstudio-85f42.cloudfunctions.net/getProductData?storeId=${storeId}&productId=${productId}`;
+      
       try {
-        const decodedData = atob(campaignsData);
-        const parsedData = JSON.parse(decodedData);
-        
-        return parsedData.map(campaign => ({
-          ...campaign,
-          textSettings: {
-            titleAr: campaign.textSettings?.titleAr || '',
-            titleEn: campaign.textSettings?.titleEn || '',
-            subtitleAr: campaign.textSettings?.subtitleAr || '',
-            subtitleEn: campaign.textSettings?.subtitleEn || ''
-          }
-        }));
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch product data: ${response.statusText}`);
+        }
+        const data = await response.json();
+        console.log('Received product data:', data);
+        return data;
       } catch (error) {
-        console.error('Error parsing campaigns data:', error);
-        return [];
+        console.error('Error fetching product data:', error);
+        throw error;
       }
-    }
-  
-    function getCurrentLanguage() {
-      return document.documentElement.lang || 'ar';
-    }
-  
-    const storeId = getStoreIdFromUrl();
-    if (!storeId) {
-      console.error('Store ID not found in script URL');
-      return;
-    }
-  
-    const UpsellManager = {
-      campaigns: getCampaignsFromUrl(),
-      currentModal: null,
-      activeTimeout: null,
-  
-      async fetchProductData(productId) {
-        console.log('Fetching product data for ID:', productId);
-        const url = `https://europe-west3-hmstudio-85f42.cloudfunctions.net/getProductData?storeId=${storeId}&productId=${productId}`;
-        
-        try {
-          const response = await fetch(url);
-          if (!response.ok) {
-            throw new Error(`Failed to fetch product data: ${response.statusText}`);
-          }
-          const data = await response.json();
-          console.log('Received product data:', data);
-          return data;
-        } catch (error) {
-          console.error('Error fetching product data:', error);
-          throw error;
+    },
+
+    async createProductCard(product) {
+      try {
+        const fullProductData = await this.fetchProductData(product.id);
+        console.log('Full product data:', fullProductData);
+    
+        if (!fullProductData) {
+          throw new Error('Failed to fetch full product data');
         }
-      },
-  
-      async createProductCard(product) {
-        try {
-          const fullProductData = await this.fetchProductData(product.id);
-          console.log('Full product data:', fullProductData);
-      
-          if (!fullProductData) {
-            throw new Error('Failed to fetch full product data');
-          }
-      
-          const currentLang = getCurrentLanguage();
-          const isRTL = currentLang === 'ar';
-      
-          let productName = fullProductData.name;
-          if (typeof productName === 'object') {
-            productName = currentLang === 'ar' ? productName.ar : productName.en;
-          }
-      
-          // Create main card container
-          const card = document.createElement('div');
-          card.className = 'hmstudio-upsell-product-card';
-      
-          // Create form with proper structure
-          const form = document.createElement('form');
-          form.id = `product-form-${fullProductData.id}`;
-          form.className = 'hmstudio-upsell-product-form';
-      
-          // Product ID input - Make sure this matches Zid's expected structure
-          const productIdInput = document.createElement('input');
-          productIdInput.type = 'hidden';
-          productIdInput.name = 'product_id'; // This name is required by Zid
-          productIdInput.value = fullProductData.id;
-          form.appendChild(productIdInput);
-      
-          // Image container
-          const imageContainer = document.createElement('div');
-          imageContainer.className = 'hmstudio-upsell-product-image-container';
-      
-          const productImage = document.createElement('img');
-          productImage.className = 'hmstudio-upsell-product-image';
-          productImage.src = fullProductData.images?.[0]?.url || product.thumbnail;
-          productImage.alt = productName;
-          imageContainer.appendChild(productImage);
-      
-          // Product content container
-          const contentContainer = document.createElement('div');
-          contentContainer.className = 'hmstudio-upsell-product-content';
-      
-          // Title
-          const title = document.createElement('h5');
-          title.className = 'hmstudio-upsell-product-title';
-          title.textContent = productName;
-          contentContainer.appendChild(title);
-      
-          // Price container
-          const priceContainer = document.createElement('div');
-          priceContainer.className = 'hmstudio-upsell-product-price';
-      
-          const currentPrice = document.createElement('span');
-          const oldPrice = document.createElement('span');
-          oldPrice.style.textDecoration = 'line-through';
-          oldPrice.style.color = '#999';
-          oldPrice.style.fontSize = '0.9em';
-      
-          const currencySymbol = currentLang === 'ar' ? 'ر.س' : 'SAR';
-      
-          if (fullProductData.formatted_sale_price) {
-            const priceValue = fullProductData.formatted_sale_price.replace(' ر.س', '').replace('SAR', '').trim();
-            const oldPriceValue = fullProductData.formatted_price.replace(' ر.س', '').replace('SAR', '').trim();
-            
-            currentPrice.textContent = isRTL ? `${priceValue} ${currencySymbol}` : `${currencySymbol} ${priceValue}`;
-            oldPrice.textContent = isRTL ? `${oldPriceValue} ${currencySymbol}` : `${currencySymbol} ${oldPriceValue}`;
-            priceContainer.appendChild(currentPrice);
-            priceContainer.appendChild(oldPrice);
-          } else {
-            const priceValue = fullProductData.formatted_price.replace(' ر.س', '').replace('SAR', '').trim();
-            currentPrice.textContent = isRTL ? `${priceValue} ${currencySymbol}` : `${currencySymbol} ${priceValue}`;
-            priceContainer.appendChild(currentPrice);
-          }
-          contentContainer.appendChild(priceContainer);
-      
-          // Add variants if product has options
-          if (fullProductData.has_options && fullProductData.variants?.length > 0) {
-            const variantsSection = this.createVariantsSection(fullProductData, currentLang);
-            variantsSection.className = 'hmstudio-upsell-variants';
-            contentContainer.appendChild(variantsSection);
-          }
-      
-          // Controls container
-          const controlsContainer = document.createElement('div');
-          controlsContainer.className = 'hmstudio-upsell-product-controls';
-      
-          // Quantity selector
-          const quantityContainer = document.createElement('div');
-          quantityContainer.className = 'hmstudio-upsell-product-quantity';
-      
-          // Important: Create quantity input first
-          const quantityInput = document.createElement('input');
-          quantityInput.type = 'number';
-          quantityInput.name = 'quantity'; // This name is required by Zid
-          quantityInput.value = '1';
-          quantityInput.min = '1';
-          quantityInput.style.cssText = 'text-align: center; width: 40px; border: none;';
-      
-          const decreaseBtn = document.createElement('button');
-          decreaseBtn.className = 'hmstudio-upsell-quantity-btn';
-          decreaseBtn.type = 'button';
-          decreaseBtn.textContent = '-';
-      
-          const increaseBtn = document.createElement('button');
-          increaseBtn.className = 'hmstudio-upsell-quantity-btn';
-          increaseBtn.type = 'button';
-          increaseBtn.textContent = '+';
-      
-          // Add quantity controls functionality
-          decreaseBtn.addEventListener('click', () => {
-            const currentValue = parseInt(quantityInput.value);
-            if (currentValue > 1) {
-              quantityInput.value = currentValue - 1;
-            }
-          });
-      
-          increaseBtn.addEventListener('click', () => {
-            const currentValue = parseInt(quantityInput.value);
-            quantityInput.value = currentValue + 1;
-          });
-      
-          quantityContainer.appendChild(decreaseBtn);
-          quantityContainer.appendChild(quantityInput);
-          quantityContainer.appendChild(increaseBtn);
-          controlsContainer.appendChild(quantityContainer);
-      
-          // Add to cart button
-          const addToCartBtn = document.createElement('button');
-          addToCartBtn.className = 'addToCartBtn';
-          addToCartBtn.type = 'button'; // Important: type should be 'button', not 'submit'
-          addToCartBtn.textContent = currentLang === 'ar' ? 'إضافة للسلة' : 'Add to Cart';
-      
-          // Add to cart functionality
-          addToCartBtn.addEventListener('click', () => {
-            try {
-              // Validate variants if they exist
-              if (fullProductData.has_options && fullProductData.variants?.length > 0) {
-                const selects = form.querySelectorAll('.variant-select');
-                const missingSelections = [];
-                
-                selects.forEach(select => {
-                  const labelText = select.previousElementSibling.textContent;
-                  if (!select.value) {
-                    missingSelections.push(labelText);
-                  }
-                });
-      
-                if (missingSelections.length > 0) {
-                  const message = currentLang === 'ar' 
-                    ? `الرجاء اختيار ${missingSelections.join(', ')}`
-                    : `Please select ${missingSelections.join(', ')}`;
-                  alert(message);
-                  return;
-                }
-              }
-      
-              // Use Zid's cart API
-              zid.store.cart.addProduct({ 
-                formId: form.id
-              })
-              .then(function(response) {
-                console.log('Add to cart response:', response);
-                if (response.status === 'success') {
-                  if (typeof setCartBadge === 'function') {
-                    setCartBadge(response.data.cart.products_count);
-                  }
-                }
-              })
-              .catch(function(error) {
-                console.error('Add to cart error:', error);
-                const errorMessage = currentLang === 'ar' 
-                  ? 'حدث خطأ أثناء إضافة المنتج إلى السلة'
-                  : 'Error occurred while adding product to cart';
-                alert(errorMessage);
-              });
-            } catch (error) {
-              console.error('Critical error in add to cart:', error);
-            }
-          });
-      
-          controlsContainer.appendChild(addToCartBtn);
-          contentContainer.appendChild(controlsContainer);
-      
-          // Assemble the card
-          form.appendChild(imageContainer);
-          form.appendChild(contentContainer);
-          card.appendChild(form);
-      
-          return card;
-        } catch (error) {
-          console.error('Error creating product card:', error);
-          return null;
-        }
-      },
-  
-      createVariantsSection(product, currentLang) {
-        const variantsContainer = document.createElement('div');
-        variantsContainer.className = 'hmstudio-upsell-variants';
-      
-        if (product.variants && product.variants.length > 0) {
-          const variantAttributes = new Map();
-          
-          product.variants.forEach(variant => {
-            if (variant.attributes && variant.attributes.length > 0) {
-              variant.attributes.forEach(attr => {
-                if (!variantAttributes.has(attr.name)) {
-                  variantAttributes.set(attr.name, {
-                    name: attr.name,
-                    slug: attr.slug,
-                    values: new Set()
-                  });
-                }
-                variantAttributes.get(attr.name).values.add(attr.value[currentLang]);
-              });
-            }
-          });
-      
-          variantAttributes.forEach(attr => {
-            const label = document.createElement('label');
-            label.textContent = currentLang === 'ar' ? attr.slug : attr.name;
-            
-            const select = document.createElement('select');
-            select.className = 'variant-select';
-            
-            const placeholderText = currentLang === 'ar' ? 
-              `اختر ${attr.slug}` : 
-              `Select ${attr.name}`;
-            
-            let optionsHTML = `<option value="">${placeholderText}</option>`;
-            
-            Array.from(attr.values).forEach(value => {
-              optionsHTML += `<option value="${value}">${value}</option>`;
-            });
-            
-            select.innerHTML = optionsHTML;
-      
-            select.addEventListener('change', () => {
-              console.log('Selected:', attr.name, select.value);
-              this.updateSelectedVariant(product, select.closest('form'));
-            });
-      
-            // Create a wrapper for each variant group
-            const variantGroup = document.createElement('div');
-            variantGroup.className = 'hmstudio-upsell-variant-group';
-            variantGroup.appendChild(label);
-            variantGroup.appendChild(select);
-            
-            variantsContainer.appendChild(variantGroup);
-          });
-        }
-      
-        return variantsContainer;
-      },
-  
-      updateSelectedVariant(product, form) {
-        if (!form) {
-          console.error('Product form not found');
-          return;
-        }
-  
-        const currentLang = getCurrentLanguage();
-        const selectedValues = {};
-  
-        form.querySelectorAll('.variant-select').forEach(select => {
-          if (select.value) {
-            const labelText = select.previousElementSibling.textContent;
-            selectedValues[labelText] = select.value;
-          }
-        });
-  
-        console.log('Selected values:', selectedValues);
-  
-        const selectedVariant = product.variants.find(variant => {
-          return variant.attributes.every(attr => {
-            const attrLabel = currentLang === 'ar' ? attr.slug : attr.name;
-            return selectedValues[attrLabel] === attr.value[currentLang];
-          });
-        });
-  
-        console.log('Found variant:', selectedVariant);
-  
-        if (selectedVariant) {
-          const productIdInput = form.querySelector('#product-id');
-          if (productIdInput) {
-            productIdInput.value = selectedVariant.id;
-            console.log('Updated product ID to:', selectedVariant.id);
-          }
-  
-          const priceElement = form.querySelector('.product-price');
-          const oldPriceElement = form.querySelector('.product-old-price');
-          const currencySymbol = currentLang === 'ar' ? 'ر.س' : 'SAR';
-  
-          if (priceElement) {
-            if (selectedVariant.formatted_sale_price) {
-              priceElement.textContent = selectedVariant.formatted_sale_price.replace('SAR', currencySymbol);
-              if (oldPriceElement) {
-                oldPriceElement.textContent = selectedVariant.formatted_price.replace('SAR', currencySymbol);
-                oldPriceElement.style.display = 'inline';
-              }
-            } else {
-              priceElement.textContent = selectedVariant.formatted_price.replace('SAR', currencySymbol);
-              if (oldPriceElement) {
-                oldPriceElement.style.display = 'none';
-              }
-            }
-          }
-  
-          const addToCartBtn = form.parentElement.querySelector('.add-to-cart-btn');
-          if (addToCartBtn) {
-            if (!selectedVariant.unavailable) {
-              addToCartBtn.disabled = false;
-              addToCartBtn.style.opacity = '1';
-              addToCartBtn.style.cursor = 'pointer';
-            } else {
-              addToCartBtn.disabled = true;
-              addToCartBtn.style.opacity = '0.5';
-              addToCartBtn.style.cursor = 'not-allowed';
-            }
-          }
-        }
-      },
-  
-      async showUpsellModal(campaign, productCart) {
-        console.log('Showing upsell modal:', { campaign, productCart });
-        
-        if (!campaign?.upsellProducts?.length) {
-          console.warn('Invalid campaign data:', campaign);
-          return;
-        }
-      
+    
         const currentLang = getCurrentLanguage();
         const isRTL = currentLang === 'ar';
-      
-        try {
-          if (this.currentModal) {
-            this.currentModal.remove();
+    
+        let productName = fullProductData.name;
+        if (typeof productName === 'object') {
+          productName = currentLang === 'ar' ? productName.ar : productName.en;
+        }
+    
+        // Create main card container
+        const card = document.createElement('div');
+        card.className = 'hmstudio-upsell-product-card';
+    
+        // Create form
+        const form = document.createElement('form');
+        form.id = `product-form-${fullProductData.id}`;
+        form.className = 'hmstudio-upsell-product-form';
+    
+        // Product ID input
+        const productIdInput = document.createElement('input');
+        productIdInput.type = 'hidden';
+        productIdInput.id = 'product-id';
+        productIdInput.name = 'product_id';
+        productIdInput.value = fullProductData.selected_product?.id || fullProductData.id;
+        form.appendChild(productIdInput);
+    
+        // Image container
+        const imageContainer = document.createElement('div');
+        imageContainer.className = 'hmstudio-upsell-product-image-container';
+    
+        const productImage = document.createElement('img');
+        productImage.className = 'hmstudio-upsell-product-image';
+        productImage.src = fullProductData.images?.[0]?.url || product.thumbnail;
+        productImage.alt = productName;
+        imageContainer.appendChild(productImage);
+    
+        // Product content container
+        const contentContainer = document.createElement('div');
+        contentContainer.className = 'hmstudio-upsell-product-content';
+    
+        // Title
+        const title = document.createElement('h5');
+        title.className = 
+'hmstudio-upsell-product-title';
+        title.textContent = productName;
+        contentContainer.appendChild(title);
+    
+        // Price container
+        const priceContainer = document.createElement('div');
+        priceContainer.className = 'hmstudio-upsell-product-price';
+    
+        const currentPrice = document.createElement('span');
+        currentPrice.className = 'product-price';
+        const oldPrice = document.createElement('span');
+        oldPrice.className = 'product-old-price';
+        oldPrice.style.textDecoration = 'line-through';
+        oldPrice.style.color = '#999';
+        oldPrice.style.fontSize = '0.9em';
+    
+        const currencySymbol = currentLang === 'ar' ? 'ر.س' : 'SAR';
+    
+        if (fullProductData.formatted_sale_price) {
+          const priceValue = fullProductData.formatted_sale_price.replace(' ر.س', '').replace('SAR', '').trim();
+          const oldPriceValue = fullProductData.formatted_price.replace(' ر.س', '').replace('SAR', '').trim();
+          
+          currentPrice.textContent = isRTL ? `${priceValue} ${currencySymbol}` : `${currencySymbol} ${priceValue}`;
+          oldPrice.textContent = isRTL ? `${oldPriceValue} ${currencySymbol}` : `${currencySymbol} ${oldPriceValue}`;
+          
+          // Add current price first, then old price
+          priceContainer.appendChild(currentPrice);
+          priceContainer.appendChild(oldPrice);
+        } else {
+          const priceValue = fullProductData.formatted_price.replace(' ر.س', '').replace('SAR', '').trim();
+          currentPrice.textContent = isRTL ? `${priceValue} ${currencySymbol}` : `${currencySymbol} ${priceValue}`;
+          priceContainer.appendChild(currentPrice);
+        }
+    
+        contentContainer.appendChild(priceContainer);
+    
+        // Add variants if product has options
+        if (fullProductData.has_options && fullProductData.variants?.length > 0) {
+          const variantsSection = this.createVariantsSection(fullProductData, currentLang);
+          variantsSection.className = 'hmstudio-upsell-variants';
+          contentContainer.appendChild(variantsSection);
+        }
+    
+        // Controls container
+        const controlsContainer = document.createElement('div');
+        controlsContainer.className = 'hmstudio-upsell-product-controls';
+    
+        // Quantity selector
+        const quantityContainer = document.createElement('div');
+        quantityContainer.className = 'hmstudio-upsell-product-quantity';
+    
+        const decreaseBtn = document.createElement('button');
+        decreaseBtn.className = 'hmstudio-upsell-quantity-btn';
+        decreaseBtn.type = 'button';
+        decreaseBtn.textContent = '-';
+    
+        const quantityInput = document.createElement('input');
+        quantityInput.type = 'number';
+        quantityInput.name = 'quantity';
+        quantityInput.min = '1';
+        quantityInput.value = '1';
+    
+        const increaseBtn = document.createElement('button');
+        increaseBtn.className = 'hmstudio-upsell-quantity-btn';
+        increaseBtn.type = 'button';
+        increaseBtn.textContent = '+';
+    
+        // Add quantity controls functionality
+        decreaseBtn.addEventListener('click', () => {
+          const currentValue = parseInt(quantityInput.value);
+          if (currentValue > 1) {
+            quantityInput.value = currentValue - 1;
+            const event = new Event('change', { bubbles: true });
+            quantityInput.dispatchEvent(event);
           }
-      
-          // Create main modal container
-          const modal = document.createElement('div');
-          modal.className = 'hmstudio-upsell-modal';
-          if (isRTL) modal.style.direction = 'rtl';
-      
-          // Create modal content container
-          const content = document.createElement('div');
-          content.className = 'hmstudio-upsell-content';
-      
-          // Create close button
-          const closeButton = document.createElement('button');
-          closeButton.innerHTML = '✕';
-          closeButton.style.cssText = `
-            position: absolute;
-            top: 15px;
-            ${isRTL ? 'right' : 'left'}: 15px;
-            background: none;
-            border: none;
-            font-size: 24px;
-            cursor: pointer;
-            color: #666;
-            padding: 5px;
-            line-height: 1;
-            z-index: 1;
-          `;
-          closeButton.addEventListener('click', () => this.closeModal());
-      
-          // Create header section
-          const header = document.createElement('div');
-          header.className = 'hmstudio-upsell-header';
-      
-          const title = document.createElement('h2');
-          title.className = 'hmstudio-upsell-title';
-          title.textContent = currentLang === 'ar' ? 
-            decodeURIComponent(campaign.textSettings.titleAr) : 
-            campaign.textSettings.titleEn;
-      
-          const subtitle = document.createElement('p');
-          subtitle.className = 'hmstudio-upsell-subtitle';
-          subtitle.textContent = currentLang === 'ar' ? 
-            decodeURIComponent(campaign.textSettings.subtitleAr) : 
-            campaign.textSettings.subtitleEn;
-      
-          header.appendChild(title);
-          header.appendChild(subtitle);
-      
-          // Create main content wrapper
-          const mainWrapper = document.createElement('div');
-          mainWrapper.className = 'hmstudio-upsell-main';
-      
-          // Create sidebar section
-          const sidebar = document.createElement('div');
-          sidebar.className = 'hmstudio-upsell-sidebar';
-      
-          // Create benefit text
-          const benefitText = document.createElement('div');
-          benefitText.style.cssText = `
-            text-align: center;
-            margin-bottom: 20px;
-            font-size: 18px;
-            color: #333;
-            font-weight: bold;
-          `;
-          benefitText.textContent = currentLang === 'ar' ? 'استفد من العرض' : 'Benefit from the Offer';
-          sidebar.appendChild(benefitText);
-      
-          // Create Add All to Cart button
-          const addAllButton = document.createElement('button');
-          addAllButton.textContent = currentLang === 'ar' ? 'أضف الكل إلى السلة' : 'Add All to Cart';
-          addAllButton.style.cssText = `
-            width: 100%;
-            padding: 12px 20px;
-            background: #000;
-            color: white;
-            border: none;
-            border-radius: 25px;
-            font-size: 16px;
-            cursor: pointer;
-            transition: background-color 0.3s;
-          `;
-      
-          addAllButton.addEventListener('mouseover', () => {
-            addAllButton.style.backgroundColor = '#333';
-          });
-      
-          addAllButton.addEventListener('mouseout', () => {
-            addAllButton.style.backgroundColor = '#000';
-          });
-      
-          addAllButton.addEventListener('click', async () => {
-            const forms = content.querySelectorAll('form');
-            const variantForms = Array.from(forms).filter(form => form.querySelector('.variant-select'));
-            
-            // Check if all variants are selected
-            const allVariantsSelected = variantForms.every(form => {
-              const selects = form.querySelectorAll('.variant-select');
-              return Array.from(selects).every(select => select.value !== '');
-            });
-      
-            if (!allVariantsSelected) {
-              const message = currentLang === 'ar' 
-                ? 'الرجاء اختيار جميع الخيارات المطلوبة قبل الإضافة إلى السلة'
-                : 'Please select all required options before adding to cart';
-              alert(message);
-              return;
+        });
+    
+        increaseBtn.addEventListener('click', () => {
+          const currentValue = parseInt(quantityInput.value);
+          quantityInput.value = currentValue + 1;
+          const event = new Event('change', { bubbles: true });
+          quantityInput.dispatchEvent(event);
+        });
+    
+        // Prevent manual typing
+        quantityInput.addEventListener('keydown', (e) => {
+          e.preventDefault();
+        });
+    
+        quantityContainer.appendChild(decreaseBtn);
+        quantityContainer.appendChild(quantityInput);
+        quantityContainer.appendChild(increaseBtn);
+    
+        // Create Add to Cart button
+        const addToCartBtn = document.createElement('button');
+        addToCartBtn.className = 'addToCartBtn';
+        addToCartBtn.type = 'button';
+        addToCartBtn.textContent = currentLang === 'ar' ? 'إضافة للسلة' : 'Add to Cart';
+    
+        // Add to cart functionality
+        addToCartBtn.addEventListener('click', () => {
+          const formData = new FormData(form);
+          const productID = formData.get('product_id');
+          const quantity = formData.get('quantity');
+    
+          zid.store.cart.addProduct({
+            formId: form.id,
+            data: {
+              product_id: productID,
+              quantity: quantity
             }
+          }).then(response => {
+            console.log('Add to cart response:', response);
+            if (response.status === 'success' && typeof setCartBadge === 'function') {
+              setCartBadge(response.data.cart.products_count);
+            }
+          }).catch(error => {
+            console.error('Add to cart error:', error);
+          });
+        });
+    
+        // Append controls
+        controlsContainer.appendChild(quantityContainer);
+        controlsContainer.appendChild(addToCartBtn);
+        contentContainer.appendChild(controlsContainer);
+    
+        // Assemble the card
+        form.appendChild(imageContainer);
+        form.appendChild(contentContainer);
+        card.appendChild(form);
+    
+        return card;
+      } catch (error) {
+        console.error('Error creating product card:', error);
+        return null;
+      }
+    },
+
+    createVariantsSection(product, currentLang) {
+      const variantsContainer = document.createElement('div');
+      variantsContainer.className = 'hmstudio-upsell-variants';
+    
+      if (product.variants && product.variants.length > 0) {
+        const variantAttributes = new Map();
+        
+        product.variants.forEach(variant => {
+          if (variant.attributes && variant.attributes.length > 0) {
+            variant.attributes.forEach(attr => {
+              if (!variantAttributes.has(attr.name)) {
+                variantAttributes.set(attr.name, {
+                  name: attr.name,
+                  slug: attr.slug,
+                  values: new Set()
+                });
+              }
+              variantAttributes.get(attr.name).values.add(attr.value[currentLang]);
+            });
+          }
+        });
+    
+        variantAttributes.forEach(attr => {
+          const label = document.createElement('label');
+          label.textContent = currentLang === 'ar' ? attr.slug : attr.name;
+          
+          const select = document.createElement('select');
+          select.className = 'variant-select';
+          
+          const placeholderText = currentLang === 'ar' ? 
+            `اختر ${attr.slug}` : 
+            `Select ${attr.name}`;
+          
+          let optionsHTML = `<option value="">${placeholderText}</option>`;
+          
+          Array.from(attr.values).forEach(value => {
+            optionsHTML += `<option value="${value}">${value}</option>`;
+          });
+          
+          select.innerHTML = optionsHTML;
+    
+          select.addEventListener('change', () => {
+            console.log('Selected:', attr.name, select.value);
+            this.updateSelectedVariant(product, select.closest('form'));
+          });
+    
+          // Create a wrapper for each variant group
+          const variantGroup = document.createElement('div');
+          variantGroup.className = 'hmstudio-upsell-variant-group';
+          variantGroup.appendChild(label);
+          variantGroup.appendChild(select);
+          
+          variantsContainer.appendChild(variantGroup);
+        });
+      }
+    
+      return variantsContainer;
+    },
+
+    updateSelectedVariant(product, form) {
+      if (!form) {
+        console.error('Product form not found');
+        return;
+      }
+
+      const currentLang = getCurrentLanguage();
+      const selectedValues = {};
+
+      form.querySelectorAll('.variant-select').forEach(select => {
+        if (select.value) {
+          const labelText = select.previousElementSibling.textContent;
+          selectedValues[labelText] = select.value;
+        }
+      });
+
+      console.log('Selected values:', selectedValues);
+
+      const selectedVariant = product.variants.find(variant => {
+        return variant.attributes.every(attr => {
+          const attrLabel = currentLang === 'ar' ? attr.slug : attr.name;
+          return selectedValues[attrLabel] === attr.value[currentLang];
+        });
+      });
+
+      console.log('Found variant:', selectedVariant);
+
+      if (selectedVariant) {
+        const productIdInput = form.querySelector('#product-id');
+        if (productIdInput) {
+          productIdInput.value = selectedVariant.id;
+          console.log('Updated product ID to:', selectedVariant.id);
+        }
+
+        const priceElement = form.querySelector('.product-price');
+        const oldPriceElement = form.querySelector('.product-old-price');
+        const currencySymbol = currentLang === 'ar' ? 'ر.س' : 'SAR';
+
+        if (priceElement) {
+          if (selectedVariant.formatted_sale_price) {
+            priceElement.textContent = selectedVariant.formatted_sale_price.replace('SAR', currencySymbol);
+            if (oldPriceElement) {
+              oldPriceElement.textContent = selectedVariant.formatted_price.replace('SAR', currencySymbol);
+              oldPriceElement.style.display = 'inline';
+            }
+          } else {
+            priceElement.textContent = selectedVariant.formatted_price.replace('SAR', currencySymbol);
+            if (oldPriceElement) {
+              oldPriceElement.style.display = 'none';
+            }
+          }
+        }
+
+        const addToCartBtn = form.querySelector('.addToCartBtn');
+        if (addToCartBtn) {
+          if (!selectedVariant.unavailable) {
+            addToCartBtn.disabled = false;
+            addToCartBtn.style.opacity = '1';
+            addToCartBtn.style.cursor = 'pointer';
+          } else {
+            addToCartBtn.disabled = true;
+            addToCartBtn.style.opacity = '0.5';
+            addToCartBtn.style.cursor = 'not-allowed';
+          }
+        }
+      }
+    },
+
+    async showUpsellModal(campaign, productCart) {
+      console.log('Showing upsell modal:', { campaign, productCart });
       
-            // Add loading state to button
-            addAllButton.disabled = true;
-            addAllButton.style.opacity = '0.7';
-            const originalText = addAllButton.textContent;
-            addAllButton.textContent = currentLang === 'ar' ? 'جاري الإضافة...' : 'Adding...';
+      if (!campaign?.upsellProducts?.length) {
+        console.warn('Invalid campaign data:', campaign);
+        return;
+      }
+    
+      const currentLang = getCurrentLanguage();
+      const isRTL = currentLang === 'ar';
+    
+      try {
+        if (this.currentModal) {
+          this.currentModal.remove();
+        }
+    
+        // Create main modal container
+        const modal = document.createElement('div');
+        modal.className = 'hmstudio-upsell-modal';
+        if (isRTL) modal.style.direction = 'rtl';
+    
+        // Create modal content container
+        const content = document.createElement('div');
+        content.className = 'hmstudio-upsell-content';
+    
+        // Create close button
+        const closeButton = document.createElement('button');
+        closeButton.innerHTML = '✕';
+        closeButton.style.cssText = `
+          position: absolute;
+          top: 15px;
+          ${isRTL ? 'right' : 'left'}: 15px;
+          background: none;
+          border: none;
+          font-size: 24px;
+          cursor: pointer;
+          color: #666;
+          padding: 5px;
+          line-height: 1;
+          z-index: 1;
+        `;
+        closeButton.addEventListener('click', () => this.closeModal());
+    
+        // Create header section
+        const header = document.createElement('div');
+        header.className = 'hmstudio-upsell-header';
+    
+        const title = document.createElement('h2');
+        title.className = 'hmstudio-upsell-title';
+        title.textContent = currentLang === 'ar' ? 
+          decodeURIComponent(campaign.textSettings.titleAr) : 
+          campaign.textSettings.titleEn;
+    
+        const subtitle = document.createElement('p');
+        subtitle.className = 'hmstudio-upsell-subtitle';
+        subtitle.textContent = currentLang === 'ar' ? 
+          decodeURIComponent(campaign.textSettings.subtitleAr) : 
+          campaign.textSettings.subtitleEn;
+    
+        header.appendChild(title);
+        header.appendChild(subtitle);
+    
+        // Create main content wrapper
+        const mainWrapper = document.createElement('div');
+        mainWrapper.className = 'hmstudio-upsell-main';
+    
+        // Create sidebar section
+        const sidebar = document.createElement('div');
+        sidebar.className = 'hmstudio-upsell-sidebar';
+    
+        // Create benefit text
+        const benefitText = document.createElement('div');
+        benefitText.style.cssText = `
+          text-align: center;
+          margin-bottom: 20px;
+          font-size: 18px;
+          color: #333;
+          font-weight: bold;
+        `;
+        benefitText.textContent = currentLang === 'ar' ? 'استفد من العرض' : 'Benefit from the Offer';
+        sidebar.appendChild(benefitText);
+    
+        // Create Add All to Cart button
+        const addAllButton = document.createElement('button');
+        addAllButton.textContent = currentLang === 'ar' ? 'أضف الكل إلى السلة' : 'Add All to Cart';
+        addAllButton.style.cssText = `
+          width: 100%;
+          padding: 12px 20px;
+          background: #000;
+          color: white;
+          border: none;
+          border-radius: 25px;
+          font-size: 16px;
+          cursor: pointer;
+          transition: background-color 0.3s;
+        `;
+    
+        addAllButton.addEventListener('mouseover', () => {
+          addAllButton.style.backgroundColor = '#333';
+        });
+    
+        addAllButton.addEventListener('mouseout', () => {
+          addAllButton.style.backgroundColor = '#000';
+        });
+    
+        addAllButton.addEventListener('click', async () => {
+          const forms = content.querySelectorAll('form');
+          const variantForms = Array.from(forms).filter(form => form.querySelector('.variant-select'));
+          
+          // Check if all variants are selected
+          const allVariantsSelected = variantForms.every(form => {
+            const selects = form.querySelectorAll('.variant-select');
+            return Array.from(selects).every(select => select.value !== '');
+          });
+    
+          if (!allVariantsSelected) {
+            const message = currentLang === 'ar' 
+              ? 'الرجاء اختيار جميع الخيارات المطلوبة قبل الإضافة إلى السلة'
+              : 'Please select all required options before adding to cart';
+            alert(message);
+            return;
+          }
+    
+          // Add loading state to button
+          addAllButton.disabled = true;
+          addAllButton.style.opacity = '0.7';
+          const originalText = addAllButton.textContent;
+          addAllButton.textContent = currentLang === 'ar' ? 'جاري الإضافة...' : 'Adding...';
       
             for (const form of forms) {
               await new Promise((resolve) => {
