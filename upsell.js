@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v2.2.8
+// src/scripts/upsell.js v2.2.9
 // HMStudio Upsell Feature
 
 (function() {
@@ -23,17 +23,26 @@
     }
   
     .hmstudio-upsell-content {
-      background: white;
-      padding: 40px;
-      border-radius: 12px;
-      width: 90%;
-      max-width: 1000px;
-      max-height: 90vh;
-      overflow-y: auto;
-      position: relative;
-      transform: translateY(20px);
-      transition: transform 0.3s ease;
-    }
+  background: white;
+  padding: 40px;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 1000px; /* This will be overridden by the classes below */
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+  transform: translateY(20px);
+  transition: transform 0.3s ease;
+}
+
+/* Add these classes for different product counts */
+.hmstudio-upsell-content-single {
+  max-width: 600px !important;
+}
+
+.hmstudio-upsell-content-double {
+  max-width: 800px !important;
+}
   
     .hmstudio-upsell-header {
       text-align: center;
@@ -260,13 +269,16 @@
   
     /* Small Mobile Styles */
     @media (max-width: 480px) {
-      .hmstudio-upsell-content {
-        padding: 20px;
-        width: 100%;
-        height: 100vh;
-        border-radius: 15px;
-        margin: 10px;
-      }
+  .hmstudio-upsell-content,
+  .hmstudio-upsell-content-single,
+  .hmstudio-upsell-content-double {
+    padding: 20px;
+    width: 100%;
+    height: 100vh;
+    border-radius: 15px;
+    margin: 10px;
+    max-width: none !important; /* Override max-width for mobile */
+  }
   
       .hmstudio-upsell-products {
         flex-direction: column;
@@ -827,6 +839,20 @@ addToCartBtn.addEventListener('click', () => {
           // Create modal content container
           const content = document.createElement('div');
           content.className = 'hmstudio-upsell-content';
+          const productCount = campaign.upsellProducts.length;
+          
+
+          // Base classes
+let contentClasses = ['hmstudio-upsell-content'];
+
+// Add class based on product count
+if (productCount === 1) {
+  contentClasses.push('hmstudio-upsell-content-single');
+} else if (productCount === 2) {
+  contentClasses.push('hmstudio-upsell-content-double');
+}
+
+content.className = contentClasses.join(' ');
       
           // Create close button
           const closeButton = document.createElement('button');
@@ -957,6 +983,18 @@ addToCartBtn.addEventListener('click', () => {
           // Create products grid
           const productsGrid = document.createElement('div');
           productsGrid.className = 'hmstudio-upsell-products';
+          const gridWidth = productCount === 1 ? '200px' : 
+                  productCount === 2 ? '400px' : 
+                  '600px';
+productsGrid.style.cssText = `
+  display: grid;
+  grid-template-columns: repeat(${productCount}, 180px);
+  gap: 20px;
+  justify-content: center;
+  width: ${gridWidth};
+  margin: 0 auto;
+`;
+
       
           // Create and append product cards
           const productCards = await Promise.all(
