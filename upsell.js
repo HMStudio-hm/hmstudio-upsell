@@ -1,9 +1,9 @@
-// src/scripts/upsell.js v2.2.6
+// src/scripts/upsell.js v2.2.7
 // HMStudio Upsell Feature
 
 (function() {
 
-  // Add this style block first
+  // Add this style block first just after the "(function() {" line
   const styleTag = document.createElement('style');
   styleTag.textContent = `
     /* Base modal styles */
@@ -500,8 +500,6 @@
             
             currentPrice.textContent = isRTL ? `${priceValue} ${currencySymbol}` : `${currencySymbol} ${priceValue}`;
             oldPrice.textContent = isRTL ? `${oldPriceValue} ${currencySymbol}` : `${currencySymbol} ${oldPriceValue}`;
-            
-            // Add current price first, then old price
             priceContainer.appendChild(currentPrice);
             priceContainer.appendChild(oldPrice);
           } else {
@@ -509,8 +507,6 @@
             currentPrice.textContent = isRTL ? `${priceValue} ${currencySymbol}` : `${currencySymbol} ${priceValue}`;
             priceContainer.appendChild(currentPrice);
           }
-      
-          contentContainer.appendChild(title);
           contentContainer.appendChild(priceContainer);
       
           // Add variants if product has options
@@ -528,16 +524,19 @@
           const quantityContainer = document.createElement('div');
           quantityContainer.className = 'hmstudio-upsell-product-quantity';
       
+          // Quantity input
+          const quantityInput = document.createElement('input');
+          quantityInput.type = 'number';
+          quantityInput.id = 'product-quantity';
+          quantityInput.name = 'quantity';
+          quantityInput.min = '1';
+          quantityInput.value = '1';
+          quantityInput.style.cssText = 'text-align: center; width: 40px; border: none; background: transparent;';
+      
           const decreaseBtn = document.createElement('button');
           decreaseBtn.className = 'hmstudio-upsell-quantity-btn';
           decreaseBtn.type = 'button';
           decreaseBtn.textContent = '-';
-      
-          const quantityInput = document.createElement('input');
-          quantityInput.type = 'number';
-          quantityInput.name = 'quantity';
-          quantityInput.min = '1';
-          quantityInput.value = '1';
       
           const increaseBtn = document.createElement('button');
           increaseBtn.className = 'hmstudio-upsell-quantity-btn';
@@ -569,8 +568,9 @@
           quantityContainer.appendChild(decreaseBtn);
           quantityContainer.appendChild(quantityInput);
           quantityContainer.appendChild(increaseBtn);
+          controlsContainer.appendChild(quantityContainer);
       
-          // Create Add to Cart button
+          // Add to cart button
           const addToCartBtn = document.createElement('button');
           addToCartBtn.className = 'addToCartBtn';
           addToCartBtn.type = 'button';
@@ -578,37 +578,68 @@
       
           // Add to cart functionality
           addToCartBtn.addEventListener('click', () => {
-            const formData = new FormData(form);
-            const productID = formData.get('product_id');
-            const quantity = formData.get('quantity');
-          
-            if (!productID || !quantity) {
-              console.error('Product ID or quantity is missing', { productID, quantity });
-              return;
+            try {
+              // If product has variants, validate all variants are selected
+              if (fullProductData.has_options && fullProductData.variants?.length > 0) {
+                const selects = form.querySelectorAll('.variant-select');
+                const missingSelections = [];
+                
+                selects.forEach(select => {
+                  const labelText = select.previousElementSibling.textContent;
+                  if (!select.value) {
+                    missingSelections.push(labelText);
+                  }
+                });
+      
+                if (missingSelections.length > 0) {
+                  const message = currentLang === 'ar' 
+                    ? `الرجاء اختيار ${missingSelections.join(', ')}`
+                    : `Please select ${missingSelections.join(', ')}`;
+                  alert(message);
+                  return;
+                }
+              }
+      
+              // Get quantity value
+              const quantityValue = parseInt(quantityInput.value);
+              if (isNaN(quantityValue) || quantityValue < 1) {
+                const message = currentLang === 'ar' 
+                  ? 'الرجاء إدخال كمية صحيحة'
+                  : 'Please enter a valid quantity';
+                alert(message);
+                return;
+              }
+      
+              // Use Zid's cart function with formId
+              zid.store.cart.addProduct({ 
+                formId: form.id
+              })
+              .then(function(response) {
+                console.log('Add to cart response:', response);
+                if (response.status === 'success') {
+                  if (typeof setCartBadge === 'function') {
+                    setCartBadge(response.data.cart.products_count);
+                  }
+                } else {
+                  console.error('Add to cart failed:', response);
+                  const errorMessage = currentLang === 'ar' 
+                    ? response.data.message || 'فشل إضافة المنتج إلى السلة'
+                    : response.data.message || 'Failed to add product to cart';
+                  alert(errorMessage);
+                }
+              })
+              .catch(function(error) {
+                console.error('Add to cart error:', error);
+                const errorMessage = currentLang === 'ar' 
+                  ? 'حدث خطأ أثناء إضافة المنتج إلى السلة'
+                  : 'Error occurred while adding product to cart';
+                alert(errorMessage);
+              });
+            } catch (error) {
+              console.error('Critical error in add to cart:', error);
             }
-          
-            console.log('Adding to cart:', { productID, quantity });
-          
-            zid.store.cart.addProduct({
-              formId: form.id,
-              data: {
-                product_id: productID,
-                quantity: quantity
-              }
-            }).then(response => {
-              console.log('Add to cart response:', response);
-              if (response.status === 'success' && typeof setCartBadge === 'function') {
-                setCartBadge(response.data.cart.products_count);
-              } else if (response.status !== 'success') {
-                console.error('Add to cart failed:', response);
-              }
-            }).catch(error => {
-              console.error('Add to cart error:', error);
-            });
           });
       
-          // Append controls
-          controlsContainer.appendChild(quantityContainer);
           controlsContainer.appendChild(addToCartBtn);
           contentContainer.appendChild(controlsContainer);
       
@@ -647,16 +678,27 @@
           });
       
           variantAttributes.forEach(attr => {
-            const label = document.createElement('label');
-            label.textContent = currentLang === 'ar' ? attr.slug : attr.name;
-            
             const select = document.createElement('select');
             select.className = 'variant-select';
+            select.style.cssText = `
+              margin: 5px 0;
+              padding: 8px;
+              border: 1px solid #ddd;
+              border-radius: 4px;
+              width: 100%;
+            `;
+      
+            const labelText = currentLang === 'ar' ? attr.slug : attr.name;
             
-            const placeholderText = currentLang === 'ar' ? 
-              `اختر ${attr.slug}` : 
-              `Select ${attr.name}`;
-            
+            const label = document.createElement('label');
+            label.textContent = labelText;
+            label.style.cssText = `
+              display: block;
+              margin-bottom: 5px;
+              font-weight: bold;
+            `;
+      
+            const placeholderText = currentLang === 'ar' ? `اختر ${labelText}` : `Select ${labelText}`;
             let optionsHTML = `<option value="">${placeholderText}</option>`;
             
             Array.from(attr.values).forEach(value => {
@@ -666,17 +708,11 @@
             select.innerHTML = optionsHTML;
       
             select.addEventListener('change', () => {
-              console.log('Selected:', attr.name, select.value);
               this.updateSelectedVariant(product, select.closest('form'));
             });
       
-            // Create a wrapper for each variant group
-            const variantGroup = document.createElement('div');
-            variantGroup.className = 'hmstudio-upsell-variant-group';
-            variantGroup.appendChild(label);
-            variantGroup.appendChild(select);
-            
-            variantsContainer.appendChild(variantGroup);
+            variantsContainer.appendChild(label);
+            variantsContainer.appendChild(select);
           });
         }
       
@@ -688,30 +724,30 @@
           console.error('Product form not found');
           return;
         }
-  
+      
         const currentLang = getCurrentLanguage();
         const selectedValues = {};
-  
+      
         form.querySelectorAll('.variant-select').forEach(select => {
           if (select.value) {
             const labelText = select.previousElementSibling.textContent;
             selectedValues[labelText] = select.value;
           }
         });
-  
+      
         console.log('Selected values:', selectedValues);
-  
+      
         const selectedVariant = product.variants.find(variant => {
           return variant.attributes.every(attr => {
             const attrLabel = currentLang === 'ar' ? attr.slug : attr.name;
             return selectedValues[attrLabel] === attr.value[currentLang];
           });
         });
-  
+      
         console.log('Found variant:', selectedVariant);
-  
+      
         if (selectedVariant) {
-          const productIdInput = form.querySelector('#product-id');
+          const productIdInput = form.querySelector('input[name="product_id"]');
           if (productIdInput) {
             productIdInput.value = selectedVariant.id;
             console.log('Updated product ID to:', selectedVariant.id);
