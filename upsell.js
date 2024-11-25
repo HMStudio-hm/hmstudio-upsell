@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v2.3.3
+// src/scripts/upsell.js v2.3.4
 // HMStudio Upsell Feature
 
 (function() {
@@ -80,7 +80,7 @@
   
     .hmstudio-upsell-products {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      grid-template-columns: repeat(3, 1fr);
       gap: 20px;
       justify-content: center;
       width: 100%;
@@ -94,6 +94,7 @@
       padding: 15px;
       text-align: center;
       transition: transform 0.2s ease, box-shadow 0.2s ease;
+      width: 100%;
     }
   
     /* Product Form Styles */
@@ -254,7 +255,7 @@
       }
   
       .hmstudio-upsell-products {
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
         gap: 15px;
         order: 1;
       }
@@ -279,9 +280,7 @@
       }
   
       .hmstudio-upsell-products {
-        flex-direction: column;
-        align-items: center !important;
-        display: flex !important;
+        grid-template-columns: 1fr;
       }
   
       .hmstudio-upsell-product-card {
@@ -370,6 +369,7 @@
   
   // Add the style tag to the document head
   document.head.appendChild(styleTag);
+
   
     console.log('Upsell script initialized');
   
@@ -819,29 +819,39 @@ addToCartBtn.addEventListener('click', () => {
       },
   
       async showUpsellModal(campaign, productCart) {
-        console.log('Showing upsell modal:', { campaign, productCart });
-        
-        if (!campaign?.upsellProducts?.length) {
-          console.warn('Invalid campaign data:', campaign);
-          return;
-        }
-      
-        const currentLang = getCurrentLanguage();
-        const isRTL = currentLang === 'ar';
-      
-        try {
-          if (this.currentModal) {
-            this.currentModal.remove();
-          }
-      
-          // Create main modal container
-          const modal = document.createElement('div');
-          modal.className = 'hmstudio-upsell-modal';
-          if (isRTL) modal.setAttribute('lang', 'ar');
-      
-          // Create modal content container
-          const content = document.createElement('div');
-          content.className = 'hmstudio-upsell-content';
+  console.log('Showing upsell modal:', { campaign, productCart });
+  
+  if (!campaign?.upsellProducts?.length) {
+    console.warn('Invalid campaign data:', campaign);
+    return;
+  }
+
+  const currentLang = getCurrentLanguage();
+  const isRTL = currentLang === 'ar';
+
+  try {
+    if (this.currentModal) {
+      this.currentModal.remove();
+    }
+
+    // Create main modal container
+    const modal = document.createElement('div');
+    modal.className = 'hmstudio-upsell-modal';
+    if (isRTL) modal.setAttribute('lang', 'ar');
+
+    // Create modal content container
+    const content = document.createElement('div');
+    content.className = 'hmstudio-upsell-content';
+
+    // Adjust content width based on number of products
+    const productCount = campaign.upsellProducts.length;
+    if (productCount === 1) {
+      content.style.maxWidth = '400px';
+    } else if (productCount === 2) {
+      content.style.maxWidth = '700px';
+    } else {
+      content.style.maxWidth = '1000px';
+    }
       
           // Create close button
           const closeButton = document.createElement('button');
@@ -970,30 +980,19 @@ addToCartBtn.addEventListener('click', () => {
           sidebar.appendChild(addAllButton);
       
           // Create products grid
-          // Create products grid
-        const productsGrid = document.createElement('div');
-        productsGrid.className = 'hmstudio-upsell-products';
-    
-        // Create and append product cards
-        const productCards = await Promise.all(
-          campaign.upsellProducts.map(product => this.createProductCard(product))
-        );
-    
-        productCards.filter(Boolean).forEach(card => {
-          card.className = 'hmstudio-upsell-product-card';
-          productsGrid.appendChild(card);
-        });
-    
-        // Adjust grid columns based on the number of products
-        const productCount = productCards.filter(Boolean).length;
-        if (productCount === 1) {
-          productsGrid.style.gridTemplateColumns = '1fr';
-        } else if (productCount === 2) {
-          productsGrid.style.gridTemplateColumns = 'repeat(2, 1fr)';
-        } else {
-          productsGrid.style.gridTemplateColumns = 'repeat(3, 1fr)';
-        }
+          const productsGrid = document.createElement('div');
+          productsGrid.className = 'hmstudio-upsell-products';
       
+          // Create and append product cards
+          const productCards = await Promise.all(
+            campaign.upsellProducts.map(product => this.createProductCard(product))
+          );
+      
+          productCards.filter(Boolean).forEach(card => {
+            card.className = 'hmstudio-upsell-product-card';
+            productsGrid.appendChild(card);
+          });
+    
           // Assemble the modal
           mainWrapper.appendChild(sidebar);
           mainWrapper.appendChild(productsGrid);
@@ -1005,13 +1004,13 @@ addToCartBtn.addEventListener('click', () => {
       
           // Add modal to document and animate in
           // Add modal to document and animate in
-        document.body.appendChild(modal);
-        requestAnimationFrame(() => {
-          modal.style.opacity = '1';
-          content.style.transform = 'translateY(0)';
-        });
-    
-        this.currentModal = modal;
+          document.body.appendChild(modal);
+          requestAnimationFrame(() => {
+            modal.style.opacity = '1';
+            content.style.transform = 'translateY(0)';
+          });
+      
+          this.currentModal = modal;
       
           // Add mobile swipe to close functionality
           let touchStartY = 0;
