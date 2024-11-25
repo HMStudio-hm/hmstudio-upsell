@@ -1,15 +1,14 @@
-// src/scripts/upsell.js v2.3.0
+// src/scripts/upsell.js v2.3.1
 // HMStudio Upsell Feature
 
 (function() {
 
-  // Add this style block first just after the "(function() {" line
+  // Add this style block first
   const styleTag = document.createElement('style');
   styleTag.textContent = `
     /* Base modal styles */
     .hmstudio-upsell-modal {
       position: fixed;
-      align-items: flex-end !important; /* Add this */
       top: 0;
       left: 0;
       width: 100%;
@@ -24,26 +23,17 @@
     }
   
     .hmstudio-upsell-content {
-  background: white;
-  padding: 40px;
-  border-radius: 12px;
-  width: 90%;
-  max-width: 1000px; /* This will be overridden by the classes below */
-  max-height: 90vh;
-  overflow-y: auto;
-  position: relative;
-  transform: translateY(20px);
-  transition: transform 0.3s ease;
-}
-
-/* Add these classes for different product counts */
-.hmstudio-upsell-content-single {
-  max-width: 600px !important;
-}
-
-.hmstudio-upsell-content-double {
-  max-width: 800px !important;
-}
+      background: white;
+      padding: 40px;
+      border-radius: 12px;
+      width: 90%;
+      max-width: 1000px;
+      max-height: 90vh;
+      overflow-y: auto;
+      position: relative;
+      transform: translateY(20px);
+      transition: transform 0.3s ease;
+    }
   
     .hmstudio-upsell-header {
       text-align: center;
@@ -270,28 +260,18 @@
   
     /* Small Mobile Styles */
     @media (max-width: 480px) {
-  .hmstudio-upsell-content,
-  .hmstudio-upsell-content-single,
-  .hmstudio-upsell-content-double {
-    padding: 20px;
-    width: 100%;
-    height: 100vh;
-    position: fixed;  /* Add this */
-    bottom: 0;       /* Add this */
-    left: 0;         /* Add this */
-    right: 0;        /* Add this */
-    border-radius: 15px 15px 0 0; /* Update this */
-    margin: 0;       /* Update this */
-    max-width: none !important;
-    overflow-y: auto;
-  }
+      .hmstudio-upsell-content {
+        padding: 20px;
+        width: 100%;
+        height: 100vh;
+        border-radius: 15px;
+        margin: 10px;
+      }
   
       .hmstudio-upsell-products {
         flex-direction: column;
         align-items: center !important;
         display: flex !important;
-        overflow-y: auto;    /* Add this */
-         max-height: 70vh;    /* Add this */
       }
   
       .hmstudio-upsell-product-card {
@@ -370,6 +350,22 @@
         padding: 6px 12px;
         font-size: 12px;
       }
+    }
+
+    /* Arabic Font */
+    @font-face {
+      font-family: "Teshrin AR+LT Bold";
+      src: url("//db.onlinewebfonts.com/t/56364258e3196484d875eec94e6edb93.eot");
+      src: url("//db.onlinewebfonts.com/t/56364258e3196484d875eec94e6edb93.eot?#iefix") format("embedded-opentype"),
+           url("//db.onlinewebfonts.com/t/56364258e3196484d875eec94e6edb93.woff2") format("woff2"),
+           url("//db.onlinewebfonts.com/t/56364258e3196484d875eec94e6edb93.woff") format("woff"),
+           url("//db.onlinewebfonts.com/t/56364258e3196484d875eec94e6edb93.ttf") format("truetype"),
+           url("//db.onlinewebfonts.com/t/56364258e3196484d875eec94e6edb93.svg#Teshrin AR+LT Bold") format("svg");
+    }
+
+    /* Apply Arabic font to all Arabic text */
+    [lang="ar"] {
+      font-family: "Teshrin AR+LT Bold", Arial, sans-serif;
     }
   `;
   
@@ -847,20 +843,12 @@ addToCartBtn.addEventListener('click', () => {
           // Create modal content container
           const content = document.createElement('div');
           content.className = 'hmstudio-upsell-content';
-          const productCount = campaign.upsellProducts.length;
-          
 
-          // Base classes
-let contentClasses = ['hmstudio-upsell-content'];
-
-// Add class based on product count
-if (productCount === 1) {
-  contentClasses.push('hmstudio-upsell-content-single');
-} else if (productCount === 2) {
-  contentClasses.push('hmstudio-upsell-content-double');
-}
-
-content.className = contentClasses.join(' ');
+          // Adjust content size based on number of products
+        const productCount = campaign.upsellProducts.length;
+        if (productCount <= 2) {
+          content.style.maxWidth = productCount === 1 ? '400px' : '700px';
+        }
       
           // Create close button
           const closeButton = document.createElement('button');
@@ -991,18 +979,6 @@ content.className = contentClasses.join(' ');
           // Create products grid
           const productsGrid = document.createElement('div');
           productsGrid.className = 'hmstudio-upsell-products';
-          const gridWidth = productCount === 1 ? '200px' : 
-                  productCount === 2 ? '400px' : 
-                  '600px';
-productsGrid.style.cssText = `
-  display: grid;
-  grid-template-columns: repeat(${productCount}, 180px);
-  gap: 20px;
-  justify-content: center;
-  width: ${gridWidth};
-  margin: 0 auto;
-`;
-
       
           // Create and append product cards
           const productCards = await Promise.all(
