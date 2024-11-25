@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v2.3.2
+// src/scripts/upsell.js v2.3.3
 // HMStudio Upsell Feature
 
 (function() {
@@ -6,6 +6,16 @@
   // Add this style block first
   const styleTag = document.createElement('style');
   styleTag.textContent = `
+    @font-face {
+      font-family: "Teshrin AR+LT Bold";
+      src: url("//db.onlinewebfonts.com/t/56364258e3196484d875eec94e6edb93.eot");
+      src: url("//db.onlinewebfonts.com/t/56364258e3196484d875eec94e6edb93.eot?#iefix") format("embedded-opentype"),
+           url("//db.onlinewebfonts.com/t/56364258e3196484d875eec94e6edb93.woff2") format("woff2"),
+           url("//db.onlinewebfonts.com/t/56364258e3196484d875eec94e6edb93.woff") format("woff"),
+           url("//db.onlinewebfonts.com/t/56364258e3196484d875eec94e6edb93.ttf") format("truetype"),
+           url("//db.onlinewebfonts.com/t/56364258e3196484d875eec94e6edb93.svg#Teshrin AR+LT Bold") format("svg");
+    }
+
     /* Base modal styles */
     .hmstudio-upsell-modal {
       position: fixed;
@@ -28,11 +38,11 @@
       border-radius: 12px;
       width: 90%;
       max-width: 1000px;
+      max-height: 90vh;
+      overflow-y: auto;
       position: relative;
       transform: translateY(20px);
       transition: transform 0.3s ease;
-      display: flex;
-      flex-direction: column;
     }
   
     .hmstudio-upsell-header {
@@ -64,6 +74,8 @@
       background: #f8f9fa;
       padding: 20px;
       border-radius: 8px;
+      position: sticky;
+      top: 20px;
     }
   
     .hmstudio-upsell-products {
@@ -225,8 +237,7 @@
       .hmstudio-upsell-content {
         padding: 20px;
         width: 100%;
-        height: auto;
-        max-height: 100vh;
+        height: 100vh;
         border-radius: 0;
         margin: 0;
       }
@@ -238,6 +249,7 @@
   
       .hmstudio-upsell-sidebar {
         width: 100%;
+        position: static;
         order: 2;
       }
   
@@ -261,14 +273,15 @@
       .hmstudio-upsell-content {
         padding: 20px;
         width: 100%;
-        height: auto;
-        max-height: 100vh;
+        height: 100vh;
         border-radius: 15px;
         margin: 10px;
       }
   
       .hmstudio-upsell-products {
-        grid-template-columns: 1fr;
+        flex-direction: column;
+        align-items: center !important;
+        display: flex !important;
       }
   
       .hmstudio-upsell-product-card {
@@ -349,19 +362,8 @@
       }
     }
 
-    /* Arabic Font */
-    @font-face {
-      font-family: "Teshrin AR+LT Bold";
-      src: url("//db.onlinewebfonts.com/t/56364258e3196484d875eec94e6edb93.eot");
-      src: url("//db.onlinewebfonts.com/t/56364258e3196484d875eec94e6edb93.eot?#iefix") format("embedded-opentype"),
-           url("//db.onlinewebfonts.com/t/56364258e3196484d875eec94e6edb93.woff2") format("woff2"),
-           url("//db.onlinewebfonts.com/t/56364258e3196484d875eec94e6edb93.woff") format("woff"),
-           url("//db.onlinewebfonts.com/t/56364258e3196484d875eec94e6edb93.ttf") format("truetype"),
-           url("//db.onlinewebfonts.com/t/56364258e3196484d875eec94e6edb93.svg#Teshrin AR+LT Bold") format("svg");
-    }
-
-    /* Apply Arabic font to all Arabic text */
-    [lang="ar"] {
+    /* Arabic font for all Arabic text */
+    [lang="ar"] * {
       font-family: "Teshrin AR+LT Bold", Arial, sans-serif;
     }
   `;
@@ -835,17 +837,11 @@ addToCartBtn.addEventListener('click', () => {
           // Create main modal container
           const modal = document.createElement('div');
           modal.className = 'hmstudio-upsell-modal';
-          if (isRTL) modal.style.direction = 'rtl';
+          if (isRTL) modal.setAttribute('lang', 'ar');
       
           // Create modal content container
           const content = document.createElement('div');
           content.className = 'hmstudio-upsell-content';
-  
-          // Adjust content size based on number of products
-          const productCount = campaign.upsellProducts.length;
-          if (productCount <= 2) {
-            content.style.maxWidth = productCount === 1 ? '400px' : '700px';
-          }
       
           // Create close button
           const closeButton = document.createElement('button');
@@ -895,8 +891,7 @@ addToCartBtn.addEventListener('click', () => {
           // Create benefit text
           const benefitText = document.createElement('div');
           benefitText.style.cssText = `
-            text-align:
-  center;
+            text-align: center;
             margin-bottom: 20px;
             font-size: 18px;
             color: #333;
@@ -929,24 +924,75 @@ addToCartBtn.addEventListener('click', () => {
           });
       
           addAllButton.addEventListener('click', async () => {
-            // ... (Add All to Cart functionality remains the same)
+            const forms = content.querySelectorAll('form');
+            const variantForms = Array.from(forms).filter(form => form.querySelector('.variant-select'));
+            
+            // Check if all variants are selected
+            const allVariantsSelected = variantForms.every(form => {
+              const selects = form.querySelectorAll('.variant-select');
+              return Array.from(selects).every(select => select.value !== '');
+            });
+      
+            if (!allVariantsSelected) {
+              const message = currentLang === 'ar' 
+                ? 'الرجاء اختيار جميع الخيارات المطلوبة قبل الإضافة إلى السلة'
+                : 'Please select all required options before adding to cart';
+              alert(message);
+              return;
+            }
+      
+            // Add loading state to button
+            addAllButton.disabled = true;
+            addAllButton.style.opacity = '0.7';
+            const originalText = addAllButton.textContent;
+            addAllButton.textContent = currentLang === 'ar' ? 'جاري الإضافة...' : 'Adding...';
+      
+            for (const form of forms) {
+              await new Promise((resolve) => {
+                zid.store.cart.addProduct({ formId: form.id })
+                  .then((response) => {
+                    console.log('Add to cart response:', response);
+                    if (response.status === 'success' && typeof setCartBadge === 'function') {
+                      setCartBadge(response.data.cart.products_count);
+                    }
+                    resolve();
+                  })
+                  .catch((error) => {
+                    console.error('Add to cart error:', error);
+                    resolve();
+                  });
+              });
+            }
+      
+            this.closeModal();
           });
       
           sidebar.appendChild(addAllButton);
       
           // Create products grid
-          const productsGrid = document.createElement('div');
-          productsGrid.className = 'hmstudio-upsell-products';
-      
-          // Create and append product cards
-          const productCards = await Promise.all(
-            campaign.upsellProducts.map(product => this.createProductCard(product))
-          );
-      
-          productCards.filter(Boolean).forEach(card => {
-            card.className = 'hmstudio-upsell-product-card';
-            productsGrid.appendChild(card);
-          });
+          // Create products grid
+        const productsGrid = document.createElement('div');
+        productsGrid.className = 'hmstudio-upsell-products';
+    
+        // Create and append product cards
+        const productCards = await Promise.all(
+          campaign.upsellProducts.map(product => this.createProductCard(product))
+        );
+    
+        productCards.filter(Boolean).forEach(card => {
+          card.className = 'hmstudio-upsell-product-card';
+          productsGrid.appendChild(card);
+        });
+    
+        // Adjust grid columns based on the number of products
+        const productCount = productCards.filter(Boolean).length;
+        if (productCount === 1) {
+          productsGrid.style.gridTemplateColumns = '1fr';
+        } else if (productCount === 2) {
+          productsGrid.style.gridTemplateColumns = 'repeat(2, 1fr)';
+        } else {
+          productsGrid.style.gridTemplateColumns = 'repeat(3, 1fr)';
+        }
       
           // Assemble the modal
           mainWrapper.appendChild(sidebar);
@@ -958,13 +1004,14 @@ addToCartBtn.addEventListener('click', () => {
           modal.appendChild(content);
       
           // Add modal to document and animate in
-          document.body.appendChild(modal);
-          requestAnimationFrame(() => {
-            modal.style.opacity = '1';
-            content.style.transform = 'translateY(0)';
-          });
-      
-          this.currentModal = modal;
+          // Add modal to document and animate in
+        document.body.appendChild(modal);
+        requestAnimationFrame(() => {
+          modal.style.opacity = '1';
+          content.style.transform = 'translateY(0)';
+        });
+    
+        this.currentModal = modal;
       
           // Add mobile swipe to close functionality
           let touchStartY = 0;
