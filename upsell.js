@@ -1,11 +1,14 @@
-// src/scripts/upsell.js v2.3.5
+// src/scripts/upsell.js v2.3.6
 // HMStudio Upsell Feature
 
 (function() {
 
-  // Add this style block first just after the "(function() {" line
+  // Add this style block first
   const styleTag = document.createElement('style');
   styleTag.textContent = `
+  @font-face {font-family: "Teshrin AR+LT Bold"; src: url("//db.onlinewebfonts.com/t/56364258e3196484d875eec94e6edb93.eot"); 
+src: url("//db.onlinewebfonts.com/t/56364258e3196484d875eec94e6edb93.eot?#iefix") format("embedded-opentype"), url("//db.onlinewebfonts.com/t/56364258e3196484d875eec94e6edb93.woff2") format("woff2"), url("//db.onlinewebfonts.com/t/56364258e3196484d875eec94e6edb93.woff") format("woff"), url("//db.onlinewebfonts.com/t/56364258e3196484d875eec94e6edb93.ttf") format("truetype"), url("//db.onlinewebfonts.com/t/56364258e3196484d875eec94e6edb93.svg#Teshrin AR+LT Bold") format("svg"); 
+}
     /* Base modal styles */
     .hmstudio-upsell-modal {
       position: fixed;
@@ -36,7 +39,7 @@
   
     /* Responsive sizing based on product count */
     .hmstudio-upsell-content:has(.hmstudio-upsell-products > *:only-child) {
-      max-width: 500px; /* For single product */
+      max-width: 620px; /* For single product */
     }
 
     .hmstudio-upsell-content:has(.hmstudio-upsell-products > *:first-child:nth-last-child(2)) {
@@ -92,6 +95,7 @@
     /* Product Card Styles */
     .hmstudio-upsell-product-card {
       border: 1px solid #eee;
+      box-shadow: 0 5px 10px rgba(0, 0, 0, 0.2) !important;
       border-radius: 8px;
       padding: 15px;
       text-align: center;
