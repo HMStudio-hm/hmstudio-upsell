@@ -1,21 +1,11 @@
-// src/scripts/upsell.js v2.3.4
+// src/scripts/upsell.js v2.3.5
 // HMStudio Upsell Feature
 
 (function() {
 
-  // Add this style block first
+  // Add this style block first just after the "(function() {" line
   const styleTag = document.createElement('style');
   styleTag.textContent = `
-    @font-face {
-      font-family: "Teshrin AR+LT Bold";
-      src: url("//db.onlinewebfonts.com/t/56364258e3196484d875eec94e6edb93.eot");
-      src: url("//db.onlinewebfonts.com/t/56364258e3196484d875eec94e6edb93.eot?#iefix") format("embedded-opentype"),
-           url("//db.onlinewebfonts.com/t/56364258e3196484d875eec94e6edb93.woff2") format("woff2"),
-           url("//db.onlinewebfonts.com/t/56364258e3196484d875eec94e6edb93.woff") format("woff"),
-           url("//db.onlinewebfonts.com/t/56364258e3196484d875eec94e6edb93.ttf") format("truetype"),
-           url("//db.onlinewebfonts.com/t/56364258e3196484d875eec94e6edb93.svg#Teshrin AR+LT Bold") format("svg");
-    }
-
     /* Base modal styles */
     .hmstudio-upsell-modal {
       position: fixed;
@@ -37,12 +27,24 @@
       padding: 40px;
       border-radius: 12px;
       width: 90%;
-      max-width: 1000px;
       max-height: 90vh;
       overflow-y: auto;
       position: relative;
       transform: translateY(20px);
       transition: transform 0.3s ease;
+    }
+  
+    /* Responsive sizing based on product count */
+    .hmstudio-upsell-content:has(.hmstudio-upsell-products > *:only-child) {
+      max-width: 500px; /* For single product */
+    }
+
+    .hmstudio-upsell-content:has(.hmstudio-upsell-products > *:first-child:nth-last-child(2)) {
+      max-width: 750px; /* For two products */
+    }
+
+    .hmstudio-upsell-content:has(.hmstudio-upsell-products > *:first-child:nth-last-child(3)) {
+      max-width: 1000px; /* For three products */
     }
   
     .hmstudio-upsell-header {
@@ -80,7 +82,7 @@
   
     .hmstudio-upsell-products {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(auto-fit, 180px);
       gap: 20px;
       justify-content: center;
       width: 100%;
@@ -94,7 +96,6 @@
       padding: 15px;
       text-align: center;
       transition: transform 0.2s ease, box-shadow 0.2s ease;
-      width: 100%;
     }
   
     /* Product Form Styles */
@@ -255,7 +256,7 @@
       }
   
       .hmstudio-upsell-products {
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        grid-template-columns: 1fr 1fr;
         gap: 15px;
         order: 1;
       }
@@ -280,7 +281,9 @@
       }
   
       .hmstudio-upsell-products {
-        grid-template-columns: 1fr;
+        flex-direction: column;
+        align-items: center !important;
+        display: flex !important;
       }
   
       .hmstudio-upsell-product-card {
@@ -360,16 +363,10 @@
         font-size: 12px;
       }
     }
-
-    /* Arabic font for all Arabic text */
-    [lang="ar"] * {
-      font-family: "Teshrin AR+LT Bold", Arial, sans-serif;
-    }
   `;
   
   // Add the style tag to the document head
   document.head.appendChild(styleTag);
-
   
     console.log('Upsell script initialized');
   
@@ -586,91 +583,91 @@
       
           // Add to cart button
           const addToCartBtn = document.createElement('button');
-addToCartBtn.className = 'addToCartBtn';
-addToCartBtn.type = 'button';
-const originalText = currentLang === 'ar' ? 'إضافة للسلة' : 'Add to Cart';
-const loadingText = currentLang === 'ar' ? 'جاري الإضافة...' : 'Adding...';
-addToCartBtn.textContent = originalText;
+          addToCartBtn.className = 'addToCartBtn';
+          addToCartBtn.type = 'button';
+          const originalText = currentLang === 'ar' ? 'إضافة للسلة' : 'Add to Cart';
+          const loadingText = currentLang === 'ar' ? 'جاري الإضافة...' : 'Adding...';
+          addToCartBtn.textContent = originalText;
 
-// Add to cart functionality
-addToCartBtn.addEventListener('click', () => {
-  try {
-    // If product has variants, validate all variants are selected
-    if (fullProductData.has_options && fullProductData.variants?.length > 0) {
-      const selects = form.querySelectorAll('.variant-select');
-      const missingSelections = [];
-      
-      selects.forEach(select => {
-        const labelText = select.previousElementSibling.textContent;
-        if (!select.value) {
-          missingSelections.push(labelText);
-        }
-      });
+          // Add to cart functionality
+          addToCartBtn.addEventListener('click', () => {
+            try {
+              // If product has variants, validate all variants are selected
+              if (fullProductData.has_options && fullProductData.variants?.length > 0) {
+                const selects = form.querySelectorAll('.variant-select');
+                const missingSelections = [];
+                
+                selects.forEach(select => {
+                  const labelText = select.previousElementSibling.textContent;
+                  if (!select.value) {
+                    missingSelections.push(labelText);
+                  }
+                });
 
-      if (missingSelections.length > 0) {
-        const message = currentLang === 'ar' 
-          ? `الرجاء اختيار ${missingSelections.join(', ')}`
-          : `Please select ${missingSelections.join(', ')}`;
-        alert(message);
-        return;
-      }
-    }
+                if (missingSelections.length > 0) {
+                  const message = currentLang === 'ar' 
+                    ? `الرجاء اختيار ${missingSelections.join(', ')}`
+                    : `Please select ${missingSelections.join(', ')}`;
+                  alert(message);
+                  return;
+                }
+              }
 
-    // Get quantity value
-    const quantityValue = parseInt(quantityInput.value);
-    if (isNaN(quantityValue) || quantityValue < 1) {
-      const message = currentLang === 'ar' 
-        ? 'الرجاء إدخال كمية صحيحة'
-        : 'Please enter a valid quantity';
-      alert(message);
-      return;
-    }
+              // Get quantity value
+              const quantityValue = parseInt(quantityInput.value);
+              if (isNaN(quantityValue) || quantityValue < 1) {
+                const message = currentLang === 'ar' 
+                  ? 'الرجاء إدخال كمية صحيحة'
+                  : 'Please enter a valid quantity';
+                alert(message);
+                return;
+              }
 
-    // Show loading state
-    addToCartBtn.textContent = loadingText;
-    addToCartBtn.disabled = true;
-    addToCartBtn.style.opacity = '0.7';
+              // Show loading state
+              addToCartBtn.textContent = loadingText;
+              addToCartBtn.disabled = true;
+              addToCartBtn.style.opacity = '0.7';
 
-    // Use Zid's cart function with formId
-    zid.store.cart.addProduct({ 
-      formId: form.id
-    })
-    .then(function(response) {
-      console.log('Add to cart response:', response);
-      if (response.status === 'success') {
-        if (typeof setCartBadge === 'function') {
-          setCartBadge(response.data.cart.products_count);
-        }
-      } else {
-        console.error('Add to cart failed:', response);
-        const errorMessage = currentLang === 'ar' 
-          ? response.data.message || 'فشل إضافة المنتج إلى السلة'
-          : response.data.message || 'Failed to add product to cart';
-        alert(errorMessage);
-      }
-    })
-    .catch(function(error) {
-      console.error('Add to cart error:', error);
-      const errorMessage = currentLang === 'ar' 
-        ? 'حدث خطأ أثناء إضافة المنتج إلى السلة'
-        : 'Error occurred while adding product to cart';
-      alert(errorMessage);
-    })
-    .finally(function() {
-      // Reset button state
-      addToCartBtn.textContent = originalText;
-      addToCartBtn.disabled = false;
-      addToCartBtn.style.opacity = '1';
-    });
-  } catch (error) {
-    console.error('Critical error in add to cart:', error);
-    // Reset button state on error
-    addToCartBtn.textContent = originalText;
-    addToCartBtn.disabled = false;
-    addToCartBtn.style.opacity = '1';
-  }
-});
-      
+              // Use Zid's cart function with formId
+              zid.store.cart.addProduct({ 
+                formId: form.id
+              })
+              .then(function(response) {
+                console.log('Add to cart response:', response);
+                if (response.status === 'success') {
+                  if (typeof setCartBadge === 'function') {
+                    setCartBadge(response.data.cart.products_count);
+                  }
+                } else {
+                  console.error('Add to cart failed:', response);
+                  const errorMessage = currentLang === 'ar' 
+                    ? response.data.message || 'فشل إضافة المنتج إلى السلة'
+                    : response.data.message || 'Failed to add product to cart';
+                  alert(errorMessage);
+                }
+              })
+              .catch(function(error) {
+                console.error('Add to cart error:', error);
+                const errorMessage = currentLang === 'ar' 
+                  ? 'حدث خطأ أثناء إضافة المنتج إلى السلة'
+                  : 'Error occurred while adding product to cart';
+                alert(errorMessage);
+              })
+              .finally(function() {
+                // Reset button state
+                addToCartBtn.textContent = originalText;
+                addToCartBtn.disabled = false;
+                addToCartBtn.style.opacity = '1';
+              });
+            } catch (error) {
+              console.error('Critical error in add to cart:', error);
+              // Reset button state on error
+              addToCartBtn.textContent = originalText;
+              addToCartBtn.disabled = false;
+              addToCartBtn.style.opacity = '1';
+            }
+          });
+        
           controlsContainer.appendChild(addToCartBtn);
           contentContainer.appendChild(controlsContainer);
       
@@ -819,39 +816,29 @@ addToCartBtn.addEventListener('click', () => {
       },
   
       async showUpsellModal(campaign, productCart) {
-  console.log('Showing upsell modal:', { campaign, productCart });
-  
-  if (!campaign?.upsellProducts?.length) {
-    console.warn('Invalid campaign data:', campaign);
-    return;
-  }
-
-  const currentLang = getCurrentLanguage();
-  const isRTL = currentLang === 'ar';
-
-  try {
-    if (this.currentModal) {
-      this.currentModal.remove();
-    }
-
-    // Create main modal container
-    const modal = document.createElement('div');
-    modal.className = 'hmstudio-upsell-modal';
-    if (isRTL) modal.setAttribute('lang', 'ar');
-
-    // Create modal content container
-    const content = document.createElement('div');
-    content.className = 'hmstudio-upsell-content';
-
-    // Adjust content width based on number of products
-    const productCount = campaign.upsellProducts.length;
-    if (productCount === 1) {
-      content.style.maxWidth = '400px';
-    } else if (productCount === 2) {
-      content.style.maxWidth = '700px';
-    } else {
-      content.style.maxWidth = '1000px';
-    }
+        console.log('Showing upsell modal:', { campaign, productCart });
+        
+        if (!campaign?.upsellProducts?.length) {
+          console.warn('Invalid campaign data:', campaign);
+          return;
+        }
+      
+        const currentLang = getCurrentLanguage();
+        const isRTL = currentLang === 'ar';
+      
+        try {
+          if (this.currentModal) {
+            this.currentModal.remove();
+          }
+      
+          // Create main modal container
+          const modal = document.createElement('div');
+          modal.className = 'hmstudio-upsell-modal';
+          if (isRTL) modal.style.direction = 'rtl';
+      
+          // Create modal content container
+          const content = document.createElement('div');
+          content.className = 'hmstudio-upsell-content';
       
           // Create close button
           const closeButton = document.createElement('button');
@@ -992,7 +979,7 @@ addToCartBtn.addEventListener('click', () => {
             card.className = 'hmstudio-upsell-product-card';
             productsGrid.appendChild(card);
           });
-    
+      
           // Assemble the modal
           mainWrapper.appendChild(sidebar);
           mainWrapper.appendChild(productsGrid);
@@ -1002,7 +989,6 @@ addToCartBtn.addEventListener('click', () => {
           content.appendChild(mainWrapper);
           modal.appendChild(content);
       
-          // Add modal to document and animate in
           // Add modal to document and animate in
           document.body.appendChild(modal);
           requestAnimationFrame(() => {
