@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v2.3.7
+// src/scripts/upsell.js v2.3.8
 // HMStudio Upsell Feature
 
 (function() {
@@ -633,26 +633,33 @@ src: url("//db.onlinewebfonts.com/t/56364258e3196484d875eec94e6edb93.eot?#iefix"
               addToCartBtn.style.opacity = '0.7';
 
               // Track upsell add to cart event
-              fetch('https://europe-west3-hmstudio-85f42.cloudfunctions.net/trackUpsellStats', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  storeId: '${storeId}',
-                  eventType: 'cart_add',
-                  productId: form.querySelector('input[name="product_id"]').value,
-                  productName: fullProductData.name,
-                  quantity: quantityValue,
-                  price: parseFloat(fullProductData.price) || 0,
-                  campaignId: matchingCampaign.id,
-                  campaignName: matchingCampaign.name,
-                  timestamp: new Date().toISOString()
+              // First find the current campaign data
+              const campaignsData = '${encodedUpsellCampaigns}';
+              const campaigns = JSON.parse(atob(campaignsData));
+              const currentCampaign = campaigns.find(c => c.id === campaignId);
+
+              if (currentCampaign) {
+                fetch('https://europe-west3-hmstudio-85f42.cloudfunctions.net/trackUpsellStats', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    storeId: '${storeId}',
+                    eventType: 'cart_add',
+                    productId: form.querySelector('input[name="product_id"]').value,
+                    productName: fullProductData.name,
+                    quantity: quantityValue,
+                    price: parseFloat(fullProductData.price) || 0,
+                    campaignId: currentCampaign.id,
+                    campaignName: currentCampaign.name,
+                    timestamp: new Date().toISOString()
+                  })
                 })
-              })
-              .then(response => response.json())
-              .then(result => console.log('Upsell tracking result:', result))
-              .catch(error => console.error('Upsell tracking error:', error));
+                .then(response => response.json())
+                .then(result => console.log('Upsell tracking result:', result))
+                .catch(error => console.error('Upsell tracking error:', error));
+              }
 
               // Use Zid's cart function with formId
               zid.store.cart.addProduct({ 
