@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v2.4.6
+// src/scripts/upsell.js v2.4.7
 // HMStudio Upsell Feature
 
 (function() {
@@ -859,37 +859,23 @@ src: url("//db.onlinewebfonts.com/t/56364258e3196484d875eec94e6edb93.eot?#iefix"
           console.warn('Invalid campaign data:', campaign);
           return;
         }
-
-        // Track popup display
+        // Track popup open
     try {
-      const scriptTag = document.currentScript || document.querySelector('script[src*="upsell.js"]');
-      if (scriptTag) {
-        const scriptUrl = new URL(scriptTag.src);
-        const storeId = scriptUrl.searchParams.get('storeId');
-        
-        if (storeId) {
-          await fetch('https://europe-west3-hmstudio-85f42.cloudfunctions.net/trackUpsellStats', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              storeId: storeId.split('?')[0], // Clean up any extra parameters
-              eventType: 'popup_show',
-              campaignId: campaign.id,
-              campaignName: campaign.name,
-              timestamp: new Date().toISOString()
-            })
-          });
-          console.log('Successfully tracked popup show for store:', storeId);
-        } else {
-          console.error('Store ID not found in script URL');
-        }
-      } else {
-        console.error('Could not find upsell script tag');
-      }
+      await fetch('https://europe-west3-hmstudio-85f42.cloudfunctions.net/trackUpsellStats', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          storeId,
+          eventType: 'popup_open',
+          campaignId: campaign.id,
+          campaignName: campaign.name,
+          timestamp: new Date().toISOString()
+        })
+      });
     } catch (error) {
-      console.error('Error tracking upsell popup show:', error);
+      console.error('Failed to track upsell popup open:', error);
     }
       
         const currentLang = getCurrentLanguage();
