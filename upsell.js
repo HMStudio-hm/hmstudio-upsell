@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v2.3.9
+// src/scripts/upsell.js v2.4.0
 // HMStudio Upsell Feature
 
 (function() {
@@ -635,29 +635,51 @@ src: url("//db.onlinewebfonts.com/t/56364258e3196484d875eec94e6edb93.eot?#iefix"
               // Track upsell stats before adding to cart
               try {
                 const productId = form.querySelector('input[name="product_id"]').value;
-                console.log('Tracking upsell stats for product:', productId);
-                
+                console.log('Starting upsell tracking...');
+                console.log('Product ID:', productId);
+                console.log('Campaign data:', matchingCampaign);
+
+                // Get the current language for product name
+                const productName = fullProductData.name[currentLang] || fullProductData.name;
+                const productPrice = parseFloat(fullProductData.price) || 0;
+
+                console.log('Tracking data:', {
+                  storeId,
+                  productId,
+                  productName,
+                  quantityValue,
+                  productPrice,
+                  campaignId: matchingCampaign.id,
+                  campaignName: matchingCampaign.name
+                });
+
                 await fetch('https://europe-west3-hmstudio-85f42.cloudfunctions.net/trackUpsellStats', {
                   method: 'POST',
                   headers: {
                     'Content-Type': 'application/json',
                   },
                   body: JSON.stringify({
-                    storeId: '${storeId}',
+                    storeId: storeId,
                     eventType: 'cart_add',
                     productId: productId,
-                    productName: fullProductData.name[currentLang] || fullProductData.name,
+                    productName: productName,
                     quantity: quantityValue,
-                    price: parseFloat(fullProductData.price) || 0,
-                    campaignId: campaignData.id,
-                    campaignName: campaignData.name,
+                    price: productPrice,
+                    campaignId: matchingCampaign.id,
+                    campaignName: matchingCampaign.name,
                     timestamp: new Date().toISOString()
                   })
                 }).then(response => response.json())
                   .then(result => console.log('Upsell tracking result:', result))
                   .catch(error => console.error('Upsell tracking error:', error));
+
+                console.log('Upsell tracking request sent');
               } catch (trackingError) {
                 console.error('Failed to track upsell stats:', trackingError);
+                console.error('Tracking error details:', {
+                  message: trackingError.message,
+                  stack: trackingError.stack
+                });
               }
 
               // Use Zid's cart function with formId
