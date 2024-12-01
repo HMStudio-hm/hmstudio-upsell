@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v2.4.0
+// src/scripts/upsell.js v2.4.1
 // HMStudio Upsell Feature
 
 (function() {
@@ -594,9 +594,9 @@ src: url("//db.onlinewebfonts.com/t/56364258e3196484d875eec94e6edb93.eot?#iefix"
           addToCartBtn.textContent = originalText;
 
           // Add to cart functionality
-          addToCartBtn.addEventListener('click', async () => {
+          addToCartBtn.addEventListener('click', () => {
             try {
-              // Validate variants if present
+              // If product has variants, validate all variants are selected
               if (fullProductData.has_options && fullProductData.variants?.length > 0) {
                 const selects = form.querySelectorAll('.variant-select');
                 const missingSelections = [];
@@ -632,56 +632,6 @@ src: url("//db.onlinewebfonts.com/t/56364258e3196484d875eec94e6edb93.eot?#iefix"
               addToCartBtn.disabled = true;
               addToCartBtn.style.opacity = '0.7';
 
-              // Track upsell stats before adding to cart
-              try {
-                const productId = form.querySelector('input[name="product_id"]').value;
-                console.log('Starting upsell tracking...');
-                console.log('Product ID:', productId);
-                console.log('Campaign data:', matchingCampaign);
-
-                // Get the current language for product name
-                const productName = fullProductData.name[currentLang] || fullProductData.name;
-                const productPrice = parseFloat(fullProductData.price) || 0;
-
-                console.log('Tracking data:', {
-                  storeId,
-                  productId,
-                  productName,
-                  quantityValue,
-                  productPrice,
-                  campaignId: matchingCampaign.id,
-                  campaignName: matchingCampaign.name
-                });
-
-                await fetch('https://europe-west3-hmstudio-85f42.cloudfunctions.net/trackUpsellStats', {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                  },
-                  body: JSON.stringify({
-                    storeId: storeId,
-                    eventType: 'cart_add',
-                    productId: productId,
-                    productName: productName,
-                    quantity: quantityValue,
-                    price: productPrice,
-                    campaignId: matchingCampaign.id,
-                    campaignName: matchingCampaign.name,
-                    timestamp: new Date().toISOString()
-                  })
-                }).then(response => response.json())
-                  .then(result => console.log('Upsell tracking result:', result))
-                  .catch(error => console.error('Upsell tracking error:', error));
-
-                console.log('Upsell tracking request sent');
-              } catch (trackingError) {
-                console.error('Failed to track upsell stats:', trackingError);
-                console.error('Tracking error details:', {
-                  message: trackingError.message,
-                  stack: trackingError.stack
-                });
-              }
-
               // Use Zid's cart function with formId
               zid.store.cart.addProduct({ 
                 formId: form.id
@@ -692,6 +642,37 @@ src: url("//db.onlinewebfonts.com/t/56364258e3196484d875eec94e6edb93.eot?#iefix"
                   if (typeof setCartBadge === 'function') {
                     setCartBadge(response.data.cart.products_count);
                   }
+              
+                  // Add tracking
+                  try {
+                    const quantityInput = form.querySelector('#product-quantity');
+                    const quantity = parseInt(quantityInput.value) || 1;
+                    const productId = form.querySelector('input[name="product_id"]').value;
+                    const productName = form.querySelector('.hmstudio-upsell-product-title').textContent;
+                    const priceElement = form.querySelector('.hmstudio-upsell-product-price');
+                    const priceText = priceElement.textContent.replace(/[^0-9.]/g, '');
+                    const price = parseFloat(priceText) || 0;
+              
+                    fetch('https://europe-west3-hmstudio-85f42.cloudfunctions.net/trackUpsellStats', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                      },
+                      body: JSON.stringify({
+                        storeId,
+                        productId,
+                        productName,
+                        quantity,
+                        price,
+                        campaignId: campaign.id,
+                        campaignName: campaign.name,
+                        timestamp: new Date().toISOString()
+                      })
+                    });
+                  } catch (error) {
+                    console.error('Error tracking upsell stats:', error);
+                  }
+                
                 } else {
                   console.error('Add to cart failed:', response);
                   const errorMessage = currentLang === 'ar' 
@@ -983,7 +964,7 @@ src: url("//db.onlinewebfonts.com/t/56364258e3196484d875eec94e6edb93.eot?#iefix"
               const selects = form.querySelectorAll('.variant-select');
               return Array.from(selects).every(select => select.value !== '');
             });
-      
+          
             if (!allVariantsSelected) {
               const message = currentLang === 'ar' 
                 ? 'الرجاء اختيار جميع الخيارات المطلوبة قبل الإضافة إلى السلة'
@@ -991,20 +972,48 @@ src: url("//db.onlinewebfonts.com/t/56364258e3196484d875eec94e6edb93.eot?#iefix"
               alert(message);
               return;
             }
-      
+          
             // Add loading state to button
             addAllButton.disabled = true;
             addAllButton.style.opacity = '0.7';
             const originalText = addAllButton.textContent;
             addAllButton.textContent = currentLang === 'ar' ? 'جاري الإضافة...' : 'Adding...';
-      
+          
             for (const form of forms) {
               await new Promise((resolve) => {
+                const productId = form.querySelector('input[name="product_id"]').value;
+                const productName = form.querySelector('.hmstudio-upsell-product-title').textContent;
+                const quantityInput = form.querySelector('#product-quantity');
+                const quantity = parseInt(quantityInput.value) || 1;
+                const priceElement = form.querySelector('.hmstudio-upsell-product-price');
+                const priceText = priceElement.textContent.replace(/[^0-9.]/g, '');
+                const price = parseFloat(priceText) || 0;
+          
                 zid.store.cart.addProduct({ formId: form.id })
                   .then((response) => {
                     console.log('Add to cart response:', response);
-                    if (response.status === 'success' && typeof setCartBadge === 'function') {
-                      setCartBadge(response.data.cart.products_count);
+                    if (response.status === 'success') {
+                      if (typeof setCartBadge === 'function') {
+                        setCartBadge(response.data.cart.products_count);
+                      }
+          
+                      // Track each product addition
+                      fetch('https://europe-west3-hmstudio-85f42.cloudfunctions.net/trackUpsellStats', {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                          storeId,
+                          productId,
+                          productName,
+                          quantity,
+                          price,
+                          campaignId: campaign.id,
+                          campaignName: campaign.name,
+                          timestamp: new Date().toISOString()
+                        })
+                      }).catch(error => console.error('Tracking error:', error));
                     }
                     resolve();
                   })
@@ -1014,6 +1023,8 @@ src: url("//db.onlinewebfonts.com/t/56364258e3196484d875eec94e6edb93.eot?#iefix"
                   });
               });
             }
+          
+            modal.remove();
       
             this.closeModal();
           });
