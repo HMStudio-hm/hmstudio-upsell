@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v2.4.3
+// src/scripts/upsell.js v2.4.4
 // HMStudio Upsell Feature
 
 (function() {
@@ -660,6 +660,7 @@ src: url("//db.onlinewebfonts.com/t/56364258e3196484d875eec94e6edb93.eot?#iefix"
                       },
                       body: JSON.stringify({
                         storeId,
+                        eventType: 'cart_add',  // Add this line
                         productId,
                         productName,
                         quantity,
@@ -1006,6 +1007,7 @@ src: url("//db.onlinewebfonts.com/t/56364258e3196484d875eec94e6edb93.eot?#iefix"
                         },
                         body: JSON.stringify({
                           storeId,
+                          eventType: 'cart_add',  // Add this line
                           productId,
                           productName,
                           quantity,
