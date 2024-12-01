@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v2.4.1
+// src/scripts/upsell.js v2.4.2
 // HMStudio Upsell Feature
 
 (function() {
@@ -642,7 +642,7 @@ src: url("//db.onlinewebfonts.com/t/56364258e3196484d875eec94e6edb93.eot?#iefix"
                   if (typeof setCartBadge === 'function') {
                     setCartBadge(response.data.cart.products_count);
                   }
-              
+                
                   // Add tracking
                   try {
                     const quantityInput = form.querySelector('#product-quantity');
@@ -652,7 +652,7 @@ src: url("//db.onlinewebfonts.com/t/56364258e3196484d875eec94e6edb93.eot?#iefix"
                     const priceElement = form.querySelector('.hmstudio-upsell-product-price');
                     const priceText = priceElement.textContent.replace(/[^0-9.]/g, '');
                     const price = parseFloat(priceText) || 0;
-              
+                
                     fetch('https://europe-west3-hmstudio-85f42.cloudfunctions.net/trackUpsellStats', {
                       method: 'POST',
                       headers: {
@@ -664,14 +664,17 @@ src: url("//db.onlinewebfonts.com/t/56364258e3196484d875eec94e6edb93.eot?#iefix"
                         productName,
                         quantity,
                         price,
-                        campaignId: campaign.id,
-                        campaignName: campaign.name,
+                        campaignId: campaignData.id,  // Access from campaignData instead of campaign
+                        campaignName: campaignData.name,  // Access from campaignData instead of campaign
                         timestamp: new Date().toISOString()
                       })
+                    }).catch(error => {
+                      console.error('Failed to track upsell stats:', error);
                     });
                   } catch (error) {
                     console.error('Error tracking upsell stats:', error);
                   }
+                
                 
                 } else {
                   console.error('Add to cart failed:', response);
