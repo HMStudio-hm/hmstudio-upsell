@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v2.4.2
+// src/scripts/upsell.js v2.4.3
 // HMStudio Upsell Feature
 
 (function() {
@@ -443,7 +443,7 @@ src: url("//db.onlinewebfonts.com/t/56364258e3196484d875eec94e6edb93.eot?#iefix"
         }
       },
   
-      async createProductCard(product) {
+      async createProductCard(product, currentCampaign) {
         try {
           const fullProductData = await this.fetchProductData(product.id);
           console.log('Full product data:', fullProductData);
@@ -642,7 +642,7 @@ src: url("//db.onlinewebfonts.com/t/56364258e3196484d875eec94e6edb93.eot?#iefix"
                   if (typeof setCartBadge === 'function') {
                     setCartBadge(response.data.cart.products_count);
                   }
-                
+              
                   // Add tracking
                   try {
                     const quantityInput = form.querySelector('#product-quantity');
@@ -652,7 +652,7 @@ src: url("//db.onlinewebfonts.com/t/56364258e3196484d875eec94e6edb93.eot?#iefix"
                     const priceElement = form.querySelector('.hmstudio-upsell-product-price');
                     const priceText = priceElement.textContent.replace(/[^0-9.]/g, '');
                     const price = parseFloat(priceText) || 0;
-                
+              
                     fetch('https://europe-west3-hmstudio-85f42.cloudfunctions.net/trackUpsellStats', {
                       method: 'POST',
                       headers: {
@@ -664,8 +664,8 @@ src: url("//db.onlinewebfonts.com/t/56364258e3196484d875eec94e6edb93.eot?#iefix"
                         productName,
                         quantity,
                         price,
-                        campaignId: campaignData.id,  // Access from campaignData instead of campaign
-                        campaignName: campaignData.name,  // Access from campaignData instead of campaign
+                        campaignId: currentCampaign.id,
+                        campaignName: currentCampaign.name,
                         timestamp: new Date().toISOString()
                       })
                     }).catch(error => {
@@ -673,9 +673,7 @@ src: url("//db.onlinewebfonts.com/t/56364258e3196484d875eec94e6edb93.eot?#iefix"
                     });
                   } catch (error) {
                     console.error('Error tracking upsell stats:', error);
-                  }
-                
-                
+                  }              
                 } else {
                   console.error('Add to cart failed:', response);
                   const errorMessage = currentLang === 'ar' 
@@ -1040,7 +1038,7 @@ src: url("//db.onlinewebfonts.com/t/56364258e3196484d875eec94e6edb93.eot?#iefix"
       
           // Create and append product cards
           const productCards = await Promise.all(
-            campaign.upsellProducts.map(product => this.createProductCard(product))
+            campaign.upsellProducts.map(product => this.createProductCard(product, campaign))
           );
       
           productCards.filter(Boolean).forEach(card => {
