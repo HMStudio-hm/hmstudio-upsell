@@ -1,4 +1,4 @@
-// src/scripts/upsell.js v2.4.4
+// src/scripts/upsell.js v2.4.5
 // HMStudio Upsell Feature
 
 (function() {
@@ -859,6 +859,25 @@ src: url("//db.onlinewebfonts.com/t/56364258e3196484d875eec94e6edb93.eot?#iefix"
           console.warn('Invalid campaign data:', campaign);
           return;
         }
+
+        // Track popup display
+    try {
+      await fetch('https://europe-west3-hmstudio-85f42.cloudfunctions.net/trackUpsellStats', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          storeId,
+          eventType: 'popup_show',
+          campaignId: campaign.id,
+          campaignName: campaign.name,
+          timestamp: new Date().toISOString()
+        })
+      });
+    } catch (error) {
+      console.error('Error tracking upsell popup show:', error);
+    }
       
         const currentLang = getCurrentLanguage();
         const isRTL = currentLang === 'ar';
